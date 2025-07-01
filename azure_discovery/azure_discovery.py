@@ -1,54 +1,49 @@
+#!/usr/bin/env python3
 """
-Azure Cloud Discovery Module for Infoblox Universal DDI Management Token Calculator.
+Azure Cloud Discovery for Infoblox Universal DDI Management Token Calculator.
 Discovers Azure Native Objects and calculates Management Token requirements.
 """
 
 import logging
-from typing import Dict, List, Optional
+import math
+from datetime import datetime
+from typing import List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
-from datetime import datetime
-import math
 
+from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import ResourceManagementClient
-from azure.identity import DefaultAzureCredential
 
-from config import AzureConfig, get_azure_credential, validate_azure_config
-from utils import format_azure_resource, save_discovery_results, save_management_token_results
+from .config import AzureConfig, get_azure_credential, validate_azure_config
+from .utils import format_azure_resource, save_discovery_results, save_management_token_results
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Configure logging - suppress INFO messages and Azure SDK logging
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
+# Suppress Azure SDK logging
+logging.getLogger('azure').setLevel(logging.WARNING)
+logging.getLogger('azure.core').setLevel(logging.WARNING)
+logging.getLogger('azure.mgmt').setLevel(logging.WARNING)
 
 class AzureDiscovery:
-    """Azure Native Objects discovery and Management Token calculation."""
+    """Azure Cloud Discovery for Management Token calculation."""
     
     def __init__(self, config: AzureConfig):
-        """
-        Initialize Azure discovery.
-        
-        Args:
-            config: Azure configuration object
-        """
+        """Initialize Azure Discovery with configuration."""
         self.config = config
-        
-        # Validate configuration
-        if not validate_azure_config(config):
-            raise ValueError("Invalid Azure configuration")
-        
-        # Initialize Azure clients
-        self.credential = get_azure_credential()
         self.subscription_id = config.subscription_id
-        if not self.subscription_id:
-            raise ValueError("Azure subscription_id must not be None")
+        self.credential = DefaultAzureCredential()
         
         # Management clients
         self.compute_client = ComputeManagementClient(self.credential, self.subscription_id)  # type: ignore
         self.network_client = NetworkManagementClient(self.credential, self.subscription_id)  # type: ignore
         self.resource_client = ResourceManagementClient(self.credential, self.subscription_id)  # type: ignore
+        
+        # Cache for discovered resources to avoid multiple discovery runs
+        self._discovered_resources = None
         
         logger.info(f"Azure Discovery initialized for subscription: {self.subscription_id}")
     
@@ -62,6 +57,10 @@ class AzureDiscovery:
         Returns:
             List of discovered Azure Native Objects
         """
+        # Return cached results if available
+        if self._discovered_resources is not None:
+            return self._discovered_resources
+            
         logger.info("Starting Azure Native Objects discovery (resource group-based)...")
         all_resources = []
         resource_groups = list(self.resource_client.resource_groups.list())
@@ -84,6 +83,9 @@ class AzureDiscovery:
                     finally:
                         pbar.update(1)
         logger.info(f"Discovery complete. Found {len(all_resources)} Native Objects")
+        
+        # Cache the results
+        self._discovered_resources = all_resources
         return all_resources
     
     def _discover_resource_group_resources(self, resource_group) -> List[Dict]:
@@ -154,7 +156,7 @@ class AzureDiscovery:
         Returns:
             Dictionary with calculation results
         """
-        # Get discovered resources
+        # Get discovered resources (will use cached results if available)
         resources = self.discover_native_objects()
         # DDI objects: DNS, DHCP, IPAM objects
         ddi_types = [
@@ -189,6 +191,11 @@ class AzureDiscovery:
         tokens_ips = math.ceil(len(active_ips) / 13)
         tokens_assets = math.ceil(len(unique_assets) / 3)
         total_tokens = tokens_ddi + tokens_ips + tokens_assets
+        
+        # Packs to sell (round up to next 1000)
+        packs = math.ceil(total_tokens / 1000)
+        tokens_packs_total = packs * 1000
+        
         # Breakdown
         breakdown_by_type = {
             'ddi_objects': len(ddi_objects),
@@ -207,7 +214,9 @@ class AzureDiscovery:
             'breakdown_by_type': breakdown_by_type,
             'breakdown_by_region': breakdown_by_region,
             'management_token_free_resources': management_token_free_resources,
-            'calculation_timestamp': datetime.now().isoformat()
+            'calculation_timestamp': datetime.now().isoformat(),
+            'management_token_packs': packs,
+            'management_tokens_packs_total': tokens_packs_total
         }
         return calculation_results
     
@@ -218,7 +227,7 @@ class AzureDiscovery:
         Returns:
             Dictionary mapping file types to file paths
         """
-        # Discover resources
+        # Get discovered resources (will use cached results if available)
         resources = self.discover_native_objects()
         
         # Generate timestamp
@@ -232,7 +241,7 @@ class AzureDiscovery:
             timestamp
         )
         
-        # Calculate and save Management Token results
+        # Calculate and save Management Token results (will use cached resources)
         calculation_results = self.calculate_management_token_requirements()
         token_files = save_management_token_results(
             calculation_results,

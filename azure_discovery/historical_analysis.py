@@ -1,27 +1,35 @@
+#!/usr/bin/env python3
 """
-Historical Analysis Module for Azure Cloud Discovery
-Uses Azure Monitor/Activity Logs to analyze resource growth trends and predict future Management Token requirements.
+Azure Activity Log Historical Analysis for Infoblox Universal DDI Management Token Calculator.
+Analyzes historical resource growth and predicts future Management Token requirements.
 """
 
+import sys
+import logging
+import json
 import pandas as pd
 import numpy as np
+from pathlib import Path
 from datetime import datetime, timedelta
+from typing import Dict, List, Any, Tuple, Optional
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import Pipeline
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import Dict, List, Tuple, Optional
-import json
-import logging
 
-# Azure imports
 from azure.mgmt.monitor import MonitorManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.identity import DefaultAzureCredential
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from .config import AzureConfig
+
+# Configure logging - suppress INFO messages
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 class AzureActivityAnalyzer:
@@ -81,7 +89,7 @@ class AzureActivityAnalyzer:
                         'event_name': event_name,
                         'resource_group': event.resource_group_name,
                         'resource_id': event.resource_id,
-                        'operation_name': event.operation_name.value,
+                        'operation_name': event.operation_name.value if event.operation_name else 'unknown',
                         'status': event.status.value if event.status else 'unknown'
                     }
                     

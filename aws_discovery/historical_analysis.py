@@ -1,29 +1,39 @@
+#!/usr/bin/env python3
 """
-Historical Analysis Module for AWS Cloud Discovery
-Uses AWS CloudTrail to analyze resource growth trends and predict future Management Token requirements.
+AWS CloudTrail Historical Analysis for Infoblox Universal DDI Management Token Calculator.
+Analyzes historical resource growth and predicts future Management Token requirements.
 """
 
+import sys
+import logging
+import json
 import boto3
 import pandas as pd
 import numpy as np
+from pathlib import Path
 from datetime import datetime, timedelta
+from typing import Dict, List, Any, Tuple, Optional
 from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import Pipeline
 import matplotlib.pyplot as plt
 import seaborn as sns
-from typing import Dict, List, Tuple, Optional
-import json
-import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from .config import AWSConfig, get_all_enabled_regions
+from .utils import get_aws_client
+
+# Configure logging - suppress INFO messages
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 class CloudTrailAnalyzer:
     """Analyzes AWS CloudTrail events to understand resource growth patterns."""
     
-    def __init__(self, regions: List[str] = None):
+    def __init__(self, regions: Optional[List[str]] = None):
         self.regions = regions or ['us-east-1']
         self.cloudtrail_client = boto3.client('cloudtrail')
         self.ec2_clients = {region: boto3.client('ec2', region_name=region) for region in self.regions}

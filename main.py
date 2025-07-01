@@ -18,7 +18,7 @@ def main():
     parser.add_argument(
         "provider",
         choices=["aws", "azure"],
-        help="Cloud provider to discover"
+        help="Cloud provider to discover (aws or azure)"
     )
     parser.add_argument(
         "--format",
@@ -39,18 +39,16 @@ def main():
     )
     
     args = parser.parse_args()
-    
     try:
         if args.provider == "aws":
-            from aws.discover import main as aws_main
-            aws_main()
+            from aws_discovery.discover import main as aws_main
+            aws_main(args)
         elif args.provider == "azure":
-            from azure.discover import main as azure_main
-            azure_main()
+            from azure_discovery.discover import main as azure_main
+            azure_main(args)
         else:
             print(f"Unsupported provider: {args.provider}")
             return 1
-            
     except ImportError as e:
         print(f"Error importing {args.provider} module: {e}")
         print("Please ensure you have installed the required dependencies:")
@@ -59,7 +57,6 @@ def main():
     except Exception as e:
         print(f"Error running {args.provider} discovery: {e}")
         return 1
-    
     return 0
 
 if __name__ == "__main__":

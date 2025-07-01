@@ -15,21 +15,23 @@ from datetime import datetime
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from aws_discovery import AWSDiscovery
-from config import AWSConfig, get_all_enabled_regions
-from historical_analysis import CloudTrailAnalyzer
+from .aws_discovery import AWSDiscovery
+from .config import AWSConfig, get_all_enabled_regions
+from .historical_analysis import CloudTrailAnalyzer
 
 
-def main():
+def main(args=None):
     """Main discovery function."""
-    parser = argparse.ArgumentParser(description="AWS Cloud Discovery for Management Token Calculation")
-    parser.add_argument("--format", choices=["json", "csv", "txt"], default="csv",
-                       help="Output format (default: csv)")
-    parser.add_argument("--workers", type=int, default=5,
-                       help="Number of parallel workers (default: 5)")
-    parser.add_argument("--analyze-growth", action="store_true",
-                       help="Analyze historical growth and predict future requirements")
-    args = parser.parse_args()
+    if args is None:
+        # If called directly, parse arguments from command line
+        parser = argparse.ArgumentParser(description="AWS Cloud Discovery for Management Token Calculation")
+        parser.add_argument("--format", choices=["json", "csv", "txt"], default="csv",
+                           help="Output format (default: csv)")
+        parser.add_argument("--workers", type=int, default=5,
+                           help="Number of parallel workers (default: 5)")
+        parser.add_argument("--analyze-growth", action="store_true",
+                           help="Analyze historical growth and predict future requirements")
+        args = parser.parse_args()
     
     print("AWS Cloud Discovery for Management Token Calculation")
     print("=" * 55)
@@ -66,11 +68,11 @@ def main():
         # 1. Summary of discovered resources by type (with up to 2 example names)
         print("\n===== AWS Discovery Summary =====")
         type_to_objs = {}
-        for obj in discovery.native_objects:
-            type_to_objs.setdefault(obj.resource_type, []).append(obj)
-        print(f"Discovered {len(discovery.native_objects)} resources:")
+        for obj in native_objects:
+            type_to_objs.setdefault(obj['resource_type'], []).append(obj)
+        print(f"Discovered {len(native_objects)} resources:")
         for t, objs in type_to_objs.items():
-            examples = ', '.join([str(o.name) for o in objs[:2]])
+            examples = ', '.join([str(o['name']) for o in objs[:2]])
             more = f", ..." if len(objs) > 2 else ""
             print(f"  - {len(objs)} {t}(s)" + (f" (e.g. {examples}{more})" if examples else ""))
         
@@ -78,58 +80,46 @@ def main():
         token_free = discovery.get_management_token_free_assets()
         type_to_free = {}
         for obj in token_free:
-            type_to_free.setdefault(obj.resource_type, []).append(obj)
+            type_to_free.setdefault(obj['resource_type'], []).append(obj)
         print(f"\nToken-Free (Non-Counted) Resources:")
         if not token_free:
             print("  - None")
         else:
             for t, objs in type_to_free.items():
-                examples = ', '.join([str(o.name) for o in objs[:2]])
+                examples = ', '.join([str(o['name']) for o in objs[:2]])
                 more = f", ..." if len(objs) > 2 else ""
                 print(f"  - {len(objs)} {t}(s)" + (f" (e.g. {examples}{more})" if examples else ""))
         
         # 3. Counted (Token-Licensed) Resources: count per type, up to 2 example names
-        counted = [obj for obj in discovery.native_objects if obj.requires_management_token]
+        counted = [obj for obj in native_objects if obj['requires_management_token']]
         type_to_counted = {}
         for obj in counted:
-            type_to_counted.setdefault(obj.resource_type, []).append(obj)
+            type_to_counted.setdefault(obj['resource_type'], []).append(obj)
         print(f"\nCounted (Token-Licensed) Resources:")
         if not counted:
             print("  - None")
         else:
             for t, objs in type_to_counted.items():
-                examples = ', '.join([str(o.name) for o in objs[:2]])
+                examples = ', '.join([str(o['name']) for o in objs[:2]])
                 more = f", ..." if len(objs) > 2 else ""
                 print(f"  - {len(objs)} {t}(s)" + (f" (e.g. {examples}{more})" if examples else ""))
         
         # 4. Token Calculation Breakdown
         print("\nToken Calculation:")
-        ddi_objects = calculation.breakdown_by_type.get('ddi_objects', 0)
-        active_ips = calculation.breakdown_by_type.get('active_ips', 0)
-        assets = calculation.breakdown_by_type.get('assets', 0)
+        ddi_objects = calculation['breakdown_by_type'].get('ddi_objects', 0)
+        active_ips = calculation['breakdown_by_type'].get('active_ips', 0)
+        assets = calculation['breakdown_by_type'].get('assets', 0)
         print(f"  - DDI Objects: {ddi_objects} → {math.ceil(ddi_objects / 25)} token(s)")
         print(f"  - Active IPs: {active_ips} → {math.ceil(active_ips / 13)} token(s)")
         print(f"  - Assets: {assets} → {math.ceil(assets / 3)} token(s)")
-        print(f"  - **Total Management Tokens Required: {calculation.management_token_required}**")
+        print(f"  - **Total Management Tokens Required: {calculation['management_token_required']}**")
+        print(f"  - **Token Packs (1000 tokens each): {calculation['management_token_packs']}**")
+        print(f"  - **Total Tokens in Packs: {calculation['management_tokens_packs_total']}**")
         print("===============================\n")
         # --- End Improved Output ---
         
-        # Display results
-        print("\nRESULTS:")
-        print(f"Total Native Objects: {calculation.total_native_objects}")
-        print(f"Management Tokens Required: {calculation.management_token_required}")
-        print(f"Management Token-Free: {calculation.management_token_free}")
-        
-        print("\nBREAKDOWN BY TYPE:")
-        for resource_type, count in calculation.breakdown_by_type.items():
-            print(f"  {resource_type}: {count}")
-        
-        print("\nBREAKDOWN BY REGION:")
-        for region, count in calculation.breakdown_by_region.items():
-            print(f"  {region}: {count}")
-        
         # Save results
-        print(f"\nSaving results in {args.format.upper()} format...")
+        print(f"Saving results in {args.format.upper()} format...")
         saved_files = discovery.save_discovery_results()
         
         print("Results saved to:")
@@ -223,7 +213,6 @@ def main():
                 print("Continuing without historical analysis...")
         
         print(f"\nDiscovery completed successfully!")
-        print(f"Management Tokens Required: {calculation.management_token_required}")
         
         return 0
         

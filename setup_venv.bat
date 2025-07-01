@@ -73,20 +73,29 @@ echo Virtual environment setup complete!
 echo.
 echo Installed modules: %modules%
 echo.
+echo IMPORTANT: You must activate the virtual environment before running the tool!
+echo.
 echo To activate the virtual environment:
 echo   venv\Scripts\activate.bat
 echo.
 echo To deactivate:
 echo   deactivate
 echo.
-echo To run discovery:
+echo To run discovery (after activating the virtual environment):
+echo   # Main entry point (recommended):
+echo   python main.py aws --format json
+echo   python main.py azure --format json
+echo.
+echo   # Module-specific commands:
 if "%modules%"=="aws" (
-    echo   python aws\discover.py
+    echo   python aws_discovery\discover.py --format json
 ) else if "%modules%"=="azure" (
-    echo   python azure\discover.py
+    echo   python azure_discovery\discover.py --format json
 ) else (
-    echo   python aws\discover.py
-    echo   python azure\discover.py
+    echo   python aws_discovery\discover.py --format json
+    echo   python azure_discovery\discover.py --format json
 )
+echo.
+echo Note: The virtual environment must be activated in each new terminal session.
 echo.
 pause 

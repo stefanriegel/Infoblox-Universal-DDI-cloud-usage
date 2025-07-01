@@ -120,4 +120,96 @@ def save_discovery_results(data: List[Dict], output_dir: str, output_format: str
                 f.write(f"  Discovered: {resource.get('discovered_at', 'N/A')}\n")
                 f.write("\n")
     
-    return {'native_objects': filepath} 
+    return {'native_objects': filepath}
+
+
+def save_management_token_results(calculation_results: Dict, output_dir: str, output_format: str, 
+                                 timestamp: str, provider: str) -> Dict[str, str]:
+    """
+    Save Management Token calculation results in the specified format.
+    
+    Args:
+        calculation_results: Token calculation results dictionary
+        output_dir: Output directory
+        output_format: Output format (json, csv, txt)
+        timestamp: Timestamp for filename
+        provider: Cloud provider (aws, azure)
+        
+    Returns:
+        Dictionary mapping file types to file paths
+    """
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    saved_files = {}
+    
+    # Save main calculation results
+    calc_filename = f"{provider}_management_token_calculation_{timestamp}.{output_format}"
+    calc_filepath = os.path.join(output_dir, calc_filename)
+    
+    if output_format == 'json':
+        with open(calc_filepath, 'w') as f:
+            json.dump(calculation_results, f, indent=2, default=str)
+    elif output_format == 'csv':
+        # Flatten the calculation results for CSV
+        flat_data = {
+            'total_native_objects': calculation_results.get('total_native_objects', 0),
+            'management_token_required': calculation_results.get('management_token_required', 0),
+            'management_token_free': calculation_results.get('management_token_free', 0),
+            'calculation_timestamp': calculation_results.get('calculation_timestamp', '')
+        }
+        df = pd.DataFrame([flat_data])
+        df.to_csv(calc_filepath, index=False)
+    else:  # txt
+        with open(calc_filepath, 'w') as f:
+            f.write(f"{provider.upper()} Management Token Calculation Results\n")
+            f.write("=" * 50 + "\n\n")
+            f.write(f"Total Native Objects: {calculation_results.get('total_native_objects', 0)}\n")
+            f.write(f"Management Tokens Required: {calculation_results.get('management_token_required', 0)}\n")
+            f.write(f"Management Token-Free: {calculation_results.get('management_token_free', 0)}\n")
+            f.write(f"Calculation Timestamp: {calculation_results.get('calculation_timestamp', '')}\n\n")
+            
+            # Breakdown by type
+            breakdown_by_type = calculation_results.get('breakdown_by_type', {})
+            if breakdown_by_type:
+                f.write("Breakdown by Type:\n")
+                for resource_type, count in breakdown_by_type.items():
+                    f.write(f"  {resource_type}: {count}\n")
+                f.write("\n")
+            
+            # Breakdown by region
+            breakdown_by_region = calculation_results.get('breakdown_by_region', {})
+            if breakdown_by_region:
+                f.write("Breakdown by Region:\n")
+                for region, count in breakdown_by_region.items():
+                    f.write(f"  {region}: {count}\n")
+    
+    saved_files['management_token_calculation'] = calc_filepath
+    
+    # Save token-free resources if they exist
+    token_free_resources = calculation_results.get('management_token_free_resources', [])
+    if token_free_resources:
+        free_filename = f"{provider}_management_token_free_{timestamp}.{output_format}"
+        free_filepath = os.path.join(output_dir, free_filename)
+        
+        if output_format == 'json':
+            with open(free_filepath, 'w') as f:
+                json.dump(token_free_resources, f, indent=2, default=str)
+        elif output_format == 'csv':
+            df = pd.DataFrame(token_free_resources)
+            df.to_csv(free_filepath, index=False)
+        else:  # txt
+            with open(free_filepath, 'w') as f:
+                f.write(f"{provider.upper()} Management Token-Free Resources\n")
+                f.write("=" * 50 + "\n\n")
+                for i, resource in enumerate(token_free_resources, 1):
+                    f.write(f"Resource {i}:\n")
+                    f.write(f"  ID: {resource.get('resource_id', 'N/A')}\n")
+                    f.write(f"  Type: {resource.get('resource_type', 'N/A')}\n")
+                    f.write(f"  Region: {resource.get('region', 'N/A')}\n")
+                    f.write(f"  Name: {resource.get('name', 'N/A')}\n")
+                    f.write("\n")
+        
+        saved_files['management_token_free'] = free_filepath
+    
+    return saved_files 

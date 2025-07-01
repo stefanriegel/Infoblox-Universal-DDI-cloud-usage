@@ -50,6 +50,27 @@ venv\Scripts\activate.bat  # Windows
 pip install tqdm pandas scikit-learn matplotlib seaborn azure-mgmt-compute azure-mgmt-network azure-mgmt-resource azure-mgmt-monitor azure-identity
 ```
 
+### Activating the Virtual Environment
+
+**IMPORTANT**: You must activate the virtual environment before running the tool!
+
+**macOS/Linux:**
+```bash
+source venv/bin/activate
+```
+
+**Windows:**
+```cmd
+venv\Scripts\activate.bat
+```
+
+**To deactivate:**
+```bash
+deactivate
+```
+
+**Note**: The virtual environment must be activated in each new terminal session.
+
 ## Configuration
 
 ### AWS Setup
@@ -90,7 +111,7 @@ Required permissions:
 
 ## Usage
 
-### Main Entry Point
+### Main Entry Point (Recommended)
 
 ```bash
 # AWS discovery
@@ -98,22 +119,19 @@ python main.py aws --format json
 
 # Azure discovery  
 python main.py azure --format json
-
-# Both platforms
-python main.py aws azure --format json
 ```
 
 ### Module-Specific Commands
 
 **AWS:**
 ```bash
-cd aws
+cd aws_discovery
 python discover.py --format json
 ```
 
 **Azure:**
 ```bash
-cd azure
+cd azure_discovery
 python discover.py --format json
 ```
 
@@ -122,6 +140,13 @@ python discover.py --format json
 - `--format json`: JSON files (default)
 - `--format csv`: CSV files
 - `--format txt`: Text files
+
+### Performance Features
+
+- **Multi-region scanning**: AWS discovery scans all enabled regions in parallel
+- **Resource group scanning**: Azure discovery scans all resource groups in parallel
+- **Progress bars**: Real-time progress indicators for all operations
+- **Parallel workers**: Configurable number of parallel threads (default: 5)
 
 ## Output Files
 
@@ -145,13 +170,13 @@ The highest of these three calculations determines the required Management Token
 ## Project Structure
 
 ```
-├── aws/                    # AWS discovery module
+├── aws_discovery/          # AWS discovery module
 │   ├── aws_discovery.py    # Core AWS discovery logic
 │   ├── discover.py         # AWS CLI entry point
 │   ├── config.py           # AWS configuration
 │   ├── utils.py            # AWS utilities
 │   └── requirements.txt    # AWS dependencies
-├── azure/                  # Azure discovery module
+├── azure_discovery/        # Azure discovery module
 │   ├── azure_discovery.py  # Core Azure discovery logic
 │   ├── discover.py         # Azure CLI entry point
 │   ├── config.py           # Azure configuration
