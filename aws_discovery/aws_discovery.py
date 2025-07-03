@@ -22,12 +22,12 @@ import threading
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from .config import AWSConfig, load_config, get_all_enabled_regions
-from .utils import (
-    get_aws_client,
-    save_output,
+from .utils import get_aws_client
+from shared.output_utils import (
+    save_discovery_results, 
+    save_management_token_results,
     get_resource_tags
 )
-from shared.output_utils import save_discovery_results, save_management_token_results
 
 # Configure logging - suppress INFO messages and boto3/botocore logging
 logging.basicConfig(level=logging.WARNING)

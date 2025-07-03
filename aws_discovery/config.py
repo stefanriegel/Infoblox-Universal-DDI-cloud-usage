@@ -8,30 +8,21 @@ from typing import List, Optional
 from dataclasses import dataclass
 import sys
 from botocore.exceptions import NoCredentialsError
+from shared.config import BaseConfig
 
 
 @dataclass
-class AWSConfig:
+class AWSConfig(BaseConfig):
     """AWS configuration settings."""
-    
-    # AWS credentials
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
     aws_profile: Optional[str] = None
-    
-    # AWS regions to scan
-    regions: Optional[List[str]] = None
-    
-    # Output settings
-    output_directory: str = "output"
-    output_format: str = "txt"  # json, csv, txt
-    
+    # regions, output_directory, output_format inherited from BaseConfig
+
     def __post_init__(self):
-        """Initialize default values."""
-        if self.regions is None:
+        super().__post_init__()
+        if not self.regions:
             self.regions = ["us-east-1", "us-west-2", "eu-west-1"]
-        
-        # Load from environment variables if not provided
         if not self.aws_access_key_id:
             self.aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
         if not self.aws_secret_access_key:

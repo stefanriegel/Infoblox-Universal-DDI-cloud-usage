@@ -18,7 +18,12 @@ from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.dns import DnsManagementClient
 
 from .config import AzureConfig, get_azure_credential, validate_azure_config
-from .utils import format_azure_resource, save_discovery_results, save_management_token_results
+from .utils import format_azure_vm_resource, format_azure_vnet_resource, format_azure_subnet_resource
+from shared.output_utils import (
+    format_azure_resource,
+    save_discovery_results, 
+    save_management_token_results
+)
 
 # Configure logging - suppress INFO messages and Azure SDK logging
 logging.basicConfig(level=logging.WARNING)
@@ -221,6 +226,9 @@ class AzureDiscovery:
                 zone_name = zone.name
                 zone_id = zone.id
                 region = getattr(zone, 'location', 'global')
+                resource_group = getattr(zone, 'resource_group', None)
+                if not resource_group and zone_id:
+                    resource_group = self.extract_resource_group_from_id(zone_id)
                 
                 # Add the zone as a resource
                 resources.append({
@@ -241,28 +249,29 @@ class AzureDiscovery:
                 
                 # List all records in the zone
                 try:
-                    for record_set in self.dns_client.record_sets.list_by_dns_zone(zone_name):
-                        record_type = record_set.type.split('/')[-1]  # Extract type from full type path
-                        record_name = record_set.name
-                        
-                        resources.append({
-                            'resource_id': f"azure:dns:record:public:{zone_name}:{record_name}:{record_type}",
-                            'resource_type': 'dns-record',
-                            'region': region,
-                            'name': record_name,
-                            'state': record_type,
-                            'requires_management_token': True,
-                            'tags': getattr(record_set, 'tags', {}),
-                            'details': {
-                                'zone_name': zone_name,
-                                'record_type': record_type,
-                                'record_name': record_name,
-                                'ttl': getattr(record_set, 'ttl', None),
-                                'fqdn': getattr(record_set, 'fqdn', None),
-                                'zone_type': 'Public'
-                            },
-                            'discovered_at': datetime.now().isoformat()
-                        })
+                    if resource_group and zone_name:
+                        for record_set in self.dns_client.record_sets.list_by_dns_zone(resource_group_name=resource_group, zone_name=zone_name):
+                            record_type = record_set.type.split('/')[-1]  # Extract type from full type path
+                            record_name = record_set.name
+                            
+                            resources.append({
+                                'resource_id': f"azure:dns:record:public:{zone_name}:{record_name}:{record_type}",
+                                'resource_type': 'dns-record',
+                                'region': region,
+                                'name': record_name,
+                                'state': record_type,
+                                'requires_management_token': True,
+                                'tags': getattr(record_set, 'tags', {}),
+                                'details': {
+                                    'zone_name': zone_name,
+                                    'record_type': record_type,
+                                    'record_name': record_name,
+                                    'ttl': getattr(record_set, 'ttl', None),
+                                    'fqdn': getattr(record_set, 'fqdn', None),
+                                    'zone_type': 'Public'
+                                },
+                                'discovered_at': datetime.now().isoformat()
+                            })
                 except Exception as e:
                     logger.warning(f"Error discovering records in public DNS zone {zone_name}: {e}")
             
@@ -357,6 +366,19 @@ class AzureDiscovery:
             logger.error(f"Error discovering Azure DNS zones/records: {e}")
         
         return resources
+    
+    def extract_resource_group_from_id(self, resource_id: str) -> str:
+        """Extract the resource group name from an Azure resource ID."""
+        if not resource_id or not isinstance(resource_id, str):
+            return ""
+        try:
+            parts = resource_id.split('/')
+            rg_index = [i for i, part in enumerate(parts) if part.lower() == 'resourcegroups']
+            if rg_index and rg_index[0] + 1 < len(parts):
+                return parts[rg_index[0] + 1]
+        except Exception:
+            pass
+        return ""
     
     def _is_managed_service(self, tags: Dict[str, str]) -> bool:
         """Check if a resource is a managed service (Management Token-free)."""
@@ -485,7 +507,8 @@ class AzureDiscovery:
             resources, 
             self.config.output_directory, 
             self.config.output_format, 
-            timestamp
+            timestamp,
+            'azure'
         )
         
         # Calculate and save Management Token results (will use cached resources)
@@ -494,7 +517,8 @@ class AzureDiscovery:
             calculation_results,
             self.config.output_directory,
             self.config.output_format,
-            timestamp
+            timestamp,
+            'azure'
         )
         
         # Combine all saved files

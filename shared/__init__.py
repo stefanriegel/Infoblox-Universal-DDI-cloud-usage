@@ -1,11 +1,26 @@
 """
-Shared utilities for Infoblox Universal DDI Management Token Calculator.
+Shared utilities for cloud discovery modules.
 """
 
-from .output_utils import save_output, save_discovery_results
-from .token_calculator import calculate_management_tokens
+from .output_utils import (
+    save_output, 
+    save_discovery_results, 
+    save_management_token_results,
+    save_summary_results,
+    format_azure_resource,
+    get_resource_tags,
+    safe_get_nested
+)
 
-__all__ = ["save_output", "save_discovery_results", "calculate_management_tokens"]
+__all__ = [
+    "save_output", 
+    "save_discovery_results", 
+    "save_management_token_results",
+    "save_summary_results",
+    "format_azure_resource",
+    "get_resource_tags",
+    "safe_get_nested"
+]
 
 __version__ = "1.0.0"
 __author__ = "Stefan Riegel" 

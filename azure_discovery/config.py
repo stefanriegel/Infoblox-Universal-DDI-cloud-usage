@@ -10,31 +10,22 @@ from azure.mgmt.resource import ResourceManagementClient
 from azure.identity import DefaultAzureCredential
 import subprocess
 import json
+from shared.config import BaseConfig
 
 
 @dataclass
-class AzureConfig:
+class AzureConfig(BaseConfig):
     """Configuration for Azure cloud discovery."""
-    
-    # Azure regions to scan (default to major regions)
-    regions: Optional[List[str]] = None
-    
-    # Output configuration
-    output_directory: str = "output"
-    output_format: str = "txt"  # json, csv, txt
-    
-    # Azure-specific settings
     subscription_id: Optional[str] = None
-    
+    # regions, output_directory, output_format inherited from BaseConfig
+
     def __post_init__(self):
-        """Initialize default values after dataclass creation."""
-        if self.regions is None:
+        super().__post_init__()
+        if not self.regions:
             self.regions = get_major_azure_regions()
-        
-        if self.subscription_id is None:
+        if not self.subscription_id:
             self.subscription_id = os.getenv('AZURE_SUBSCRIPTION_ID')
             if not self.subscription_id:
-                # Try to auto-detect from Azure CLI
                 try:
                     print("AZURE_SUBSCRIPTION_ID not set. Attempting to auto-detect from Azure CLI...")
                     result = subprocess.run([
@@ -49,9 +40,6 @@ class AzureConfig:
                 except Exception as e:
                     print(f"Failed to auto-detect subscription ID: {e}")
                     print("Using major regions only.")
-        
-        # Create output directory if it doesn't exist
-        os.makedirs(self.output_directory, exist_ok=True)
 
 
 def get_major_azure_regions() -> List[str]:
@@ -105,15 +93,10 @@ def get_all_azure_regions() -> List[str]:
             print("Warning: AZURE_SUBSCRIPTION_ID not set. Using major regions only.")
             return get_major_azure_regions()
         
-        # Create resource management client
-        resource_client = ResourceManagementClient(credential, subscription_id)
-        
-        # Get all locations
-        locations = resource_client.subscriptions.list_locations(subscription_id)
-        regions = [location.name for location in locations]
-        
-        print(f"Found {len(regions)} available Azure regions")
-        return regions
+        # For now, return major regions to avoid dependency issues
+        # TODO: Implement full region discovery when azure-mgmt-subscription is available
+        print("Using major Azure regions (full region discovery requires azure-mgmt-subscription)")
+        return get_major_azure_regions()
         
     except Exception as e:
         print(f"Error fetching Azure regions: {e}")

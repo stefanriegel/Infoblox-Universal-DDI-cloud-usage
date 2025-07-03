@@ -10,7 +10,7 @@ from typing import Dict, List, Any
 from datetime import datetime
 
 
-def save_output(data: Any, filename: str, output_dir: str, format_type: str = "json") -> str:
+def save_output(data: Any, filename: str, output_dir: str, format_type: str = "txt") -> str:
     """Save discovery data to file in specified format."""
     os.makedirs(output_dir, exist_ok=True)
     
@@ -212,4 +212,115 @@ def save_management_token_results(calculation_results: Dict, output_dir: str, ou
         
         saved_files['management_token_free'] = free_filepath
     
-    return saved_files 
+    return saved_files
+
+
+def save_summary_results(calculation_results: Dict, output_dir: str, output_format: str,
+                        timestamp: str, provider: str) -> Dict[str, str]:
+    """
+    Save summary results in the specified format.
+    
+    Args:
+        calculation_results: Token calculation results dictionary
+        output_dir: Output directory
+        output_format: Output format (json, csv, txt)
+        timestamp: Timestamp for filename
+        provider: Cloud provider (aws, azure)
+        
+    Returns:
+        Dictionary mapping file types to file paths
+    """
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Create summary data
+    summary_data = {
+        'total_native_objects': calculation_results.get('total_native_objects', 0),
+        'management_token_required': calculation_results.get('management_token_required', 0),
+        'management_token_free': calculation_results.get('management_token_free', 0),
+        'calculation_timestamp': timestamp
+    }
+    
+    summary_filename = f"{provider}_discovery_summary_{timestamp}.{output_format}"
+    summary_filepath = os.path.join(output_dir, summary_filename)
+    
+    if output_format == 'json':
+        with open(summary_filepath, 'w') as f:
+            json.dump(summary_data, f, indent=2, default=str)
+    elif output_format == 'csv':
+        df = pd.DataFrame([summary_data])
+        df.to_csv(summary_filepath, index=False)
+    else:  # txt
+        with open(summary_filepath, 'w') as f:
+            f.write(f"{provider.upper()} Discovery Summary\n")
+            f.write("=" * 25 + "\n\n")
+            f.write(f"Total Native Objects: {summary_data['total_native_objects']}\n")
+            f.write(f"Management Tokens Required: {summary_data['management_token_required']}\n")
+            f.write(f"Management Token-Free: {summary_data['management_token_free']}\n")
+            f.write(f"Calculation Timestamp: {summary_data['calculation_timestamp']}\n")
+    
+    return {'summary': summary_filepath}
+
+
+def format_azure_resource(resource: Dict, resource_type: str, region: str, requires_management_token: bool = True) -> Dict[str, Any]:
+    """
+    Format Azure resource data for consistent output.
+    
+    Args:
+        resource: Raw Azure resource data (from vars() on Azure SDK model)
+        resource_type: Type of resource (vm, vnet, subnet, etc.)
+        region: Azure region
+        requires_management_token: Whether this resource requires Management Tokens
+        
+    Returns:
+        Formatted resource dictionary
+    """
+    # Extract common fields - use getattr for Azure SDK model compatibility
+    resource_id = getattr(resource, 'id', '') if hasattr(resource, 'id') else resource.get('id', '')
+    name = getattr(resource, 'name', '') if hasattr(resource, 'name') else resource.get('name', '')
+    tags = getattr(resource, 'tags', {}) if hasattr(resource, 'tags') else resource.get('tags', {})
+    
+    # Create formatted resource
+    formatted = {
+        'resource_id': f"{region}:{resource_type}:{name}",
+        'resource_type': resource_type,
+        'region': region,
+        'name': name,
+        'state': 'active',  # Azure resources are typically active if we can discover them
+        'requires_management_token': requires_management_token,
+        'tags': tags,
+        'details': resource,
+        'discovered_at': datetime.now().isoformat()
+    }
+    
+    return formatted
+
+
+def get_resource_tags(tags: List[Dict[str, str]]) -> Dict[str, str]:
+    """Convert AWS tags list to dictionary."""
+    return {tag['Key']: tag['Value'] for tag in tags} if tags else {}
+
+
+def safe_get_nested(obj, attr_path, default: Any = 'unknown'):
+    """
+    Safely get nested attribute or key from an object.
+    
+    Args:
+        obj: Object to extract from
+        attr_path: Dot-separated path to the attribute/key
+        default: Default value if not found
+        
+    Returns:
+        Value at the path or default
+    """
+    try:
+        for attr in attr_path.split('.'):
+            if hasattr(obj, attr):
+                obj = getattr(obj, attr)
+            elif isinstance(obj, dict) and attr in obj:
+                obj = obj[attr]
+            else:
+                return default
+        return obj
+    except (AttributeError, KeyError, TypeError):
+        return default 
