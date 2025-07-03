@@ -10,50 +10,7 @@ from typing import Dict, List, Any
 from datetime import datetime
 
 
-def save_output(data: Any, filename: str, output_dir: str, format_type: str = "txt") -> str:
-    """Save discovery data to file in specified format."""
-    os.makedirs(output_dir, exist_ok=True)
-    
-    if format_type == "json":
-        filepath = os.path.join(output_dir, f"{filename}.json")
-        with open(filepath, 'w') as f:
-            json.dump(data, f, indent=2, default=str)
-    
-    elif format_type == "csv":
-        filepath = os.path.join(output_dir, f"{filename}.csv")
-        if isinstance(data, list) and data:
-            # Convert list of dictionaries to CSV
-            df = pd.DataFrame(data)
-            df.to_csv(filepath, index=False)
-        else:
-            # For non-list data, create a simple CSV
-            with open(filepath, 'w', newline='') as f:
-                writer = csv.writer(f)
-                if isinstance(data, dict):
-                    for key, value in data.items():
-                        writer.writerow([key, str(value)])
-                else:
-                    writer.writerow([str(data)])
-    
-    elif format_type == "txt":
-        filepath = os.path.join(output_dir, f"{filename}.txt")
-        with open(filepath, 'w') as f:
-            if isinstance(data, dict):
-                for key, value in data.items():
-                    f.write(f"{key}: {value}\n")
-            elif isinstance(data, list):
-                for item in data:
-                    f.write(f"{item}\n")
-            else:
-                f.write(str(data))
-    
-    else:
-        raise ValueError(f"Unsupported format: {format_type}")
-    
-    return filepath
-
-
-def save_discovery_results(data: List[Dict], output_dir: str, output_format: str, 
+def save_discovery_results(data: List[Dict], output_dir: str, output_format: str,
                           timestamp: str, provider: str) -> Dict[str, str]:
     """
     Save discovery results in the specified format.
@@ -213,53 +170,6 @@ def save_management_token_results(calculation_results: Dict, output_dir: str, ou
         saved_files['management_token_free'] = free_filepath
     
     return saved_files
-
-
-def save_summary_results(calculation_results: Dict, output_dir: str, output_format: str,
-                        timestamp: str, provider: str) -> Dict[str, str]:
-    """
-    Save summary results in the specified format.
-    
-    Args:
-        calculation_results: Token calculation results dictionary
-        output_dir: Output directory
-        output_format: Output format (json, csv, txt)
-        timestamp: Timestamp for filename
-        provider: Cloud provider (aws, azure)
-        
-    Returns:
-        Dictionary mapping file types to file paths
-    """
-    # Create output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Create summary data
-    summary_data = {
-        'total_native_objects': calculation_results.get('total_native_objects', 0),
-        'management_token_required': calculation_results.get('management_token_required', 0),
-        'management_token_free': calculation_results.get('management_token_free', 0),
-        'calculation_timestamp': timestamp
-    }
-    
-    summary_filename = f"{provider}_discovery_summary_{timestamp}.{output_format}"
-    summary_filepath = os.path.join(output_dir, summary_filename)
-    
-    if output_format == 'json':
-        with open(summary_filepath, 'w') as f:
-            json.dump(summary_data, f, indent=2, default=str)
-    elif output_format == 'csv':
-        df = pd.DataFrame([summary_data])
-        df.to_csv(summary_filepath, index=False)
-    else:  # txt
-        with open(summary_filepath, 'w') as f:
-            f.write(f"{provider.upper()} Discovery Summary\n")
-            f.write("=" * 25 + "\n\n")
-            f.write(f"Total Native Objects: {summary_data['total_native_objects']}\n")
-            f.write(f"Management Tokens Required: {summary_data['management_token_required']}\n")
-            f.write(f"Management Token-Free: {summary_data['management_token_free']}\n")
-            f.write(f"Calculation Timestamp: {summary_data['calculation_timestamp']}\n")
-    
-    return {'summary': summary_filepath}
 
 
 def format_azure_resource(resource: Dict, resource_type: str, region: str, requires_management_token: bool = True) -> Dict[str, Any]:

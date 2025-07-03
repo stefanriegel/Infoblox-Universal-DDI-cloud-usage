@@ -18,7 +18,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from .azure_discovery import AzureDiscovery
 from .config import AzureConfig, get_all_azure_regions
-from .historical_analysis import AzureActivityAnalyzer
 
 
 def check_azure_cli_login():

@@ -19,7 +19,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from .aws_discovery import AWSDiscovery
 from .config import AWSConfig, get_all_enabled_regions
-from .historical_analysis import CloudTrailAnalyzer
 
 
 def check_awscli_version():

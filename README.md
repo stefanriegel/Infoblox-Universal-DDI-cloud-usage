@@ -42,7 +42,7 @@ The setup script will also install the AWS CLI in your virtual environment, enab
 python3 -m venv venv
 source venv/bin/activate  # macOS/Linux
 venv\Scripts\activate.bat  # Windows
-pip install tqdm pandas scikit-learn matplotlib seaborn boto3
+pip install -r aws_discovery/requirements.txt
 ```
 
 **Azure only:**
@@ -50,7 +50,16 @@ pip install tqdm pandas scikit-learn matplotlib seaborn boto3
 python3 -m venv venv
 source venv/bin/activate  # macOS/Linux
 venv\Scripts\activate.bat  # Windows
-pip install tqdm pandas scikit-learn matplotlib seaborn azure-mgmt-compute azure-mgmt-network azure-mgmt-resource azure-mgmt-monitor azure-identity
+pip install -r azure_discovery/requirements.txt
+```
+
+**Both AWS and Azure:**
+```bash
+python3 -m venv venv
+source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate.bat  # Windows
+pip install -r aws_discovery/requirements.txt
+pip install -r azure_discovery/requirements.txt
 ```
 
 ### Activating the Virtual Environment
@@ -91,6 +100,7 @@ export AWS_PROFILE="your_profile"  # or your SSO profile
 
 Required permissions:
 - EC2:DescribeInstances, DescribeVpcs, DescribeSubnets, DescribeLoadBalancers
+- Route53:ListHostedZones, ListResourceRecordSets
 - IAM:GetUser
 
 ### Azure Setup
@@ -173,10 +183,9 @@ python discover.py --format txt
 
 Generated in `output/` directory:
 
-- `*_discovery_summary_*.json`: Resource counts by type
-- `*_native_objects_*.json`: Detailed resource information
-- `*_management_token_calculation_*.json`: Token calculation results
-- `*_management_token_free_*.json`: Resources that don't require tokens
+- `*_native_objects_*.{format}`: Detailed resource information (when using --full)
+- `*_management_token_calculation_*.{format}`: Token calculation results
+- `*_management_token_free_*.{format}`: Resources that don't require tokens (when applicable)
 
 ## Token Calculation
 
@@ -201,16 +210,26 @@ The highest of these three calculations determines the required Management Token
 │   ├── azure_discovery.py  # Core Azure discovery logic
 │   ├── discover.py         # Azure CLI entry point
 │   ├── config.py           # Azure configuration
-│   ├── utils.py            # Azure utilities
 │   └── requirements.txt    # Azure dependencies
 ├── shared/                 # Shared utilities
+│   ├── base_discovery.py   # Base discovery class
 │   ├── output_utils.py     # Output formatting
-│   └── token_calculator.py # Token calculation logic
+│   ├── token_calculator.py # Token calculation logic
+│   └── config.py           # Base configuration
 ├── main.py                 # Main entry point
 ├── setup_venv.sh          # Linux/macOS setup script
 ├── setup_venv.bat         # Windows setup script
 └── output/                # Generated output files
 ```
+
+### Architecture Overview
+
+The project follows a clean separation of concerns:
+
+- **`main.py`**: Main entry point that orchestrates discovery
+- **`discover.py`**: Command-line interface and user experience layer
+- **`*_discovery.py`**: Core business logic and cloud provider integration
+- **`shared/`**: Reusable utilities and base classes
 
 ### AWS SSO (Single Sign-On) Usage
 
@@ -244,3 +263,11 @@ AWS_PROFILE=aws_test_pm_dev_sso python main.py aws --format txt
 ```
 
 This ensures the tool uses your SSO credentials for AWS discovery.
+
+## Recent Updates
+
+- **Consolidated codebase**: Removed duplicate code and unified common functionality
+- **Optimized dependencies**: Removed unused packages (scikit-learn, matplotlib, seaborn, azure-mgmt-monitor)
+- **Clean architecture**: Separated CLI layer from business logic layer
+- **Improved maintainability**: Shared base classes and utilities
+- **Enhanced performance**: Optimized parallel processing and resource discovery

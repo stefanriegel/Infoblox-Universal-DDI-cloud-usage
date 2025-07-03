@@ -23,11 +23,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from .config import AWSConfig, load_config, get_all_enabled_regions
 from .utils import get_aws_client
-from shared.output_utils import (
-    save_discovery_results, 
-    save_management_token_results,
-    get_resource_tags
-)
+from shared.base_discovery import BaseDiscovery, DiscoveryConfig
+from shared.output_utils import get_resource_tags, save_discovery_results, save_management_token_results
 
 # Configure logging - suppress INFO messages and boto3/botocore logging
 logging.basicConfig(level=logging.WARNING)
@@ -39,76 +36,84 @@ logging.getLogger('botocore').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
 
-@dataclass
-class NativeObject:
-    """AWS Native Object representation."""
-    
-    resource_id: str
-    resource_type: str
-    region: str
-    name: str
-    state: str
-    requires_management_token: bool
-    tags: Dict[str, str]
-    details: Dict[str, Any]
-    discovered_at: str
-
-
-@dataclass
-class ManagementTokenCalculation:
-    """Management Token calculation results."""
-    
-    total_native_objects: int
-    management_token_required: int
-    management_token_free: int
-    breakdown_by_type: Dict[str, int]
-    breakdown_by_region: Dict[str, int]
-    calculation_timestamp: str
-
-
-class AWSDiscovery:
-    """AWS Cloud Discovery for Management Token calculation."""
+class AWSDiscovery(BaseDiscovery):
+    """AWS Cloud Discovery implementation."""
     
     def __init__(self, config: AWSConfig):
-        """Initialize AWS Discovery with configuration."""
-        self.config = config
-        self.regions = config.regions or get_all_enabled_regions()
+        """
+        Initialize AWS discovery.
         
-        # Cache for discovered resources to avoid multiple discovery runs
-        self._discovered_resources = None
+        Args:
+            config: AWS configuration
+        """
+        # Convert AWSConfig to DiscoveryConfig
+        discovery_config = DiscoveryConfig(
+            regions=config.regions or [],
+            output_directory=config.output_directory,
+            output_format=config.output_format,
+            provider='aws'
+        )
+        super().__init__(discovery_config)
         
-        logger.info(f"AWS Discovery initialized for {len(self.regions)} regions")
+        # Store original AWS config for AWS-specific functionality
+        self.aws_config = config
+        
+        # Initialize AWS clients
+        self._init_aws_clients()
     
-    def discover_native_objects(self, max_workers: int = 5) -> List[Dict]:
+    def _init_aws_clients(self):
+        """Initialize AWS clients for different services."""
+        self.clients = {}
+        for region in self.config.regions:
+            self.clients[region] = {
+                'ec2': get_aws_client('ec2', region, self.aws_config),
+                'elbv2': get_aws_client('elbv2', region, self.aws_config),
+                'elb': get_aws_client('elb', region, self.aws_config)
+            }
+    
+    def discover_native_objects(self, max_workers: int = 8) -> List[Dict]:
         """
-        Discover AWS Native Objects across all enabled regions, including Route 53 DNS.
+        Discover all Native Objects across all AWS regions.
+        
+        Args:
+            max_workers: Maximum number of parallel workers
+            
+        Returns:
+            List of discovered resources
         """
-        # Return cached results if available
         if self._discovered_resources is not None:
             return self._discovered_resources
-        logger.info("Starting AWS Native Objects discovery...")
+        
+        self.logger.info("Starting AWS discovery across all regions...")
+        
         all_resources = []
-        # Use ThreadPoolExecutor for parallel region scanning
+        
+        # Discover regional resources in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_region = {
-                executor.submit(self._discover_region, region): region
-                for region in self.regions
+                executor.submit(self._discover_region, region): region 
+                for region in self.config.regions
             }
-            with tqdm(total=len(self.regions), desc="Completed") as pbar:
+            
+            # Use tqdm for progress tracking
+            with tqdm(total=len(self.config.regions), desc="Completed") as pbar:
                 for future in as_completed(future_to_region):
                     region = future_to_region[future]
                     try:
                         region_resources = future.result()
                         all_resources.extend(region_resources)
-                        logger.info(f"Completed {region}: {len(region_resources)} resources")
+                        self.logger.debug(f"Discovered {len(region_resources)} resources in {region}")
                     except Exception as e:
-                        logger.error(f"Error scanning region {region}: {e}")
+                        self.logger.error(f"Error discovering region {region}: {e}")
                     finally:
                         pbar.update(1)
-        # Add Route 53 DNS discovery (global, not per-region)
+        
+        # Discover global resources (Route 53)
         route53_resources = self._discover_route53_zones_and_records()
         all_resources.extend(route53_resources)
-        logger.info(f"Discovery complete. Found {len(all_resources)} Native Objects")
+        
+        self.logger.info(f"Discovery complete. Found {len(all_resources)} Native Objects")
+        
         # Cache the results
         self._discovered_resources = all_resources
         return all_resources
@@ -143,185 +148,368 @@ class AWSDiscovery:
             region_resources.extend(load_balancers)
             
         except Exception as e:
-            logger.error(f"Error discovering region {region}: {e}")
+            self.logger.error(f"Error discovering region {region}: {e}")
         
         return region_resources
     
     def _discover_ec2_instances(self, region: str) -> List[Dict]:
-        """Discover EC2 instances in the region."""
-        instances = []
+        """Discover EC2 instances in a region."""
+        resources = []
         try:
-            ec2_client = get_aws_client('ec2', region, self.config)
+            ec2 = self.clients[region]['ec2']
             
-            # Get total count for progress bar
-            paginator = ec2_client.get_paginator('describe_instances')
-            raw_instances = []
+            # Get all instances
+            paginator = ec2.get_paginator('describe_instances')
             for page in paginator.paginate():
-                for reservation in page['Reservations']:
-                    raw_instances.extend(reservation['Instances'])
-            
-            # Process instances with progress bar
-            with tqdm(total=len(raw_instances), desc=f"  EC2 instances in {region}", leave=False) as pbar:
-                for instance in raw_instances:
-                    # Skip terminated instances
-                    if instance['State']['Name'] == 'terminated':
-                        pbar.update(1)
-                        continue
-                    
-                    # Check if instance has network interfaces
-                    has_network_interfaces = len(instance.get('NetworkInterfaces', [])) > 0
-                    
-                    # Check if it's a managed service
-                    is_managed = self._is_managed_service(instance.get('Tags', []))
-                    
-                    # Determine if Management Token is required
-                    requires_token = has_network_interfaces and not is_managed
-                    
-                    native_object = {
-                        'resource_id': f"{region}:ec2:{instance['InstanceId']}",
-                        'resource_type': 'ec2-instance',
-                        'region': region,
-                        'name': instance.get('InstanceId', 'Unknown'),
-                        'state': instance['State']['Name'],
-                        'requires_management_token': requires_token,
-                        'tags': get_resource_tags(instance.get('Tags', [])),
-                        'details': {
-                            'instance_type': instance.get('InstanceType'),
+                for reservation in page.get('Reservations', []):
+                    for instance in reservation.get('Instances', []):
+                        instance_id = instance.get('InstanceId')
+                        if not instance_id:
+                            continue
+                        
+                        # Get instance details
+                        instance_state = instance.get('State', {}).get('Name', 'unknown')
+                        instance_type = instance.get('InstanceType', 'unknown')
+                        
+                        # Extract IP addresses
+                        private_ip = instance.get('PrivateIpAddress')
+                        public_ip = instance.get('PublicIpAddress')
+                        
+                        # Get tags
+                        tags = get_resource_tags(instance.get('Tags', []))
+                        
+                        # Determine if Management Token is required
+                        is_managed = self._is_managed_service(tags)
+                        requires_token = bool(private_ip or public_ip) and not is_managed
+                        
+                        # Create resource details
+                        details = {
+                            'instance_id': instance_id,
+                            'instance_type': instance_type,
+                            'state': instance_state,
+                            'private_ip': private_ip,
+                            'public_ip': public_ip,
                             'vpc_id': instance.get('VpcId'),
                             'subnet_id': instance.get('SubnetId'),
-                            'network_interfaces': len(instance.get('NetworkInterfaces', [])),
-                            'private_ip': instance.get('PrivateIpAddress'),
-                            'public_ip': instance.get('PublicIpAddress')
-                        },
-                        'discovered_at': datetime.now().isoformat()
-                    }
-                    
-                    instances.append(native_object)
-                    pbar.update(1)
+                            'launch_time': instance.get('LaunchTime'),
+                            'platform': instance.get('Platform'),
+                            'architecture': instance.get('Architecture')
+                        }
+                        
+                        # Format resource
+                        formatted_resource = self._format_resource(
+                            resource_data=details,
+                            resource_type='ec2-instance',
+                            region=region,
+                            name=instance_id,
+                            requires_management_token=requires_token,
+                            state=instance_state,
+                            tags=tags
+                        )
+                        
+                        resources.append(formatted_resource)
                         
         except Exception as e:
-            logger.error(f"Error discovering EC2 instances in {region}: {e}")
+            self.logger.warning(f"Error discovering EC2 instances in {region}: {e}")
         
-        return instances
+        return resources
     
     def _discover_vpcs(self, region: str) -> List[Dict]:
-        """Discover VPCs in the region."""
-        vpcs = []
+        """Discover VPCs in a region."""
+        resources = []
         try:
-            ec2_client = get_aws_client('ec2', region, self.config)
+            ec2 = self.clients[region]['ec2']
             
-            response = ec2_client.describe_vpcs()
-            for vpc in response['Vpcs']:
-                native_object = {
-                    'resource_id': f"{region}:vpc:{vpc['VpcId']}",
-                    'resource_type': 'vpc',
-                    'region': region,
-                    'name': vpc.get('VpcId', 'Unknown'),
-                    'state': vpc.get('State', 'available'),
-                    'requires_management_token': True,  # VPCs always require Management Tokens
-                    'tags': get_resource_tags(vpc.get('Tags', [])),
-                    'details': {
-                        'cidr_block': vpc.get('CidrBlock'),
-                        'is_default': vpc.get('IsDefault', False),
-                        'dhcp_options_id': vpc.get('DhcpOptionsId')
-                    },
-                    'discovered_at': datetime.now().isoformat()
-                }
-                
-                vpcs.append(native_object)
-                
+            paginator = ec2.get_paginator('describe_vpcs')
+            for page in paginator.paginate():
+                for vpc in page.get('Vpcs', []):
+                    vpc_id = vpc.get('VpcId')
+                    if not vpc_id:
+                        continue
+                    
+                    # Get VPC details
+                    cidr_block = vpc.get('CidrBlock')
+                    state = vpc.get('State', 'unknown')
+                    is_default = vpc.get('IsDefault', False)
+                    
+                    # Get tags
+                    tags = get_resource_tags(vpc.get('Tags', []))
+                    
+                    # VPCs always require Management Tokens
+                    requires_token = True
+                    
+                    # Create resource details
+                    details = {
+                        'vpc_id': vpc_id,
+                        'cidr_block': cidr_block,
+                        'state': state,
+                        'is_default': is_default,
+                        'dhcp_options_id': vpc.get('DhcpOptionsId'),
+                        'instance_tenancy': vpc.get('InstanceTenancy')
+                    }
+                    
+                    # Format resource
+                    formatted_resource = self._format_resource(
+                        resource_data=details,
+                        resource_type='vpc',
+                        region=region,
+                        name=vpc_id,
+                        requires_management_token=requires_token,
+                        state=state,
+                        tags=tags
+                    )
+                    
+                    resources.append(formatted_resource)
+                    
         except Exception as e:
-            logger.error(f"Error discovering VPCs in {region}: {e}")
+            self.logger.warning(f"Error discovering VPCs in {region}: {e}")
         
-        return vpcs
+        return resources
     
     def _discover_subnets(self, region: str) -> List[Dict]:
-        """Discover subnets in the region."""
-        subnets = []
+        """Discover subnets in a region."""
+        resources = []
         try:
-            ec2_client = get_aws_client('ec2', region, self.config)
+            ec2 = self.clients[region]['ec2']
             
-            response = ec2_client.describe_subnets()
-            for subnet in response['Subnets']:
-                native_object = {
-                    'resource_id': f"{region}:subnet:{subnet['SubnetId']}",
-                    'resource_type': 'subnet',
-                    'region': region,
-                    'name': subnet.get('SubnetId', 'Unknown'),
-                    'state': subnet.get('State', 'available'),
-                    'requires_management_token': True,  # Subnets always require Management Tokens
-                    'tags': get_resource_tags(subnet.get('Tags', [])),
-                    'details': {
-                        'cidr_block': subnet.get('CidrBlock'),
-                        'vpc_id': subnet.get('VpcId'),
-                        'availability_zone': subnet.get('AvailabilityZone'),
-                        'available_ip_address_count': subnet.get('AvailableIpAddressCount')
-                    },
-                    'discovered_at': datetime.now().isoformat()
-                }
-                
-                subnets.append(native_object)
-                
+            paginator = ec2.get_paginator('describe_subnets')
+            for page in paginator.paginate():
+                for subnet in page.get('Subnets', []):
+                    subnet_id = subnet.get('SubnetId')
+                    if not subnet_id:
+                        continue
+                    
+                    # Get subnet details
+                    cidr_block = subnet.get('CidrBlock')
+                    state = subnet.get('State', 'unknown')
+                    vpc_id = subnet.get('VpcId')
+                    availability_zone = subnet.get('AvailabilityZone')
+                    
+                    # Get tags
+                    tags = get_resource_tags(subnet.get('Tags', []))
+                    
+                    # Subnets always require Management Tokens
+                    requires_token = True
+                    
+                    # Create resource details
+                    details = {
+                        'subnet_id': subnet_id,
+                        'cidr_block': cidr_block,
+                        'state': state,
+                        'vpc_id': vpc_id,
+                        'availability_zone': availability_zone,
+                        'available_ip_address_count': subnet.get('AvailableIpAddressCount'),
+                        'default_for_az': subnet.get('DefaultForAz', False),
+                        'map_public_ip_on_launch': subnet.get('MapPublicIpOnLaunch', False)
+                    }
+                    
+                    # Format resource
+                    formatted_resource = self._format_resource(
+                        resource_data=details,
+                        resource_type='subnet',
+                        region=region,
+                        name=subnet_id,
+                        requires_management_token=requires_token,
+                        state=state,
+                        tags=tags
+                    )
+                    
+                    resources.append(formatted_resource)
+                    
         except Exception as e:
-            logger.error(f"Error discovering subnets in {region}: {e}")
+            self.logger.warning(f"Error discovering subnets in {region}: {e}")
         
-        return subnets
+        return resources
     
     def _discover_load_balancers(self, region: str) -> List[Dict]:
-        """Discover load balancers in the region."""
-        load_balancers = []
+        """Discover load balancers in a region."""
+        resources = []
+        
+        # Discover Application Load Balancers and Network Load Balancers
         try:
-            elbv2_client = get_aws_client('elbv2', region, self.config)
+            elbv2 = self.clients[region]['elbv2']
             
-            response = elbv2_client.describe_load_balancers()
-            for lb in response['LoadBalancers']:
-                # Get tags for load balancer
-                tags_response = elbv2_client.describe_tags(ResourceArns=[lb['LoadBalancerArn']])
-                tags = {}
-                if tags_response['TagDescriptions']:
-                    tags = get_resource_tags(tags_response['TagDescriptions'][0].get('Tags', []))
-                
-                native_object = {
-                    'resource_id': f"{region}:alb:{lb['LoadBalancerName']}",
-                    'resource_type': 'application-load-balancer',
-                    'region': region,
-                    'name': lb.get('LoadBalancerName', 'Unknown'),
-                    'state': lb.get('State', {}).get('Code', 'unknown'),
-                    'requires_management_token': True,  # Load balancers require Management Tokens
-                    'tags': tags,
-                    'details': {
-                        'type': lb.get('Type'),
-                        'scheme': lb.get('Scheme'),
+            paginator = elbv2.get_paginator('describe_load_balancers')
+            for page in paginator.paginate():
+                for lb in page.get('LoadBalancers', []):
+                    lb_arn = lb.get('LoadBalancerArn')
+                    lb_name = lb.get('LoadBalancerName')
+                    if not lb_arn or not lb_name:
+                        continue
+                    
+                    # Get load balancer details
+                    lb_type = lb.get('Type', 'unknown')
+                    state = lb.get('State', {}).get('Code', 'unknown')
+                    scheme = lb.get('Scheme', 'unknown')
+                    
+                    # Get tags
+                    tags_response = elbv2.describe_tags(ResourceArns=[lb_arn])
+                    lb_tags = {}
+                    if tags_response.get('TagDescriptions'):
+                        lb_tags = get_resource_tags(tags_response['TagDescriptions'][0].get('Tags', []))
+                    
+                    # Determine if Management Token is required
+                    is_managed = self._is_managed_service(lb_tags)
+                    requires_token = not is_managed
+                    
+                    # Create resource details
+                    details = {
+                        'load_balancer_arn': lb_arn,
+                        'load_balancer_name': lb_name,
+                        'type': lb_type,
+                        'state': state,
+                        'scheme': scheme,
                         'vpc_id': lb.get('VpcId'),
-                        'subnets': lb.get('AvailabilityZones', [])
-                    },
-                    'discovered_at': datetime.now().isoformat()
+                        'availability_zones': lb.get('AvailabilityZones', []),
+                        'security_groups': lb.get('SecurityGroups', [])
+                    }
+                    
+                    # Format resource
+                    formatted_resource = self._format_resource(
+                        resource_data=details,
+                        resource_type=f'{lb_type.lower()}-load-balancer',
+                        region=region,
+                        name=lb_name,
+                        requires_management_token=requires_token,
+                        state=state,
+                        tags=lb_tags
+                    )
+                    
+                    resources.append(formatted_resource)
+                    
+        except Exception as e:
+            self.logger.warning(f"Error discovering ALB/NLB in {region}: {e}")
+        
+        # Discover Classic Load Balancers
+        try:
+            elb = self.clients[region]['elb']
+            
+            response = elb.describe_load_balancers()
+            for lb in response.get('LoadBalancerDescriptions', []):
+                lb_name = lb.get('LoadBalancerName')
+                if not lb_name:
+                    continue
+                
+                # Get load balancer details
+                dns_name = lb.get('DNSName')
+                state = 'active' if dns_name else 'inactive'
+                
+                # Get tags
+                try:
+                    tags_response = elb.describe_tags(LoadBalancerNames=[lb_name])
+                    lb_tags = {}
+                    if tags_response.get('TagDescriptions'):
+                        lb_tags = get_resource_tags(tags_response['TagDescriptions'][0].get('Tags', []))
+                except:
+                    lb_tags = {}
+                
+                # Determine if Management Token is required
+                is_managed = self._is_managed_service(lb_tags)
+                requires_token = not is_managed
+                
+                # Create resource details
+                details = {
+                    'load_balancer_name': lb_name,
+                    'dns_name': dns_name,
+                    'state': state,
+                    'vpc_id': lb.get('VPCId'),
+                    'availability_zones': lb.get('AvailabilityZones', []),
+                    'security_groups': lb.get('SecurityGroups', [])
                 }
                 
-                load_balancers.append(native_object)
+                # Format resource
+                formatted_resource = self._format_resource(
+                    resource_data=details,
+                    resource_type='classic-load-balancer',
+                    region=region,
+                    name=lb_name,
+                    requires_management_token=requires_token,
+                    state=state,
+                    tags=lb_tags
+                )
+                
+                resources.append(formatted_resource)
                 
         except Exception as e:
-            logger.error(f"Error discovering load balancers in {region}: {e}")
+            self.logger.warning(f"Error discovering Classic LB in {region}: {e}")
         
-        return load_balancers
+        return resources
     
-    def _is_managed_service(self, tags: List[Dict[str, str]]) -> bool:
+    def _discover_route53_zones_and_records(self) -> List[Dict]:
+        """Discover Route 53 hosted zones and DNS records (global)."""
+        resources = []
+        try:
+            route53 = get_aws_client('route53', 'us-east-1', self.aws_config)
+            zones_resp = route53.list_hosted_zones()
+            for zone in zones_resp.get('HostedZones', []):
+                zone_id = zone['Id'].split('/')[-1]
+                zone_name = zone['Name'].rstrip('.')
+                is_private = zone.get('Config', {}).get('PrivateZone', False)
+                
+                # Add the zone as a resource
+                zone_resource = self._format_resource(
+                    resource_data={
+                        'zone_id': zone_id,
+                        'zone_name': zone_name,
+                        'private': is_private,
+                        'record_set_count': zone.get('ResourceRecordSetCount', 0)
+                    },
+                    resource_type='route53-zone',
+                    region='global',
+                    name=zone_name,
+                    requires_management_token=True,
+                    state='private' if is_private else 'public',
+                    tags={}
+                )
+                resources.append(zone_resource)
+                
+                # List all records in the zone
+                paginator = route53.get_paginator('list_resource_record_sets')
+                for page in paginator.paginate(HostedZoneId=zone['Id']):
+                    for record in page.get('ResourceRecordSets', []):
+                        record_type = record.get('Type')
+                        record_name = record.get('Name', '').rstrip('.')
+                        
+                        record_resource = self._format_resource(
+                            resource_data={
+                                'zone_id': zone_id,
+                                'zone_name': zone_name,
+                                'record_type': record_type,
+                                'record_name': record_name,
+                                'ttl': record.get('TTL'),
+                                'resource_records': record.get('ResourceRecords', [])
+                            },
+                            resource_type='route53-record',
+                            region='global',
+                            name=record_name,
+                            requires_management_token=True,
+                            state=record_type,
+                            tags={}
+                        )
+                        resources.append(record_resource)
+                        
+        except Exception as e:
+            self.logger.error(f"Error discovering Route 53 zones/records: {e}")
+        
+        return resources
+
+    def _is_managed_service(self, tags: Dict[str, str]) -> bool:
         """Check if a resource is a managed service (Management Token-free)."""
         if not tags:
             return False
         
-        for tag in tags:
-            key = tag.get('Key', '').lower()
-            value = tag.get('Value', '').lower()
+        for key, value in tags.items():
+            key_lower = key.lower()
+            value_lower = value.lower()
             
             # Common managed service indicators
-            if any(indicator in key for indicator in ['managed', 'service', 'aws']):
+            if any(indicator in key_lower for indicator in ['managed', 'service', 'aws']):
                 return True
-            if any(indicator in value for indicator in ['managed', 'service', 'aws']):
+            if any(indicator in value_lower for indicator in ['managed', 'service', 'aws']):
                 return True
         
         return False
-    
+
     def get_management_token_free_assets(self) -> List[Dict]:
         """
         Get list of Management Token-free assets.
@@ -453,59 +641,4 @@ class AWSDiscovery:
         # Combine all saved files
         saved_files = {**native_objects_files, **token_files}
         
-        return saved_files
-
-    def _discover_route53_zones_and_records(self) -> List[Dict]:
-        """Discover Route 53 hosted zones and DNS records (global)."""
-        resources = []
-        try:
-            route53 = get_aws_client('route53', 'us-east-1', self.config)
-            zones_resp = route53.list_hosted_zones()
-            for zone in zones_resp.get('HostedZones', []):
-                zone_id = zone['Id'].split('/')[-1]
-                zone_name = zone['Name'].rstrip('.')
-                is_private = zone.get('Config', {}).get('PrivateZone', False)
-                # Add the zone as a resource
-                resources.append({
-                    'resource_id': f"route53:zone:{zone_id}",
-                    'resource_type': 'route53-zone',
-                    'region': 'global',
-                    'name': zone_name,
-                    'state': 'private' if is_private else 'public',
-                    'requires_management_token': True,
-                    'tags': {},
-                    'details': {
-                        'zone_id': zone_id,
-                        'zone_name': zone_name,
-                        'private': is_private,
-                        'record_set_count': zone.get('ResourceRecordSetCount', 0)
-                    },
-                    'discovered_at': datetime.now().isoformat()
-                })
-                # List all records in the zone
-                paginator = route53.get_paginator('list_resource_record_sets')
-                for page in paginator.paginate(HostedZoneId=zone['Id']):
-                    for record in page.get('ResourceRecordSets', []):
-                        record_type = record.get('Type')
-                        record_name = record.get('Name', '').rstrip('.')
-                        resources.append({
-                            'resource_id': f"route53:record:{zone_id}:{record_name}:{record_type}",
-                            'resource_type': 'route53-record',
-                            'region': 'global',
-                            'name': record_name,
-                            'state': record_type,
-                            'requires_management_token': True,
-                            'tags': {},
-                            'details': {
-                                'zone_id': zone_id,
-                                'zone_name': zone_name,
-                                'record_type': record_type,
-                                'record_name': record_name,
-                                'ttl': record.get('TTL'),
-                                'resource_records': record.get('ResourceRecords', [])
-                            },
-                            'discovered_at': datetime.now().isoformat()
-                        }) 
-        except Exception as e:
-            logger.error(f"Error discovering Route 53 zones/records: {e}")
-        return resources 
+        return saved_files 

@@ -2,7 +2,4 @@
 boto3>=1.26.0
 tqdm>=4.64.0
 pandas>=1.5.0
-scikit-learn>=1.3.0
-matplotlib>=3.6.0
-seaborn>=0.12.0
 # concurrent.futures is built into Python 3.2+ 
