@@ -23,29 +23,38 @@ def main():
     parser.add_argument(
         "--format",
         choices=["json", "csv", "txt"],
-        default="csv",
-        help="Output format (default: csv)"
+        default="txt",
+        help="Output format (default: txt)"
     )
     parser.add_argument(
         "--workers",
         type=int,
-        default=5,
-        help="Number of parallel workers (default: 5)"
+        default=8,
+        help="Number of parallel workers (default: 8)"
     )
     parser.add_argument(
-        "--analyze-growth",
+        "--full",
         action="store_true",
-        help="Analyze historical growth and predict future requirements"
+        help="Save/export full resource/object data (default: only summary and token calculation)"
     )
-    
-    args = parser.parse_args()
+    # Remove extra_args, use parse_known_args instead
+    args, unknown = parser.parse_known_args()
     try:
         if args.provider == "aws":
             from aws_discovery.discover import main as aws_main
-            aws_main(args)
+            aws_args = argparse.Namespace()
+            aws_args.format = args.format
+            aws_args.workers = args.workers
+            aws_args.full = args.full
+            print(f"DEBUG: main.py passing format={args.format} to aws_main")
+            aws_main(aws_args)
         elif args.provider == "azure":
             from azure_discovery.discover import main as azure_main
-            azure_main(args)
+            azure_args = argparse.Namespace()
+            azure_args.format = args.format
+            azure_args.workers = args.workers
+            azure_args.full = args.full
+            azure_main(azure_args)
         else:
             print(f"Unsupported provider: {args.provider}")
             return 1

@@ -81,28 +81,19 @@ class AWSDiscovery:
     
     def discover_native_objects(self, max_workers: int = 5) -> List[Dict]:
         """
-        Discover AWS Native Objects across all enabled regions.
-        
-        Args:
-            max_workers: Maximum number of parallel workers
-            
-        Returns:
-            List of discovered AWS Native Objects
+        Discover AWS Native Objects across all enabled regions, including Route 53 DNS.
         """
         # Return cached results if available
         if self._discovered_resources is not None:
             return self._discovered_resources
-            
         logger.info("Starting AWS Native Objects discovery...")
         all_resources = []
-        
         # Use ThreadPoolExecutor for parallel region scanning
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_region = {
                 executor.submit(self._discover_region, region): region
                 for region in self.regions
             }
-            
             with tqdm(total=len(self.regions), desc="Completed") as pbar:
                 for future in as_completed(future_to_region):
                     region = future_to_region[future]
@@ -114,9 +105,10 @@ class AWSDiscovery:
                         logger.error(f"Error scanning region {region}: {e}")
                     finally:
                         pbar.update(1)
-        
+        # Add Route 53 DNS discovery (global, not per-region)
+        route53_resources = self._discover_route53_zones_and_records()
+        all_resources.extend(route53_resources)
         logger.info(f"Discovery complete. Found {len(all_resources)} Native Objects")
-        
         # Cache the results
         self._discovered_resources = all_resources
         return all_resources
@@ -355,7 +347,7 @@ class AWSDiscovery:
         resources = self.discover_native_objects()
         
         # DDI objects: DNS, DHCP, IPAM objects
-        ddi_types = ['subnet', 'vpc']  # Simplified for AWS
+        ddi_types = ['subnet', 'vpc', 'route53-zone', 'route53-record']  # Add DNS objects
         ddi_objects = [r for r in resources if r['resource_type'] in ddi_types]
         
         # Active IPs: unique IPs from all resources
@@ -380,11 +372,11 @@ class AWSDiscovery:
                 asset_ids.add(asset['resource_id'])
                 unique_assets.append(asset)
         
-        # Token calculation
+        # Token calculation (SUM, not max)
         tokens_ddi = math.ceil(len(ddi_objects) / 25)
         tokens_ips = math.ceil(len(active_ips) / 13)
         tokens_assets = math.ceil(len(unique_assets) / 3)
-        total_tokens = max(tokens_ddi, tokens_ips, tokens_assets)  # Take the maximum
+        total_tokens = tokens_ddi + tokens_ips + tokens_assets  # SUM, not max
         
         # Packs to sell (round up to next 1000)
         packs = math.ceil(total_tokens / 1000)
@@ -412,7 +404,10 @@ class AWSDiscovery:
             'management_token_free_resources': management_token_free_resources,
             'calculation_timestamp': datetime.now().isoformat(),
             'management_token_packs': packs,
-            'management_tokens_packs_total': tokens_packs_total
+            'management_tokens_packs_total': tokens_packs_total,
+            'tokens_ddi': tokens_ddi,
+            'tokens_ips': tokens_ips,
+            'tokens_assets': tokens_assets
         }
         
         return calculation_results
@@ -458,4 +453,59 @@ class AWSDiscovery:
         # Combine all saved files
         saved_files = {**native_objects_files, **token_files}
         
-        return saved_files 
+        return saved_files
+
+    def _discover_route53_zones_and_records(self) -> List[Dict]:
+        """Discover Route 53 hosted zones and DNS records (global)."""
+        resources = []
+        try:
+            route53 = get_aws_client('route53', 'us-east-1', self.config)
+            zones_resp = route53.list_hosted_zones()
+            for zone in zones_resp.get('HostedZones', []):
+                zone_id = zone['Id'].split('/')[-1]
+                zone_name = zone['Name'].rstrip('.')
+                is_private = zone.get('Config', {}).get('PrivateZone', False)
+                # Add the zone as a resource
+                resources.append({
+                    'resource_id': f"route53:zone:{zone_id}",
+                    'resource_type': 'route53-zone',
+                    'region': 'global',
+                    'name': zone_name,
+                    'state': 'private' if is_private else 'public',
+                    'requires_management_token': True,
+                    'tags': {},
+                    'details': {
+                        'zone_id': zone_id,
+                        'zone_name': zone_name,
+                        'private': is_private,
+                        'record_set_count': zone.get('ResourceRecordSetCount', 0)
+                    },
+                    'discovered_at': datetime.now().isoformat()
+                })
+                # List all records in the zone
+                paginator = route53.get_paginator('list_resource_record_sets')
+                for page in paginator.paginate(HostedZoneId=zone['Id']):
+                    for record in page.get('ResourceRecordSets', []):
+                        record_type = record.get('Type')
+                        record_name = record.get('Name', '').rstrip('.')
+                        resources.append({
+                            'resource_id': f"route53:record:{zone_id}:{record_name}:{record_type}",
+                            'resource_type': 'route53-record',
+                            'region': 'global',
+                            'name': record_name,
+                            'state': record_type,
+                            'requires_management_token': True,
+                            'tags': {},
+                            'details': {
+                                'zone_id': zone_id,
+                                'zone_name': zone_name,
+                                'record_type': record_type,
+                                'record_name': record_name,
+                                'ttl': record.get('TTL'),
+                                'resource_records': record.get('ResourceRecords', [])
+                            },
+                            'discovered_at': datetime.now().isoformat()
+                        }) 
+        except Exception as e:
+            logger.error(f"Error discovering Route 53 zones/records: {e}")
+        return resources 

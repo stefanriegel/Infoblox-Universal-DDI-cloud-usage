@@ -24,7 +24,7 @@ class AWSConfig:
     
     # Output settings
     output_directory: str = "output"
-    output_format: str = "csv"  # json, csv, txt
+    output_format: str = "txt"  # json, csv, txt
     
     def __post_init__(self):
         """Initialize default values."""

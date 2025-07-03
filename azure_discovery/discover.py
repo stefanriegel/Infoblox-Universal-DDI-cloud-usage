@@ -36,20 +36,18 @@ def main(args=None):
     if args is None:
         # If called directly, parse arguments from command line
         parser = argparse.ArgumentParser(description="Azure Cloud Discovery for Management Token Calculation")
-        parser.add_argument("--format", choices=["json", "csv", "txt"], default="csv",
-                           help="Output format (default: csv)")
-        parser.add_argument("--workers", type=int, default=5,
-                           help="Number of parallel workers (default: 5)")
-        parser.add_argument("--analyze-growth", action="store_true",
-                           help="Analyze historical growth and predict future requirements")
+        parser.add_argument("--format", choices=["json", "csv", "txt"], default="txt",
+                           help="Output format (default: txt)")
+        parser.add_argument("--workers", type=int, default=8,
+                           help="Number of parallel workers (default: 8)")
+        parser.add_argument("--full", action="store_true",
+                           help="Save/export full resource/object data (default: only summary and token calculation)")
         args = parser.parse_args()
     
     print("Azure Cloud Discovery for Management Token Calculation")
     print("=" * 55)
     print(f"Output format: {args.format.upper()}")
     print(f"Parallel workers: {args.workers}")
-    if args.analyze_growth:
-        print("Growth analysis: ENABLED")
     print()
     
     # Pre-check Azure CLI login before any discovery or region fetching
@@ -133,102 +131,29 @@ def main(args=None):
         # --- End Improved Output ---
         
         # Save results
-        print(f"Saving results in {args.format.upper()} format...")
-        saved_files = discovery.save_discovery_results()
-        
-        print("Results saved to:")
-        for file_type, filepath in saved_files.items():
-            print(f"  {file_type}: {filepath}")
-        
-        # Historical analysis and growth prediction
-        if args.analyze_growth:
-            print("\n" + "="*50)
-            print("HISTORICAL ANALYSIS & GROWTH PREDICTION")
-            print("="*50)
-            
-            if config.subscription_id:
-                analyzer = AzureActivityAnalyzer(config.subscription_id, all_regions)
-            else:
-                print("Error: Azure subscription ID is required for historical analysis")
-                return 1
-            
-            # Run complete Activity Log analysis
-            print("Running Azure Activity Log-based historical analysis...")
-            try:
-                report, predictions, historical_data = analyzer.run_complete_analysis(
-                    days_back=90,  # Last 90 days
-                    months_ahead=36,  # 3 years ahead
-                    output_format=args.format
-                )
-                
-                print(f"Current Management Tokens: {report['current_state']['management_tokens']}")
-                print(f"Current Native Objects: {report['current_state']['native_objects']}")
-                print(f"Model Accuracy: {report['growth_analysis']['model_accuracy_tokens']:.2%}")
-                
-                print("\nGROWTH PREDICTIONS:")
-                print(f"  1 Year: {report['predictions']['year_1']['management_tokens']} tokens")
-                print(f"  2 Years: {report['predictions']['year_2']['management_tokens']} tokens")
-                print(f"  3 Years: {report['predictions']['year_3']['management_tokens']} tokens")
-                
-                # Save growth reports
-                print("Saving growth analysis reports...")
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                
-                # Save predictions
-                predictions_file = f"output/azure_growth_predictions_{timestamp}.{args.format}"
-                if args.format == 'csv':
-                    predictions.to_csv(predictions_file, index=False)
-                elif args.format == 'json':
-                    predictions.to_json(predictions_file, orient='records', indent=2)
-                else:  # txt
-                    with open(predictions_file, 'w') as f:
-                        f.write("Azure Growth Predictions\n")
-                        f.write("=" * 30 + "\n\n")
-                        for _, row in predictions.iterrows():
-                            f.write(f"Month: {row['month']}\n")
-                            f.write(f"  Predicted Tokens: {row['predicted_tokens']}\n")
-                            f.write(f"  Predicted Objects: {row['predicted_objects']}\n\n")
-                
-                # Save summary report
-                summary_file = f"output/azure_growth_summary_{timestamp}.{args.format}"
-                if args.format == 'csv':
-                    summary_df = pd.DataFrame([report])
-                    summary_df.to_csv(summary_file, index=False)
-                elif args.format == 'json':
-                    with open(summary_file, 'w') as f:
-                        json.dump(report, f, indent=2, default=str)
-                else:  # txt
-                    with open(summary_file, 'w') as f:
-                        f.write("Azure Growth Analysis Summary\n")
-                        f.write("=" * 30 + "\n\n")
-                        f.write(f"Analysis Date: {report['analysis_timestamp']}\n")
-                        f.write(f"Current Tokens: {report['current_state']['management_tokens']}\n")
-                        f.write(f"Current Objects: {report['current_state']['native_objects']}\n")
-                        f.write(f"Model Accuracy: {report['growth_analysis']['model_accuracy_tokens']:.2%}\n\n")
-                        f.write("Predictions:\n")
-                        for year, data in report['predictions'].items():
-                            f.write(f"  {year}: {data['management_tokens']} tokens\n")
-                        f.write("\nRecommendations:\n")
-                        for period, rec in report['recommendations'].items():
-                            f.write(f"  {period}: {rec}\n")
-                
-                print("Growth analysis files saved to:")
-                print(f"  Predictions: {predictions_file}")
-                print(f"  Summary: {summary_file}")
-                
-                # Create visualization
-                print("Creating growth visualization...")
-                plot_path = f"output/azure_growth_prediction_{timestamp}.png"
-                analyzer.create_growth_visualization(historical_data, predictions, plot_path)
-                print(f"  Growth chart: {plot_path}")
-                
-            except Exception as e:
-                print(f"Azure Activity Log analysis failed: {e}")
-                print("This might be due to:")
-                print("  - Activity Logs not enabled in your Azure subscription")
-                print("  - Insufficient Activity Log permissions")
-                print("  - No Activity Log events in the last 90 days")
-                print("Continuing without historical analysis...")
+        if args.full:
+            print(f"Saving full resource/object data in {args.format.upper()} format...")
+            saved_files = discovery.save_discovery_results()
+            print("Results saved to:")
+            for file_type, filepath in saved_files.items():
+                print(f"  {file_type}: {filepath}")
+        else:
+            # Save only the summary and token calculation
+            output_dir = config.output_directory
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            summary_file = f"{output_dir}/azure_management_token_calculation_{timestamp}.{args.format}"
+            # Save calculation summary only
+            if args.format == 'csv':
+                df = pd.DataFrame([calculation])
+                df.to_csv(summary_file, index=False)
+            elif args.format == 'json':
+                with open(summary_file, 'w') as f:
+                    json.dump(calculation, f, indent=2, default=str)
+            else:  # txt
+                with open(summary_file, 'w') as f:
+                    for k, v in calculation.items():
+                        f.write(f"{k}: {v}\n")
+            print(f"Summary and token calculation saved to: {summary_file}")
         
         print(f"\nDiscovery completed successfully!")
         

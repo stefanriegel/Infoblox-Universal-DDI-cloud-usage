@@ -15,6 +15,7 @@ from azure.identity import DefaultAzureCredential
 from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import ResourceManagementClient
+from azure.mgmt.dns import DnsManagementClient
 
 from .config import AzureConfig, get_azure_credential, validate_azure_config
 from .utils import format_azure_resource, save_discovery_results, save_management_token_results
@@ -41,6 +42,7 @@ class AzureDiscovery:
         self.compute_client = ComputeManagementClient(self.credential, self.subscription_id)  # type: ignore
         self.network_client = NetworkManagementClient(self.credential, self.subscription_id)  # type: ignore
         self.resource_client = ResourceManagementClient(self.credential, self.subscription_id)  # type: ignore
+        self.dns_client = DnsManagementClient(self.credential, self.subscription_id)  # type: ignore
         
         # Cache for discovered resources to avoid multiple discovery runs
         self._discovered_resources = None
@@ -84,6 +86,11 @@ class AzureDiscovery:
                         pbar.update(1)
         logger.info(f"Discovery complete. Found {len(all_resources)} Native Objects")
         
+        # Add Azure DNS discovery (global, not per-resource group)
+        dns_resources = self._discover_azure_dns_zones_and_records()
+        all_resources.extend(dns_resources)
+        logger.info(f"Discovery complete. Found {len(all_resources)} Native Objects")
+        
         # Cache the results
         self._discovered_resources = all_resources
         return all_resources
@@ -107,10 +114,69 @@ class AzureDiscovery:
         try:
             for vm in self.compute_client.virtual_machines.list(rg_name):
                 region = getattr(vm, 'location', 'unknown')
-                # Use vars() to convert Azure SDK model to dict
-                vm_dict = vars(vm)
-                formatted_vm = format_azure_resource(vm_dict, 'vm', region)
-                resources.append(formatted_vm)
+                vm_name = getattr(vm, 'name', 'unknown')
+                
+                # Get VM details including network interfaces
+                try:
+                    vm_details = self.compute_client.virtual_machines.get(rg_name, vm_name, expand='instanceView')
+                    
+                    # Extract IP addresses from network interfaces
+                    private_ips = []
+                    public_ips = []
+                    
+                    if hasattr(vm_details, 'network_profile') and vm_details.network_profile and vm_details.network_profile.network_interfaces:
+                        for nic_ref in vm_details.network_profile.network_interfaces:
+                            if nic_ref and nic_ref.id:
+                                # Extract resource group and NIC name from the ID
+                                nic_id_parts = nic_ref.id.split('/')
+                                if len(nic_id_parts) >= 9:
+                                    nic_rg = nic_id_parts[4]  # Resource group
+                                    nic_name = nic_id_parts[8]  # NIC name
+                                    
+                                    try:
+                                        # Get the network interface details
+                                        nic = self.network_client.network_interfaces.get(nic_rg, nic_name)
+                                        
+                                        # Extract private IPs
+                                        if hasattr(nic, 'ip_configurations') and nic.ip_configurations:
+                                            for ip_config in nic.ip_configurations:
+                                                if hasattr(ip_config, 'private_ip_address') and ip_config.private_ip_address:
+                                                    private_ips.append(ip_config.private_ip_address)
+                                                
+                                                # Extract public IP if present
+                                                if hasattr(ip_config, 'public_ip_address') and ip_config.public_ip_address:
+                                                    if hasattr(ip_config.public_ip_address, 'ip_address') and ip_config.public_ip_address.ip_address:
+                                                        public_ips.append(ip_config.public_ip_address.ip_address)
+                                    except Exception as e:
+                                        logger.warning(f"Error getting network interface {nic_name} for VM {vm_name}: {e}")
+                    
+                    # Determine if Management Token is required
+                    has_network_interfaces = len(private_ips) > 0 or len(public_ips) > 0
+                    is_managed = self._is_managed_service(getattr(vm, 'tags', {}))
+                    requires_token = has_network_interfaces and not is_managed
+                    
+                    # Use vars() to convert Azure SDK model to dict
+                    vm_dict = vars(vm)
+                    formatted_vm = format_azure_resource(vm_dict, 'vm', region, requires_token)
+                    
+                    # Add IP addresses to details
+                    if private_ips or public_ips:
+                        formatted_vm['details'].update({
+                            'private_ip': private_ips[0] if private_ips else None,
+                            'public_ip': public_ips[0] if public_ips else None,
+                            'private_ips': private_ips,
+                            'public_ips': public_ips
+                        })
+                    
+                    resources.append(formatted_vm)
+                    
+                except Exception as e:
+                    logger.warning(f"Error getting detailed VM info for {vm_name}: {e}")
+                    # Fallback to basic VM info without IP addresses
+                    vm_dict = vars(vm)
+                    formatted_vm = format_azure_resource(vm_dict, 'vm', region)
+                    resources.append(formatted_vm)
+                    
         except Exception as e:
             logger.warning(f"Error discovering VMs in {rg_name}: {e}")
         # VNets
@@ -144,6 +210,180 @@ class AzureDiscovery:
         except Exception as e:
             logger.warning(f"Error discovering Load Balancers in {rg_name}: {e}")
         return resources
+    
+    def _discover_azure_dns_zones_and_records(self) -> List[Dict]:
+        """Discover Azure DNS zones and records (global) - both public and private zones."""
+        resources = []
+        try:
+            # Discover public DNS zones
+            logger.info("Discovering public DNS zones...")
+            for zone in self.dns_client.zones.list():
+                zone_name = zone.name
+                zone_id = zone.id
+                region = getattr(zone, 'location', 'global')
+                
+                # Add the zone as a resource
+                resources.append({
+                    'resource_id': f"azure:dns:zone:public:{zone_name}",
+                    'resource_type': 'dns-zone',
+                    'region': region,
+                    'name': zone_name,
+                    'state': 'active',
+                    'requires_management_token': True,
+                    'tags': getattr(zone, 'tags', {}),
+                    'details': {
+                        'zone_name': zone_name,
+                        'zone_type': 'Public',
+                        'number_of_record_sets': getattr(zone, 'number_of_record_sets', 0)
+                    },
+                    'discovered_at': datetime.now().isoformat()
+                })
+                
+                # List all records in the zone
+                try:
+                    for record_set in self.dns_client.record_sets.list_by_dns_zone(zone_name):
+                        record_type = record_set.type.split('/')[-1]  # Extract type from full type path
+                        record_name = record_set.name
+                        
+                        resources.append({
+                            'resource_id': f"azure:dns:record:public:{zone_name}:{record_name}:{record_type}",
+                            'resource_type': 'dns-record',
+                            'region': region,
+                            'name': record_name,
+                            'state': record_type,
+                            'requires_management_token': True,
+                            'tags': getattr(record_set, 'tags', {}),
+                            'details': {
+                                'zone_name': zone_name,
+                                'record_type': record_type,
+                                'record_name': record_name,
+                                'ttl': getattr(record_set, 'ttl', None),
+                                'fqdn': getattr(record_set, 'fqdn', None),
+                                'zone_type': 'Public'
+                            },
+                            'discovered_at': datetime.now().isoformat()
+                        })
+                except Exception as e:
+                    logger.warning(f"Error discovering records in public DNS zone {zone_name}: {e}")
+            
+            # Discover private DNS zones using Azure CLI (since SDK doesn't support private zones directly)
+            logger.info("Discovering private DNS zones...")
+            try:
+                import subprocess
+                import json
+                
+                # Get private DNS zones using Azure CLI
+                result = subprocess.run([
+                    'az', 'network', 'private-dns', 'zone', 'list', '--output', 'json'
+                ], capture_output=True, text=True, check=True)
+                
+                private_zones = json.loads(result.stdout)
+                logger.info(f"Found {len(private_zones)} private DNS zones")
+                
+                for zone in private_zones:
+                    zone_name = zone['name']
+                    resource_group = zone['resourceGroup']
+                    region = zone.get('location', 'global')
+                    
+                    # Add the zone as a resource
+                    resources.append({
+                        'resource_id': f"azure:dns:zone:private:{zone_name}",
+                        'resource_type': 'dns-zone',
+                        'region': region,
+                        'name': zone_name,
+                        'state': 'active',
+                        'requires_management_token': True,
+                        'tags': zone.get('tags', {}),
+                        'details': {
+                            'zone_name': zone_name,
+                            'zone_type': 'Private',
+                            'resource_group': resource_group,
+                            'number_of_record_sets': zone.get('numberOfRecordSets', 0)
+                        },
+                        'discovered_at': datetime.now().isoformat()
+                    })
+                    
+                    # Get records for this private zone
+                    try:
+                        record_result = subprocess.run([
+                            'az', 'network', 'private-dns', 'record-set', 'list',
+                            '--zone-name', zone_name,
+                            '--resource-group', resource_group,
+                            '--output', 'json'
+                        ], capture_output=True, text=True, check=True)
+                        
+                        records = json.loads(record_result.stdout)
+                        logger.info(f"Found {len(records)} records in private zone {zone_name}")
+                        
+                        for record in records:
+                            record_name = record['name']
+                            record_type = record['type'].split('/')[-1]  # Extract type from full path
+                            
+                            # Skip SOA records as they are system records
+                            if record_type == 'SOA':
+                                continue
+                            
+                            resources.append({
+                                'resource_id': f"azure:dns:record:private:{zone_name}:{record_name}:{record_type}",
+                                'resource_type': 'dns-record',
+                                'region': region,
+                                'name': record_name,
+                                'state': record_type,
+                                'requires_management_token': True,
+                                'tags': record.get('tags', {}),
+                                'details': {
+                                    'zone_name': zone_name,
+                                    'record_type': record_type,
+                                    'record_name': record_name,
+                                    'ttl': record.get('ttl'),
+                                    'fqdn': record.get('fqdn'),
+                                    'zone_type': 'Private',
+                                    'resource_group': resource_group
+                                },
+                                'discovered_at': datetime.now().isoformat()
+                            })
+                            
+                    except subprocess.CalledProcessError as e:
+                        logger.warning(f"Error discovering records in private DNS zone {zone_name}: {e}")
+                    except Exception as e:
+                        logger.warning(f"Error processing records for private DNS zone {zone_name}: {e}")
+                        
+            except subprocess.CalledProcessError as e:
+                logger.warning(f"Error discovering private DNS zones via Azure CLI: {e}")
+            except Exception as e:
+                logger.warning(f"Error in private DNS zone discovery: {e}")
+                    
+        except Exception as e:
+            logger.error(f"Error discovering Azure DNS zones/records: {e}")
+        
+        return resources
+    
+    def _is_managed_service(self, tags: Dict[str, str]) -> bool:
+        """Check if a resource is a managed service (Management Token-free)."""
+        if not tags:
+            return False
+        
+        for key, value in tags.items():
+            key_lower = key.lower()
+            value_lower = value.lower()
+            
+            # Common managed service indicators
+            if any(indicator in key_lower for indicator in ['managed', 'service', 'azure', 'aks', 'appservice']):
+                return True
+            if any(indicator in value_lower for indicator in ['managed', 'service', 'azure', 'aks', 'appservice']):
+                return True
+        
+        return False
+    
+    def get_management_token_free_assets(self) -> List[Dict]:
+        """
+        Get list of Management Token-free assets.
+        
+        Returns:
+            List of resources that don't require Management Tokens
+        """
+        resources = self.discover_native_objects()
+        return [obj for obj in resources if not obj['requires_management_token']]
     
     def calculate_management_token_requirements(self) -> Dict:
         """
@@ -186,7 +426,7 @@ class AzureDiscovery:
             if asset['resource_id'] not in asset_ids:
                 asset_ids.add(asset['resource_id'])
                 unique_assets.append(asset)
-        # Token calculation
+        # Token calculation (SUM, not max)
         tokens_ddi = math.ceil(len(ddi_objects) / 25)
         tokens_ips = math.ceil(len(active_ips) / 13)
         tokens_assets = math.ceil(len(unique_assets) / 3)
@@ -204,20 +444,27 @@ class AzureDiscovery:
         }
         breakdown_by_region = {}
         for r in resources:
-            breakdown_by_region[r['region']] = breakdown_by_region.get(r['region'], 0) + 1
-        # Management Token-free resources (empty for Azure)
-        management_token_free_resources = []
+            region = r.get('region', 'unknown')
+            breakdown_by_region[region] = breakdown_by_region.get(region, 0) + 1
+        
+        # Management Token-free resources
+        management_token_free_resources = [r for r in resources if not r.get('requires_management_token', True)]
+        
         calculation_results = {
             'total_native_objects': len(resources),
             'management_token_required': total_tokens,
-            'management_token_free': 0,
+            'management_token_free': len(management_token_free_resources),
             'breakdown_by_type': breakdown_by_type,
             'breakdown_by_region': breakdown_by_region,
             'management_token_free_resources': management_token_free_resources,
             'calculation_timestamp': datetime.now().isoformat(),
             'management_token_packs': packs,
-            'management_tokens_packs_total': tokens_packs_total
+            'management_tokens_packs_total': tokens_packs_total,
+            'tokens_ddi': tokens_ddi,
+            'tokens_ips': tokens_ips,
+            'tokens_assets': tokens_assets
         }
+        
         return calculation_results
     
     def save_discovery_results(self) -> Dict[str, str]:

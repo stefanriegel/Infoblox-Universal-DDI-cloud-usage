@@ -21,7 +21,7 @@ class AzureConfig:
     
     # Output configuration
     output_directory: str = "output"
-    output_format: str = "csv"  # json, csv, txt
+    output_format: str = "txt"  # json, csv, txt
     
     # Azure-specific settings
     subscription_id: Optional[str] = None

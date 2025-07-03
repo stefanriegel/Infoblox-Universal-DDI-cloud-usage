@@ -225,7 +225,7 @@ def save_management_token_results(calculation_results: Dict, output_dir: str,
     return saved_files
 
 
-def format_azure_resource(resource: Dict, resource_type: str, region: str) -> Dict[str, Any]:
+def format_azure_resource(resource: Dict, resource_type: str, region: str, requires_management_token: bool = True) -> Dict[str, Any]:
     """
     Format Azure resource data for consistent output.
     
@@ -233,6 +233,7 @@ def format_azure_resource(resource: Dict, resource_type: str, region: str) -> Di
         resource: Raw Azure resource data (from vars() on Azure SDK model)
         resource_type: Type of resource (vm, vnet, subnet, etc.)
         region: Azure region
+        requires_management_token: Whether this resource requires Management Tokens
         
     Returns:
         Formatted resource dictionary
@@ -249,7 +250,7 @@ def format_azure_resource(resource: Dict, resource_type: str, region: str) -> Di
         'region': region,
         'name': name,
         'state': getattr(resource, 'provisioning_state', 'unknown') if hasattr(resource, 'provisioning_state') else resource.get('provisioning_state', 'unknown'),
-        'requires_management_token': True,  # All Azure resources require tokens
+        'requires_management_token': requires_management_token,
         'tags': tags,
         'details': {},
         'discovered_at': datetime.now().isoformat()
