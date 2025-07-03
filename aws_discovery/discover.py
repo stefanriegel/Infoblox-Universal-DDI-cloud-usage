@@ -22,6 +22,25 @@ from .config import AWSConfig, get_all_enabled_regions
 from .historical_analysis import CloudTrailAnalyzer
 
 
+def check_awscli_version():
+    import subprocess
+    import re
+    import sys
+    try:
+        result = subprocess.run(["aws", "--version"], capture_output=True, text=True)
+        version_match = re.search(r'aws-cli/(\d+)\.(\d+)\.(\d+)', result.stdout + result.stderr)
+        if not version_match:
+            print("ERROR: Unable to determine AWS CLI version. Please ensure AWS CLI v2 is installed.")
+            sys.exit(1)
+        major, minor, patch = map(int, version_match.groups())
+        if (major, minor, patch) < (2, 0, 0):
+            print(f"ERROR: AWS CLI version 2.0.0 or higher is required. Detected version: {major}.{minor}.{patch}. Please upgrade your AWS CLI.")
+            sys.exit(1)
+    except Exception as e:
+        print(f"ERROR: Unable to check AWS CLI version: {e}")
+        sys.exit(1)
+
+
 def check_aws_credentials():
     session = boto3.Session()
     credentials = session.get_credentials()
@@ -57,6 +76,8 @@ def main(args=None):
         print("Growth analysis: ENABLED")
     print()
     
+    # Check AWS CLI version
+    check_awscli_version()
     # Pre-check AWS credentials before any discovery or region fetching
     check_aws_credentials()
     

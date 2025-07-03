@@ -55,9 +55,18 @@ source venv/bin/activate
 echo "Upgrading pip..."
 pip install --upgrade pip
 
-# Install AWS CLI
-echo "Installing AWS CLI..."
-pip install awscli>=1.29.0
+# Check AWS CLI version
+if command -v aws &> /dev/null; then
+    AWS_CLI_VERSION=$(aws --version 2>&1 | grep -o 'aws-cli/[0-9.]*' | cut -d/ -f2)
+    AWS_CLI_MAJOR=$(echo $AWS_CLI_VERSION | cut -d. -f1)
+    if [ -z "$AWS_CLI_VERSION" ] || [ "$AWS_CLI_MAJOR" -lt 2 ]; then
+        echo "ERROR: AWS CLI v2.0.0 or higher is required. Please install it from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+        exit 1
+    fi
+else
+    echo "ERROR: AWS CLI is not installed. Please install AWS CLI v2 from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+    exit 1
+fi
 
 # Install common dependencies
 echo "Installing common dependencies..."

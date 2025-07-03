@@ -53,9 +53,18 @@ REM Upgrade pip
 echo Upgrading pip...
 python -m pip install --upgrade pip
 
-REM Install AWS CLI
-echo Installing AWS CLI...
-pip install awscli>=1.29.0
+REM Check AWS CLI version
+where aws >nul 2>nul
+if errorlevel 1 (
+    echo ERROR: AWS CLI is not installed. Please install AWS CLI v2 from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+    exit /b 1
+)
+for /f "tokens=2 delims=/" %%A in ('aws --version 2^>^&1 ^| findstr "aws-cli"') do set AWS_CLI_VERSION=%%A
+for /f "tokens=1 delims=." %%B in ("%AWS_CLI_VERSION%") do set AWS_CLI_MAJOR=%%B
+if "%AWS_CLI_MAJOR%" LSS "2" (
+    echo ERROR: AWS CLI v2.0.0 or higher is required. Please install it from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
+    exit /b 1
+)
 
 REM Install common dependencies
 echo Installing common dependencies...
