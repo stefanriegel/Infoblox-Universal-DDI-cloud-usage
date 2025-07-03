@@ -6,6 +6,8 @@ import os
 import boto3
 from typing import List, Optional
 from dataclasses import dataclass
+import sys
+from botocore.exceptions import NoCredentialsError
 
 
 @dataclass
@@ -53,10 +55,12 @@ def get_all_enabled_regions() -> List[str]:
         ]
         
         return sorted(enabled_regions)
+    except NoCredentialsError:
+        print("""ERROR: AWS credentials not found.\nPlease configure credentials, set AWS_PROFILE, or run 'aws sso login' for SSO profiles.\nExiting.""")
+        sys.exit(1)
     except Exception as e:
-        print(f"Warning: Could not fetch enabled regions: {e}")
-        # Fallback to common regions
-        return ["us-east-1", "us-west-2", "eu-west-1", "eu-central-1", "ap-southeast-1"]
+        print(f"ERROR: Could not fetch enabled regions: {e}")
+        sys.exit(1)
 
 
 def load_config() -> AWSConfig:

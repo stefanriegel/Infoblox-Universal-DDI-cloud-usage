@@ -11,6 +11,8 @@ import pandas as pd
 import math
 from pathlib import Path
 from datetime import datetime
+from botocore.exceptions import NoCredentialsError, ClientError
+import boto3
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -18,6 +20,20 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from .aws_discovery import AWSDiscovery
 from .config import AWSConfig, get_all_enabled_regions
 from .historical_analysis import CloudTrailAnalyzer
+
+
+def check_aws_credentials():
+    session = boto3.Session()
+    credentials = session.get_credentials()
+    if not credentials:
+        print("ERROR: AWS credentials not found. Please configure credentials, set AWS_PROFILE, or run 'aws sso login'. Exiting.")
+        sys.exit(1)
+    try:
+        sts = session.client('sts')
+        sts.get_caller_identity()
+    except (NoCredentialsError, ClientError) as e:
+        print(f"ERROR: AWS credentials are invalid or expired: {e}\nPlease check your credentials or run 'aws sso login'. Exiting.")
+        sys.exit(1)
 
 
 def main(args=None):
@@ -40,6 +56,9 @@ def main(args=None):
     if args.analyze_growth:
         print("Growth analysis: ENABLED")
     print()
+    
+    # Pre-check AWS credentials before any discovery or region fetching
+    check_aws_credentials()
     
     # Get all enabled regions
     print("Fetching enabled regions...")

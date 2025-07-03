@@ -210,3 +210,19 @@ python main.py aws --format json
 ```
 
 Or set the profile in your environment or config as needed. The tool will automatically use SSO credentials if available.
+
+#### Example: Running with AWS SSO
+
+After logging in with your SSO profile:
+
+```bash
+aws sso login --profile aws_test_pm_dev_sso
+```
+
+Run the tool using your SSO profile:
+
+```bash
+AWS_PROFILE=aws_test_pm_dev_sso python main.py aws --format json
+```
+
+This ensures the tool uses your SSO credentials for AWS discovery.

@@ -11,6 +11,7 @@ import pandas as pd
 import math
 from pathlib import Path
 from datetime import datetime
+import subprocess
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -18,6 +19,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from .azure_discovery import AzureDiscovery
 from .config import AzureConfig, get_all_azure_regions
 from .historical_analysis import AzureActivityAnalyzer
+
+
+def check_azure_cli_login():
+    try:
+        subprocess.run([
+            "az", "account", "show"
+        ], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        print("ERROR: Azure CLI is not authenticated. Please run 'az login' or configure your credentials. Exiting.")
+        sys.exit(1)
 
 
 def main(args=None):
@@ -40,6 +51,9 @@ def main(args=None):
     if args.analyze_growth:
         print("Growth analysis: ENABLED")
     print()
+    
+    # Pre-check Azure CLI login before any discovery or region fetching
+    check_azure_cli_login()
     
     # Get all available regions
     print("Fetching available regions...")
