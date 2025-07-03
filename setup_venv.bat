@@ -53,6 +53,10 @@ REM Upgrade pip
 echo Upgrading pip...
 python -m pip install --upgrade pip
 
+REM Install AWS CLI
+echo Installing AWS CLI...
+pip install awscli>=1.29.0
+
 REM Install common dependencies
 echo Installing common dependencies...
 pip install tqdm>=4.64.0 pandas>=1.5.0 scikit-learn>=1.3.0 matplotlib>=3.6.0 seaborn>=0.12.0

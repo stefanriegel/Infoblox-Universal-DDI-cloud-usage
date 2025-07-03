@@ -55,6 +55,10 @@ source venv/bin/activate
 echo "Upgrading pip..."
 pip install --upgrade pip
 
+# Install AWS CLI
+echo "Installing AWS CLI..."
+pip install awscli>=1.29.0
+
 # Install common dependencies
 echo "Installing common dependencies..."
 pip install tqdm>=4.64.0 pandas>=1.5.0 scikit-learn>=1.3.0 matplotlib>=3.6.0 seaborn>=0.12.0

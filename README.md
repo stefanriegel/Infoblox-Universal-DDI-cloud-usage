@@ -9,7 +9,8 @@ This tool scans AWS and Azure infrastructure to identify resources that require 
 ## Requirements
 
 - Python 3.8+
-- AWS credentials (access key/secret or profile)
+- AWS credentials (access key/secret, profile, or SSO)
+- AWS CLI (installed automatically by setup script)
 - Azure credentials (service principal or CLI login)
 - Network access to AWS and Azure APIs
 
@@ -31,6 +32,8 @@ Choose which modules to install:
 1. AWS only
 2. Azure only  
 3. Both AWS and Azure
+
+The setup script will also install the AWS CLI in your virtual environment, enabling AWS SSO and CLI commands.
 
 ### Manual Setup
 
@@ -81,9 +84,9 @@ export AWS_ACCESS_KEY_ID="your_access_key"
 export AWS_SECRET_ACCESS_KEY="your_secret_key"
 ```
 
-Or use AWS profile:
+Or use AWS profile or SSO profile:
 ```bash
-export AWS_PROFILE="your_profile"
+export AWS_PROFILE="your_profile"  # or your SSO profile
 ```
 
 Required permissions:
@@ -190,3 +193,20 @@ The highest of these three calculations determines the required Management Token
 ├── setup_venv.bat         # Windows setup script
 └── output/                # Generated output files
 ```
+
+### AWS SSO (Single Sign-On) Usage
+
+If your organization uses AWS SSO, you can authenticate using the AWS CLI:
+
+```bash
+aws sso login --profile <your-sso-profile>
+```
+
+Then run the tool with your SSO profile:
+
+```bash
+export AWS_PROFILE=<your-sso-profile>
+python main.py aws --format json
+```
+
+Or set the profile in your environment or config as needed. The tool will automatically use SSO credentials if available.
