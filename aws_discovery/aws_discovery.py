@@ -522,11 +522,7 @@ class AWSDiscovery(BaseDiscovery):
     
     def calculate_management_token_requirements(self) -> Dict:
         """
-        Calculate Management Token requirements according to official Infoblox Universal DDI rules:
-        - 1 token per 25 DDI objects
-        - 1 token per 13 active IP addresses
-        - 1 token per 3 assets (with at least one IP address)
-        Reference: https://docs.infoblox.com/space/BloxOneDDI/846954761/Universal+DDI+Licensing
+        Calculate Management Token requirements using the unified token calculator.
         
         Returns:
             Dictionary with calculation results
@@ -534,68 +530,25 @@ class AWSDiscovery(BaseDiscovery):
         # Get discovered resources (will use cached results if available)
         resources = self.discover_native_objects()
         
-        # DDI objects: DNS, DHCP, IPAM objects
-        ddi_types = ['subnet', 'vpc', 'route53-zone', 'route53-record']  # Add DNS objects
-        ddi_objects = [r for r in resources if r['resource_type'] in ddi_types]
+        # Use the unified token calculator
+        from shared.token_calculator import UnifiedTokenCalculator
+        calculator = UnifiedTokenCalculator('aws')
+        calculation = calculator.calculate_management_tokens(resources)
         
-        # Active IPs: unique IPs from all resources
-        ip_set = set()
-        for r in resources:
-            details = r.get('details', {})
-            for key in ['private_ip', 'public_ip']:
-                ip = details.get(key)
-                if ip:
-                    ip_set.add(ip)
-        active_ips = list(ip_set)
-        
-        # Assets: VMs, gateways, endpoints, firewalls, switches, routers, servers, etc. with at least one IP
-        asset_types = ['ec2-instance', 'application-load-balancer']
-        assets = [r for r in resources if r['resource_type'] in asset_types and any(r.get('details', {}).get(key) for key in ['private_ip', 'public_ip'])]
-        
-        # De-duplicate assets by resource_id
-        asset_ids = set()
-        unique_assets = []
-        for asset in assets:
-            if asset['resource_id'] not in asset_ids:
-                asset_ids.add(asset['resource_id'])
-                unique_assets.append(asset)
-        
-        # Token calculation (SUM, not max)
-        tokens_ddi = math.ceil(len(ddi_objects) / 25)
-        tokens_ips = math.ceil(len(active_ips) / 13)
-        tokens_assets = math.ceil(len(unique_assets) / 3)
-        total_tokens = tokens_ddi + tokens_ips + tokens_assets  # SUM, not max
-        
-        # Packs to sell (round up to next 1000)
-        packs = math.ceil(total_tokens / 1000)
-        tokens_packs_total = packs * 1000
-        
-        # Breakdown
-        breakdown_by_type = {
-            'ddi_objects': len(ddi_objects),
-            'active_ips': len(active_ips),
-            'assets': len(unique_assets)
-        }
-        breakdown_by_region = {}
-        for r in resources:
-            breakdown_by_region[r['region']] = breakdown_by_region.get(r['region'], 0) + 1
-        
-        # Management Token-free resources
-        management_token_free_resources = [r for r in resources if not r['requires_management_token']]
-        
+        # Convert TokenCalculation object to dictionary
         calculation_results = {
-            'total_native_objects': len(resources),
-            'management_token_required': total_tokens,
-            'management_token_free': len(management_token_free_resources),
-            'breakdown_by_type': breakdown_by_type,
-            'breakdown_by_region': breakdown_by_region,
-            'management_token_free_resources': management_token_free_resources,
-            'calculation_timestamp': datetime.now().isoformat(),
-            'management_token_packs': packs,
-            'management_tokens_packs_total': tokens_packs_total,
-            'tokens_ddi': tokens_ddi,
-            'tokens_ips': tokens_ips,
-            'tokens_assets': tokens_assets
+            'total_native_objects': calculation.total_native_objects,
+            'management_token_required': calculation.management_token_required,
+            'management_token_free': calculation.management_token_free,
+            'breakdown_by_type': calculation.breakdown_by_type,
+            'breakdown_by_region': calculation.breakdown_by_region,
+            'management_token_free_resources': calculation.management_token_free_resources,
+            'calculation_timestamp': calculation.calculation_timestamp,
+            'management_token_packs': calculation.management_token_packs,
+            'management_tokens_packs_total': calculation.management_tokens_packs_total,
+            'tokens_ddi': calculation.tokens_ddi,
+            'tokens_ips': calculation.tokens_ips,
+            'tokens_assets': calculation.tokens_assets
         }
         
         return calculation_results

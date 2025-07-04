@@ -31,12 +31,16 @@ class UnifiedTokenCalculator:
     # Resource type mappings for different providers
     DDI_RESOURCE_TYPES = {
         'aws': ['subnet', 'vpc', 'route53-zone', 'route53-record'],
-        'azure': ['dns-zone', 'dns-record', 'subnet', 'vnet', 'dhcp-range', 'ipam-block', 'ipam-space', 'host-record', 'ddns-record', 'address-block', 'view', 'zone', 'dtc-lbdn', 'dtc-server', 'dtc-pool', 'dtc-topology-rule', 'dtc-health-check', 'dhcp-exclusion-range', 'dhcp-filter-rule', 'dhcp-option', 'ddns-zone']
+        'azure': ['dns-zone', 'dns-record', 'subnet', 'vnet', 'dhcp-range', 'ipam-block', 'ipam-space', 'host-record', 'ddns-record', 'address-block', 'view', 'zone', 'dtc-lbdn', 'dtc-server', 'dtc-pool', 'dtc-topology-rule', 'dtc-health-check', 'dhcp-exclusion-range', 'dhcp-filter-rule', 'dhcp-option', 'ddns-zone'],
+        'gcp': ['subnet', 'vpc-network', 'dns-zone', 'dns-record'],
+        'multicloud': ['subnet', 'vpc', 'vpc-network', 'route53-zone', 'route53-record', 'dns-zone', 'dns-record', 'vnet', 'dhcp-range', 'ipam-block', 'ipam-space', 'host-record', 'ddns-record', 'address-block', 'view', 'zone', 'dtc-lbdn', 'dtc-server', 'dtc-pool', 'dtc-topology-rule', 'dtc-health-check', 'dhcp-exclusion-range', 'dhcp-filter-rule', 'dhcp-option', 'ddns-zone']
     }
     
     ASSET_RESOURCE_TYPES = {
         'aws': ['ec2-instance', 'application-load-balancer', 'network-load-balancer', 'classic-load-balancer'],
-        'azure': ['vm', 'gateway', 'endpoint', 'firewall', 'switch', 'router', 'server', 'load_balancer']
+        'azure': ['vm', 'gateway', 'endpoint', 'firewall', 'switch', 'router', 'server', 'load_balancer'],
+        'gcp': ['compute-instance', 'vpc-network'],
+        'multicloud': ['ec2-instance', 'vm', 'compute-instance', 'application-load-balancer', 'network-load-balancer', 'classic-load-balancer', 'gateway', 'endpoint', 'firewall', 'switch', 'router', 'server', 'load_balancer', 'vpc-network']
     }
     
     IP_DETAIL_KEYS = ['ip', 'private_ip', 'public_ip', 'private_ips', 'public_ips']
@@ -46,11 +50,11 @@ class UnifiedTokenCalculator:
         Initialize the token calculator for a specific provider.
         
         Args:
-            provider: Cloud provider ('aws' or 'azure')
+            provider: Cloud provider ('aws', 'azure', 'gcp', or 'multicloud')
         """
         self.provider = provider.lower()
-        if self.provider not in ['aws', 'azure']:
-            raise ValueError(f"Unsupported provider: {provider}. Must be 'aws' or 'azure'")
+        if self.provider not in ['aws', 'azure', 'gcp', 'multicloud']:
+            raise ValueError(f"Unsupported provider: {provider}. Must be 'aws', 'azure', 'gcp', or 'multicloud'")
     
     def calculate_management_tokens(self, native_objects: List[Dict]) -> TokenCalculation:
         """

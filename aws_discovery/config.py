@@ -22,7 +22,7 @@ class AWSConfig(BaseConfig):
     def __post_init__(self):
         super().__post_init__()
         if not self.regions:
-            self.regions = ["us-east-1", "us-west-2", "eu-west-1"]
+            self.regions = get_all_enabled_regions()
         if not self.aws_access_key_id:
             self.aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
         if not self.aws_secret_access_key:

@@ -17,8 +17,8 @@ def main():
     )
     parser.add_argument(
         "provider",
-        choices=["aws", "azure"],
-        help="Cloud provider to discover (aws or azure)"
+        choices=["aws", "azure", "gcp"],
+        help="Cloud provider to discover (aws, azure, or gcp)"
     )
     parser.add_argument(
         "--format",
@@ -55,6 +55,13 @@ def main():
             azure_args.workers = args.workers
             azure_args.full = args.full
             azure_main(azure_args)
+        elif args.provider == "gcp":
+            from gcp_discovery.discover import main as gcp_main
+            gcp_args = argparse.Namespace()
+            gcp_args.format = args.format
+            gcp_args.workers = args.workers
+            gcp_args.full = args.full
+            gcp_main(gcp_args)
         else:
             print(f"Unsupported provider: {args.provider}")
             return 1

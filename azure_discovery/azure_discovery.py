@@ -330,82 +330,33 @@ class AzureDiscovery(BaseDiscovery):
     
     def calculate_management_token_requirements(self) -> Dict:
         """
-        Calculate Management Token requirements according to official Infoblox Universal DDI rules:
-        - 1 token per 25 DDI objects
-        - 1 token per 13 active IP addresses
-        - 1 token per 3 assets (with at least one IP address)
-        Reference: https://docs.infoblox.com/space/BloxOneDDI/846954761/Universal+DDI+Licensing
+        Calculate Management Token requirements using the unified token calculator.
         
         Returns:
             Dictionary with calculation results
         """
         # Get discovered resources (will use cached results if available)
         resources = self.discover_native_objects()
-        # DDI objects: DNS, DHCP, IPAM objects
-        ddi_types = [
-            'dns-zone', 'dns-record', 'dhcp-range', 'subnet', 'ipam-block', 'ipam-space', 'host-record', 'ddns-record', 'address-block', 'view', 'zone', 'dtc-lbdn', 'dtc-server', 'dtc-pool', 'dtc-topology-rule', 'dtc-health-check', 'dhcp-exclusion-range', 'dhcp-filter-rule', 'dhcp-option', 'ddns-zone'
-        ]
-        ddi_objects = [r for r in resources if r['resource_type'] in ddi_types]
-        # Active IPs: unique IPs from all resources with 'ip', 'private_ip', or 'public_ip' in details
-        ip_set = set()
-        for r in resources:
-            details = r.get('details', {})
-            for key in ['ip', 'private_ip', 'public_ip']:
-                ip = details.get(key)
-                if ip:
-                    ip_set.add(ip)
-            # For subnets, optionally add discovered IPs if available
-            if r['resource_type'] == 'subnet' and 'discovered_ips' in details:
-                for ip in details['discovered_ips']:
-                    ip_set.add(ip)
-        active_ips = list(ip_set)
-        # Assets: VMs, gateways, endpoints, firewalls, switches, routers, servers, etc. with at least one IP
-        asset_types = ['vm', 'gateway', 'endpoint', 'firewall', 'switch', 'router', 'server', 'load_balancer']
-        assets = [r for r in resources if r['resource_type'] in asset_types and any(r.get('details', {}).get(key) for key in ['ip', 'private_ip', 'public_ip'])]
-        # De-duplicate assets by resource_id
-        asset_ids = set()
-        unique_assets = []
-        for asset in assets:
-            if asset['resource_id'] not in asset_ids:
-                asset_ids.add(asset['resource_id'])
-                unique_assets.append(asset)
-        # Token calculation (SUM, not max)
-        tokens_ddi = math.ceil(len(ddi_objects) / 25)
-        tokens_ips = math.ceil(len(active_ips) / 13)
-        tokens_assets = math.ceil(len(unique_assets) / 3)
-        total_tokens = tokens_ddi + tokens_ips + tokens_assets
         
-        # Packs to sell (round up to next 1000)
-        packs = math.ceil(total_tokens / 1000)
-        tokens_packs_total = packs * 1000
+        # Use the unified token calculator
+        from shared.token_calculator import UnifiedTokenCalculator
+        calculator = UnifiedTokenCalculator('azure')
+        calculation = calculator.calculate_management_tokens(resources)
         
-        # Breakdown
-        breakdown_by_type = {
-            'ddi_objects': len(ddi_objects),
-            'active_ips': len(active_ips),
-            'assets': len(unique_assets)
-        }
-        breakdown_by_region = {}
-        for r in resources:
-            region = r.get('region', 'unknown')
-            breakdown_by_region[region] = breakdown_by_region.get(region, 0) + 1
-        
-        # Management Token-free resources
-        management_token_free_resources = [r for r in resources if not r.get('requires_management_token', True)]
-        
+        # Convert TokenCalculation object to dictionary
         calculation_results = {
-            'total_native_objects': len(resources),
-            'management_token_required': total_tokens,
-            'management_token_free': len(management_token_free_resources),
-            'breakdown_by_type': breakdown_by_type,
-            'breakdown_by_region': breakdown_by_region,
-            'management_token_free_resources': management_token_free_resources,
-            'calculation_timestamp': datetime.now().isoformat(),
-            'management_token_packs': packs,
-            'management_tokens_packs_total': tokens_packs_total,
-            'tokens_ddi': tokens_ddi,
-            'tokens_ips': tokens_ips,
-            'tokens_assets': tokens_assets
+            'total_native_objects': calculation.total_native_objects,
+            'management_token_required': calculation.management_token_required,
+            'management_token_free': calculation.management_token_free,
+            'breakdown_by_type': calculation.breakdown_by_type,
+            'breakdown_by_region': calculation.breakdown_by_region,
+            'management_token_free_resources': calculation.management_token_free_resources,
+            'calculation_timestamp': calculation.calculation_timestamp,
+            'management_token_packs': calculation.management_token_packs,
+            'management_tokens_packs_total': calculation.management_tokens_packs_total,
+            'tokens_ddi': calculation.tokens_ddi,
+            'tokens_ips': calculation.tokens_ips,
+            'tokens_assets': calculation.tokens_assets
         }
         
         return calculation_results

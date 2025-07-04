@@ -20,9 +20,10 @@ echo ""
 echo "Which modules would you like to install?"
 echo "1) AWS only"
 echo "2) Azure only"
-echo "3) Both AWS and Azure"
+echo "3) GCP only"
+echo "4) All three (AWS, Azure, GCP)"
 echo ""
-read -p "Enter your choice (1-3): " choice
+read -p "Enter your choice (1-4): " choice
 
 case $choice in
     1)
@@ -34,11 +35,15 @@ case $choice in
         modules="azure"
         ;;
     3)
-        echo "Installing both AWS and Azure modules..."
-        modules="aws azure"
+        echo "Installing GCP module only..."
+        modules="gcp"
+        ;;
+    4)
+        echo "Installing all three modules (AWS, Azure, GCP)..."
+        modules="aws azure gcp"
         ;;
     *)
-        echo "Invalid choice. Please run the script again and select 1, 2, or 3."
+        echo "Invalid choice. Please run the script again and select 1-4."
         exit 1
         ;;
 esac
@@ -55,30 +60,39 @@ source venv/bin/activate
 echo "Upgrading pip..."
 pip install --upgrade pip
 
-# Check AWS CLI version
-if command -v aws &> /dev/null; then
-    AWS_CLI_VERSION=$(aws --version 2>&1 | grep -o 'aws-cli/[0-9.]*' | cut -d/ -f2)
-    AWS_CLI_MAJOR=$(echo $AWS_CLI_VERSION | cut -d. -f1)
-    if [ -z "$AWS_CLI_VERSION" ] || [ "$AWS_CLI_MAJOR" -lt 2 ]; then
-        echo "ERROR: AWS CLI v2.0.0 or higher is required. Please install it from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+# Check AWS CLI version (only if AWS module is selected)
+if [[ $modules == *"aws"* ]]; then
+    if command -v aws &> /dev/null; then
+        AWS_CLI_VERSION=$(aws --version 2>&1 | grep -o 'aws-cli/[0-9.]*' | cut -d/ -f2)
+        AWS_CLI_MAJOR=$(echo $AWS_CLI_VERSION | cut -d. -f1)
+        if [ -z "$AWS_CLI_VERSION" ] || [ "$AWS_CLI_MAJOR" -lt 2 ]; then
+            echo "ERROR: AWS CLI v2.0.0 or higher is required. Please install it from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+            exit 1
+        fi
+    else
+        echo "ERROR: AWS CLI is not installed. Please install AWS CLI v2 from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
         exit 1
     fi
-else
-    echo "ERROR: AWS CLI is not installed. Please install AWS CLI v2 from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
-    exit 1
 fi
 
-# Install common dependencies
-echo "Installing common dependencies..."
-pip install tqdm>=4.64.0 pandas>=1.5.0 scikit-learn>=1.3.0 matplotlib>=3.6.0 seaborn>=0.12.0
+# Check Google Cloud SDK (only if GCP module is selected)
+if [[ $modules == *"gcp"* ]]; then
+    if ! command -v gcloud &> /dev/null; then
+        echo "ERROR: Google Cloud SDK is not installed. Please install it from https://cloud.google.com/sdk/docs/install"
+        exit 1
+    fi
+    echo "Google Cloud SDK found: $(gcloud --version | head -1)"
+fi
 
 # Install module-specific dependencies
 for module in $modules; do
     echo "Installing $module module dependencies..."
     if [ "$module" = "aws" ]; then
-        pip install boto3>=1.26.0
+        pip install -r aws_discovery/requirements.txt
     elif [ "$module" = "azure" ]; then
-        pip install azure-mgmt-compute>=30.0.0 azure-mgmt-network==29.0.0 azure-mgmt-resource>=23.0.0 azure-mgmt-monitor>=5.0.0 azure-identity>=1.12.0
+        pip install -r azure_discovery/requirements.txt
+    elif [ "$module" = "gcp" ]; then
+        pip install -r gcp_discovery/requirements.txt
     fi
 done
 
@@ -97,8 +111,15 @@ echo "  deactivate"
 echo ""
 echo "To run discovery (after activating the virtual environment):"
 echo "  # Main entry point (recommended):"
-echo "  python main.py aws --format json"
-echo "  python main.py azure --format json"
+if [[ $modules == *"aws"* ]]; then
+    echo "  python main.py aws --format json"
+fi
+if [[ $modules == *"azure"* ]]; then
+    echo "  python main.py azure --format json"
+fi
+if [[ $modules == *"gcp"* ]]; then
+    echo "  python main.py gcp --format json"
+fi
 echo ""
 echo "  # Module-specific commands:"
 if [[ $modules == *"aws"* ]]; then
@@ -106,6 +127,9 @@ if [[ $modules == *"aws"* ]]; then
 fi
 if [[ $modules == *"azure"* ]]; then
     echo "  python azure_discovery/discover.py --format json"
+fi
+if [[ $modules == *"gcp"* ]]; then
+    echo "  python gcp_discovery/discover.py --format json"
 fi
 echo ""
 echo "Note: The virtual environment must be activated in each new terminal session."

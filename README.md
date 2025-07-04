@@ -1,10 +1,22 @@
 # Infoblox Universal DDI Management Token Calculator
 
-Calculates Management Token requirements for Infoblox Universal DDI licensing by discovering AWS and Azure cloud resources.
+Calculates Management Token requirements for Infoblox Universal DDI licensing by discovering AWS, Azure, and GCP cloud resources.
+
+## ⚠️ Early Preview Disclaimer
+
+**This token calculation tool is currently in early preview and is provided without any guarantees.**
+
+- **No Warranty**: This tool is provided "as is" without warranty of any kind
+- **Accuracy**: Token calculations may not be 100% accurate and should be verified independently
+- **Licensing Rules**: Infoblox licensing rules may change, affecting calculation accuracy
+- **Production Use**: Not recommended for production licensing decisions without manual verification
+- **Support**: Limited support available for this preview version
+
+**Please verify all token calculations with your Infoblox representative before making licensing decisions.**
 
 ## Overview
 
-This tool scans AWS and Azure infrastructure to identify resources that require Management Tokens under Infoblox Universal DDI licensing rules. It discovers VMs, networks, subnets, and load balancers, then calculates the required token count based on official Infoblox licensing methodology.
+This tool scans AWS, Azure, and Google Cloud Platform (GCP) infrastructure to identify resources that require Management Tokens under Infoblox Universal DDI licensing rules. It discovers VMs, networks, subnets, and load balancers, then calculates the required token count based on official Infoblox licensing methodology.
 
 ## Requirements
 
@@ -12,7 +24,9 @@ This tool scans AWS and Azure infrastructure to identify resources that require 
 - AWS credentials (access key/secret, profile, or SSO)
 - AWS CLI (installed automatically by setup script)
 - Azure credentials (service principal or CLI login)
-- Network access to AWS and Azure APIs
+- GCP credentials (service account or gcloud CLI)
+- Google Cloud SDK (for GCP discovery)
+- Network access to AWS, Azure, and GCP APIs
 
 ## Installation
 
@@ -31,7 +45,8 @@ setup_venv.bat
 Choose which modules to install:
 1. AWS only
 2. Azure only  
-3. Both AWS and Azure
+3. GCP only
+4. All three (AWS, Azure, GCP)
 
 The setup script will also install the AWS CLI in your virtual environment, enabling AWS SSO and CLI commands.
 
@@ -53,13 +68,22 @@ venv\Scripts\activate.bat  # Windows
 pip install -r azure_discovery/requirements.txt
 ```
 
-**Both AWS and Azure:**
+**GCP only:**
+```bash
+python3 -m venv venv
+source venv/bin/activate  # macOS/Linux
+venv\Scripts\activate.bat  # Windows
+pip install -r gcp_discovery/requirements.txt
+```
+
+**All three (AWS, Azure, GCP):**
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # macOS/Linux
 venv\Scripts\activate.bat  # Windows
 pip install -r aws_discovery/requirements.txt
 pip install -r azure_discovery/requirements.txt
+pip install -r gcp_discovery/requirements.txt
 ```
 
 ### Activating the Virtual Environment
@@ -122,6 +146,25 @@ Required permissions:
 - Reader role on subscription or resource groups
 - Network Reader role
 
+### GCP Setup
+
+Login with gcloud CLI:
+```bash
+gcloud auth login
+gcloud auth application-default login
+```
+
+Or set service account credentials:
+```bash
+export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+```
+
+Required permissions:
+- Compute Engine: Compute Instance Viewer, Network Viewer
+- Cloud DNS: DNS Reader
+- Resource Manager: Project IAM Admin (for project discovery)
+
 ## Usage
 
 ### Main Entry Point (Recommended)
@@ -132,6 +175,9 @@ python main.py aws --format json
 
 # Azure discovery  
 python main.py azure --format json
+
+# GCP discovery
+python main.py gcp --format json
 ```
 
 ### Command Line Options
@@ -155,25 +201,61 @@ python main.py aws --format json --workers 12
 
 # Full discovery with detailed output
 python main.py azure --format json --full
+
+# GCP discovery with CSV output
+python main.py gcp --format csv --full
 ```
+
+### Individual Provider Discovery
+
+Each cloud provider should be discovered separately for security and control:
+
+```bash
+# AWS discovery
+python main.py aws --format json --full
+
+# Azure discovery  
+python main.py azure --format json --full
+
+# GCP discovery
+python main.py gcp --format json --full
+```
+
+**Benefits:**
+- **Secure Discovery**: Each provider is discovered independently
+- **Controlled Access**: No cross-provider credential exposure
+- **Granular Control**: Run discovery only for the providers you need
+- **Clear Results**: Separate output files for each provider
+- **Audit Trail**: Clear separation of discovery results
+
+**Output Includes:**
+- Provider-specific resource discovery
+- Individual token calculations per provider
+- Separate output files for each cloud
+- Detailed resource information (when using --full)
 
 ### Module-Specific Commands
 
+**Note**: The recommended approach is to use the main entry point (`python main.py <provider>`). Module-specific commands are available for advanced users:
+
 **AWS:**
 ```bash
-cd aws_discovery
-python discover.py --format txt
+python -m aws_discovery.discover --format txt
 ```
 
 **Azure:**
 ```bash
-cd azure_discovery
-python discover.py --format txt
+python -m azure_discovery.discover --format txt
+```
+
+**GCP:**
+```bash
+python -m gcp_discovery.discover --format txt
 ```
 
 ### Performance Features
 
-- **Multi-region scanning**: AWS discovery scans all enabled regions in parallel
+- **Multi-region scanning**: AWS and GCP discovery scan all enabled regions in parallel
 - **Resource group scanning**: Azure discovery scans all resource groups in parallel
 - **Progress bars**: Real-time progress indicators for all operations
 - **Parallel workers**: Configurable number of parallel threads (default: 8)
@@ -189,13 +271,17 @@ Generated in `output/` directory:
 
 ## Token Calculation
 
+**⚠️ IMPORTANT**: Token calculations are in early preview and should be verified independently.
+
 Based on Infoblox Universal DDI licensing rules:
 
 - **DDI Objects**: 1 token per 25 objects
 - **Active IPs**: 1 token per 13 IPs  
 - **Assets**: 1 token per 3 assets
 
-The highest of these three calculations determines the required Management Token count.
+The **sum** of these three calculations determines the required Management Token count.
+
+**Note**: These calculations are estimates and may not reflect the exact token requirements for your specific environment. Always verify results with your Infoblox representative before making licensing decisions.
 
 ## Project Structure
 
@@ -210,7 +296,14 @@ The highest of these three calculations determines the required Management Token
 │   ├── azure_discovery.py  # Core Azure discovery logic
 │   ├── discover.py         # Azure CLI entry point
 │   ├── config.py           # Azure configuration
+│   ├── utils.py            # Azure utilities
 │   └── requirements.txt    # Azure dependencies
+├── gcp_discovery/          # GCP discovery module
+│   ├── gcp_discovery.py    # Core GCP discovery logic
+│   ├── discover.py         # GCP CLI entry point
+│   ├── config.py           # GCP configuration
+│   ├── utils.py            # GCP utilities
+│   └── requirements.txt    # GCP dependencies
 ├── shared/                 # Shared utilities
 │   ├── base_discovery.py   # Base discovery class
 │   ├── output_utils.py     # Output formatting
@@ -264,10 +357,18 @@ AWS_PROFILE=aws_test_pm_dev_sso python main.py aws --format txt
 
 This ensures the tool uses your SSO credentials for AWS discovery.
 
-## Recent Updates
+### GCP Authentication
 
-- **Consolidated codebase**: Removed duplicate code and unified common functionality
-- **Optimized dependencies**: Removed unused packages (scikit-learn, matplotlib, seaborn, azure-mgmt-monitor)
-- **Clean architecture**: Separated CLI layer from business logic layer
-- **Improved maintainability**: Shared base classes and utilities
-- **Enhanced performance**: Optimized parallel processing and resource discovery
+For GCP, you can authenticate using the gcloud CLI:
+
+```bash
+gcloud auth login
+gcloud auth application-default login
+```
+
+Then run the tool:
+
+```bash
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+python main.py gcp --format txt
+```
