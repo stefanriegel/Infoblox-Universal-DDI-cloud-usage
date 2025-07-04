@@ -221,45 +221,13 @@ python main.py azure --format json --full
 python main.py gcp --format json --full
 ```
 
-**Benefits:**
-- **Secure Discovery**: Each provider is discovered independently
-- **Controlled Access**: No cross-provider credential exposure
-- **Granular Control**: Run discovery only for the providers you need
-- **Clear Results**: Separate output files for each provider
-- **Audit Trail**: Clear separation of discovery results
+
 
 **Output Includes:**
 - Provider-specific resource discovery
 - Individual token calculations per provider
 - Separate output files for each cloud
 - Detailed resource information (when using --full)
-
-### Module-Specific Commands
-
-**Note**: The recommended approach is to use the main entry point (`python main.py <provider>`). Module-specific commands are available for advanced users:
-
-**AWS:**
-```bash
-python -m aws_discovery.discover --format txt
-```
-
-**Azure:**
-```bash
-python -m azure_discovery.discover --format txt
-```
-
-**GCP:**
-```bash
-python -m gcp_discovery.discover --format txt
-```
-
-### Performance Features
-
-- **Multi-region scanning**: AWS and GCP discovery scan all enabled regions in parallel
-- **Resource group scanning**: Azure discovery scans all resource groups in parallel
-- **Progress bars**: Real-time progress indicators for all operations
-- **Parallel workers**: Configurable number of parallel threads (default: 8)
-- **Performance optimization**: 8 workers provide ~50% faster discovery than 5 workers
 
 ## Output Files
 
