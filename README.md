@@ -16,7 +16,7 @@ Calculates Management Token requirements for Infoblox Universal DDI licensing by
 
 ## Overview
 
-This tool scans AWS, Azure, and Google Cloud Platform (GCP) infrastructure to identify resources that require Management Tokens under Infoblox Universal DDI licensing rules. It discovers VMs, networks, subnets, and load balancers, then calculates the required token count based on official Infoblox licensing methodology.
+This tool scans AWS, Azure, and Google Cloud Platform (GCP) infrastructure to identify resources that require Management Tokens under Infoblox Universal DDI licensing rules. It discovers VMs, networks, subnets, load balancers, and DNS resources, then calculates the required token count based on official Infoblox licensing methodology.
 
 ## Requirements
 
