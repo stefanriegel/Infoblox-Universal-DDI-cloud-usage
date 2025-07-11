@@ -54,12 +54,6 @@ cd Infoblox-Universal-DDI-cloud-usage
 setup_venv.bat
 ```
 
-Choose your installation option:
-1. AWS only
-2. Azure only
-3. GCP only
-4. All three (AWS, Azure, GCP)
-
 ### Basic Usage
 
 ```bash
@@ -200,20 +194,7 @@ python main.py azure --format json --full
 python main.py gcp --format csv --full
 ```
 
-### Individual Provider Discovery
 
-For security and control, discover each cloud provider separately:
-
-```bash
-# AWS discovery
-python main.py aws --format json --full
-
-# Azure discovery  
-python main.py azure --format json --full
-
-# GCP discovery
-python main.py gcp --format json --full
-```
 
 ## Output
 
@@ -286,15 +267,7 @@ Tracks IP addresses currently assigned to running resources:
 - Serverless Functions
 - Network-attached Storage
 
-### DDI Objects Count
 
-The tool provides a **DDI Objects** count that represents the sum of all DDI objects across your cloud infrastructure:
-
-**Total Calculation:**
-- **Network Infrastructure**: Sum of VPCs, Subnets, Route Tables, Network Interfaces
-- **DNS Resources**: Sum of DNS Zones and DNS Records
-- **Load Balancing**: Sum of Load Balancers, Target Groups, Health Checks
-- **Other DDI Objects**: Sum of NAT Gateways, Internet Gateways, VPN Connections
 
 
 ## Project Structure
@@ -331,14 +304,7 @@ Infoblox-Universal-DDI-cloud-usage/
 └── output/                # Generated output files
 ```
 
-### Architecture
 
-The project follows a clean separation of concerns:
-
-- **`main.py`**: Main entry point that orchestrates discovery
-- **`discover.py`**: Command-line interface and user experience layer
-- **`*_discovery.py`**: Core business logic and cloud provider integration
-- **`shared/`**: Reusable utilities and base classes
 
 ## License
 
