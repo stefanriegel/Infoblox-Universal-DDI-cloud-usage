@@ -1,5 +1,5 @@
 """
-Azure Cloud Discovery Module for Infoblox Universal DDI Management Token Calculator.
+Azure Cloud Discovery Module for Infoblox Universal DDI Resource Counter.
 """
 
 from .azure_discovery import AzureDiscovery
@@ -9,7 +9,7 @@ __version__ = "1.0.0"
 __author__ = "Stefan Riegel"
 __all__ = [
     "AzureDiscovery",
-    "AzureConfig", 
+    "AzureConfig",
     "get_all_azure_regions",
-    "get_azure_credential"
-] 
+    "get_azure_credential",
+]

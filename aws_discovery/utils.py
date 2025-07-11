@@ -19,7 +19,7 @@ def get_aws_client(service_name: str, region: str, config) -> Any:
                 service_name,
                 region_name=region,
                 aws_access_key_id=config.aws_access_key_id,
-                aws_secret_access_key=config.aws_secret_access_key
+                aws_secret_access_key=config.aws_secret_access_key,
             )
         else:
             # Use default credential chain (env, config, SSO, etc.)
@@ -27,4 +27,4 @@ def get_aws_client(service_name: str, region: str, config) -> Any:
     except NoCredentialsError:
         raise RuntimeError(
             "AWS credentials not found. Please configure AWS credentials, set AWS_PROFILE, or run 'aws sso login' for SSO profiles."
-        ) 
+        )

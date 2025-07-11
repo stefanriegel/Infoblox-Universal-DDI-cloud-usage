@@ -1,22 +1,22 @@
-# Infoblox Universal DDI Management Token Calculator
+# Infoblox Universal DDI Resource Counter
 
-Calculates Management Token requirements for Infoblox Universal DDI licensing by discovering AWS, Azure, and GCP cloud resources.
+Counts DDI Objects and Active IPs for Infoblox Universal DDI licensing by discovering AWS, Azure, and GCP cloud resources.
 
 ## ⚠️ Early Preview Disclaimer
 
-**This token calculation tool is currently in early preview and is provided without any guarantees.**
+**This resource counting tool is currently in early preview and is provided without any guarantees.**
 
 - **No Warranty**: This tool is provided "as is" without warranty of any kind
-- **Accuracy**: Token calculations may not be 100% accurate and should be verified independently
-- **Licensing Rules**: Infoblox licensing rules may change, affecting calculation accuracy
+- **Accuracy**: Resource counts may not be 100% accurate and should be verified independently
+- **Licensing Rules**: Infoblox licensing rules may change, affecting count accuracy
 - **Production Use**: Not recommended for production licensing decisions without manual verification
 - **Support**: Limited support available for this preview version
 
-**Please verify all token calculations with your Infoblox representative before making licensing decisions.**
+**Please verify all resource counts with your Infoblox representative before making licensing decisions.**
 
 ## Overview
 
-This tool scans AWS, Azure, and Google Cloud Platform (GCP) infrastructure to identify resources that require Management Tokens under Infoblox Universal DDI licensing rules. It discovers VMs, networks, subnets, load balancers, and DNS resources, then calculates the required token count based on official Infoblox licensing methodology.
+This tool scans AWS, Azure, and Google Cloud Platform (GCP) infrastructure to identify and count DDI Objects and Active IPs under Infoblox Universal DDI licensing rules. It discovers VMs, networks, subnets, load balancers, and DNS resources, then provides detailed counts and breakdowns for licensing assessment.
 
 ## Requirements
 
@@ -221,11 +221,10 @@ python main.py azure --format json --full
 python main.py gcp --format json --full
 ```
 
-
-
 **Output Includes:**
 - Provider-specific resource discovery
-- Individual token calculations per provider
+- DDI Objects breakdown by type
+- Active IPs count and sources
 - Separate output files for each cloud
 - Detailed resource information (when using --full)
 
@@ -234,22 +233,32 @@ python main.py gcp --format json --full
 Generated in `output/` directory:
 
 - `*_native_objects_*.{format}`: Detailed resource information (when using --full)
-- `*_management_token_calculation_*.{format}`: Token calculation results
-- `*_management_token_free_*.{format}`: Resources that don't require tokens (when applicable)
+- `*_resource_count_*.{format}`: DDI Objects and Active IPs count results
 
-## Token Calculation
+## Resource Counting
 
-**⚠️ IMPORTANT**: Token calculations are in early preview and should be verified independently.
+**⚠️ IMPORTANT**: Resource counts are in early preview and should be verified independently.
 
-Based on Infoblox Universal DDI licensing rules:
+The tool counts two main categories:
 
-- **DDI Objects**: 1 token per 25 objects
-- **Active IPs**: 1 token per 13 IPs  
-- **Assets**: 1 token per 3 assets
+- **DDI Objects**: VPCs, subnets, DNS zones, DNS records, and other network infrastructure
+- **Active IPs**: IP addresses assigned to running instances and services
 
-The **sum** of these three calculations determines the required Management Token count.
+**DDI Objects Breakdown:**
+- VPCs/Networks
+- Subnets
+- DNS Zones
+- DNS Records
+- Load Balancers
 
-**Note**: These calculations are estimates and may not reflect the exact token requirements for your specific environment. Always verify results with your Infoblox representative before making licensing decisions.
+**Active IPs Sources:**
+- EC2 Instances (AWS)
+- Virtual Machines (Azure)
+- Compute Instances (GCP)
+- Load Balancers
+- Other network-attached resources
+
+**Note**: These counts are estimates and may not reflect the exact requirements for your specific environment. Always verify results with your Infoblox representative before making licensing decisions.
 
 ## Project Structure
 
@@ -275,7 +284,7 @@ The **sum** of these three calculations determines the required Management Token
 ├── shared/                 # Shared utilities
 │   ├── base_discovery.py   # Base discovery class
 │   ├── output_utils.py     # Output formatting
-│   ├── token_calculator.py # Token calculation logic
+│   ├── resource_counter.py # Resource counting logic
 │   └── config.py           # Base configuration
 ├── main.py                 # Main entry point
 ├── setup_venv.sh          # Linux/macOS setup script

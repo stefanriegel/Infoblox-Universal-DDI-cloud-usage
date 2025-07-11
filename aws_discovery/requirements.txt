@@ -1,5 +1,0 @@
-# AWS Cloud Discovery Module Requirements
-boto3>=1.26.0
-tqdm>=4.64.0
-pandas>=1.5.0
-# concurrent.futures is built into Python 3.2+ 

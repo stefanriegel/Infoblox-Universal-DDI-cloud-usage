@@ -1,7 +1,7 @@
 @echo off
 REM Setup script for virtual environment (Windows 11)
 
-echo Setting up virtual environment for Infoblox Universal DDI Management Token Calculator
+echo Setting up virtual environment for Infoblox Universal DDI Resource Counter
 echo ================================================================================
 
 REM Check if Python 3 is available
@@ -58,7 +58,8 @@ echo Upgrading pip...
 python -m pip install --upgrade pip
 
 REM Check AWS CLI version (only if AWS module is selected)
-if "%modules%"=="aws" (
+echo %modules% | findstr "aws" >nul
+if not errorlevel 1 (
     where aws >nul 2>nul
     if errorlevel 1 (
         echo ERROR: AWS CLI is not installed. Please install AWS CLI v2 from https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html
@@ -73,7 +74,8 @@ if "%modules%"=="aws" (
 )
 
 REM Check Google Cloud SDK (only if GCP module is selected)
-if "%modules%"=="gcp" (
+echo %modules% | findstr "gcp" >nul
+if not errorlevel 1 (
     where gcloud >nul 2>nul
     if errorlevel 1 (
         echo ERROR: Google Cloud SDK is not installed. Please install it from https://cloud.google.com/sdk/docs/install
@@ -82,19 +84,9 @@ if "%modules%"=="gcp" (
     echo Google Cloud SDK found
 )
 
-REM Install module-specific dependencies
-for %%m in (%modules%) do (
-    if "%%m"=="aws" (
-        echo Installing AWS module dependencies...
-        pip install -r aws_discovery\requirements.txt
-    ) else if "%%m"=="azure" (
-        echo Installing Azure module dependencies...
-        pip install -r azure_discovery\requirements.txt
-    ) else if "%%m"=="gcp" (
-        echo Installing GCP module dependencies...
-        pip install -r gcp_discovery\requirements.txt
-    )
-)
+REM Install dependencies
+echo Installing project dependencies...
+pip install -r requirements.txt
 
 echo.
 echo Virtual environment setup complete!
@@ -125,15 +117,15 @@ if "%modules%"=="aws" (
 echo.
 echo   # Module-specific commands:
 if "%modules%"=="aws" (
-    echo   python aws_discovery\discover.py --format json
+    echo   python -m aws_discovery.discover --format json
 ) else if "%modules%"=="azure" (
-    echo   python azure_discovery\discover.py --format json
+    echo   python -m azure_discovery.discover --format json
 ) else if "%modules%"=="gcp" (
-    echo   python gcp_discovery\discover.py --format json
+    echo   python -m gcp_discovery.discover --format json
 ) else (
-    echo   python aws_discovery\discover.py --format json
-    echo   python azure_discovery\discover.py --format json
-    echo   python gcp_discovery\discover.py --format json
+    echo   python -m aws_discovery.discover --format json
+    echo   python -m azure_discovery.discover --format json
+    echo   python -m gcp_discovery.discover --format json
 )
 echo.
 echo Note: The virtual environment must be activated in each new terminal session.

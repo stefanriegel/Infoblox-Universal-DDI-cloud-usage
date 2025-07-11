@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Main entry point for Infoblox Universal DDI Management Token Calculator.
+Main entry point for Infoblox Universal DDI Resource Counter.
 """
 
 import argparse
@@ -10,46 +10,46 @@ from pathlib import Path
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
+
 def main():
     """Main function."""
     parser = argparse.ArgumentParser(
-        description="Infoblox Universal DDI Management Token Calculator"
+        description="Infoblox Universal DDI Resource Counter"
     )
     parser.add_argument(
         "provider",
         choices=["aws", "azure", "gcp"],
-        help="Cloud provider to discover (aws, azure, or gcp)"
+        help="Cloud provider to discover (aws, azure, or gcp)",
     )
     parser.add_argument(
         "--format",
         choices=["json", "csv", "txt"],
         default="txt",
-        help="Output format (default: txt)"
+        help="Output format (default: txt)",
     )
     parser.add_argument(
-        "--workers",
-        type=int,
-        default=8,
-        help="Number of parallel workers (default: 8)"
+        "--workers", type=int, default=8, help="Number of parallel workers (default: 8)"
     )
     parser.add_argument(
         "--full",
         action="store_true",
-        help="Save/export full resource/object data (default: only summary and token calculation)"
+        help="Save/export full resource/object data (default: only summary and resource count)",
     )
     # Remove extra_args, use parse_known_args instead
     args, unknown = parser.parse_known_args()
     try:
         if args.provider == "aws":
             from aws_discovery.discover import main as aws_main
+
             aws_args = argparse.Namespace()
             aws_args.format = args.format
             aws_args.workers = args.workers
             aws_args.full = args.full
-            print(f"DEBUG: main.py passing format={args.format} to aws_main")
+
             aws_main(aws_args)
         elif args.provider == "azure":
             from azure_discovery.discover import main as azure_main
+
             azure_args = argparse.Namespace()
             azure_args.format = args.format
             azure_args.workers = args.workers
@@ -57,6 +57,7 @@ def main():
             azure_main(azure_args)
         elif args.provider == "gcp":
             from gcp_discovery.discover import main as gcp_main
+
             gcp_args = argparse.Namespace()
             gcp_args.format = args.format
             gcp_args.workers = args.workers
@@ -75,5 +76,6 @@ def main():
         return 1
     return 0
 
+
 if __name__ == "__main__":
-    sys.exit(main()) 
+    sys.exit(main())

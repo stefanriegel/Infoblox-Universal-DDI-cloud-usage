@@ -2,9 +2,11 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 import os
 
+
 @dataclass
 class BaseConfig:
     """Base configuration for cloud discovery."""
+
     output_directory: str = "output"
     output_format: str = "txt"  # json, csv, txt
     regions: Optional[List[str]] = field(default_factory=list)
@@ -14,7 +16,9 @@ class BaseConfig:
         os.makedirs(self.output_directory, exist_ok=True)
         # Validate output format
         if self.output_format not in ["json", "csv", "txt"]:
-            raise ValueError(f"Invalid output format: {self.output_format}. Supported: json, csv, txt")
+            raise ValueError(
+                f"Invalid output format: {self.output_format}. Supported: json, csv, txt"
+            )
 
     def validate(self) -> bool:
         if not self.output_directory:
@@ -29,6 +33,7 @@ class BaseConfig:
 @dataclass
 class DiscoveryConfig:
     """Configuration for multi-cloud discovery."""
+
     regions: List[str]
     output_directory: str
     output_format: str
@@ -39,7 +44,9 @@ class DiscoveryConfig:
         os.makedirs(self.output_directory, exist_ok=True)
         # Validate output format
         if self.output_format not in ["json", "csv", "txt"]:
-            raise ValueError(f"Invalid output format: {self.output_format}. Supported: json, csv, txt")
+            raise ValueError(
+                f"Invalid output format: {self.output_format}. Supported: json, csv, txt"
+            )
 
     def validate(self) -> bool:
         if not self.output_directory:
@@ -48,4 +55,4 @@ class DiscoveryConfig:
         if self.output_format not in ["json", "csv", "txt"]:
             print(f"Error: Invalid output format '{self.output_format}'")
             return False
-        return True 
+        return True

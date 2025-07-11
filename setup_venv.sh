@@ -1,7 +1,7 @@
 #!/bin/bash
 # Setup script for virtual environment (macOS/Linux)
 
-echo "Setting up virtual environment for Infoblox Universal DDI Management Token Calculator"
+echo "Setting up virtual environment for Infoblox Universal DDI Resource Counter"
 echo "================================================================================"
 
 # Check if Python 3 is available
@@ -84,17 +84,9 @@ if [[ $modules == *"gcp"* ]]; then
     echo "Google Cloud SDK found: $(gcloud --version | head -1)"
 fi
 
-# Install module-specific dependencies
-for module in $modules; do
-    echo "Installing $module module dependencies..."
-    if [ "$module" = "aws" ]; then
-        pip install -r aws_discovery/requirements.txt
-    elif [ "$module" = "azure" ]; then
-        pip install -r azure_discovery/requirements.txt
-    elif [ "$module" = "gcp" ]; then
-        pip install -r gcp_discovery/requirements.txt
-    fi
-done
+# Install dependencies
+echo "Installing project dependencies..."
+pip install -r requirements.txt
 
 echo ""
 echo "Virtual environment setup complete!"
@@ -123,13 +115,13 @@ fi
 echo ""
 echo "  # Module-specific commands:"
 if [[ $modules == *"aws"* ]]; then
-    echo "  python aws_discovery/discover.py --format json"
+    echo "  python -m aws_discovery.discover --format json"
 fi
 if [[ $modules == *"azure"* ]]; then
-    echo "  python azure_discovery/discover.py --format json"
+    echo "  python -m azure_discovery.discover --format json"
 fi
 if [[ $modules == *"gcp"* ]]; then
-    echo "  python gcp_discovery/discover.py --format json"
+    echo "  python -m gcp_discovery.discover --format json"
 fi
 echo ""
 echo "Note: The virtual environment must be activated in each new terminal session."
