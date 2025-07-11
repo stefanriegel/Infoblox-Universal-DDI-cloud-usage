@@ -221,7 +221,7 @@ Generated in the `output/` directory:
 - `*_native_objects_*.{format}` - Detailed resource information (with `--full`)
 - `*_resource_count_*.{format}` - DDI Objects and Active IPs count results
 
-### Sample Output
+### Output Structure
 
 The tool generates detailed reports showing breakdowns first, with the key sizing numbers prominently displayed at the end:
 
@@ -283,30 +283,6 @@ Tracks IP addresses currently assigned to running resources:
 - Serverless Functions
 - Network-attached Storage
 
-### DDI Object Count Calculation
-
-The tool calculates DDI Object Count based on Infoblox Universal DDI licensing rules:
-
-**Counting Logic:**
-- **VPCs/Networks**: Counted as individual DDI objects
-- **Subnets**: Each subnet counted separately
-- **DNS Zones**: Each hosted zone counted as one object
-- **DNS Records**: Aggregated by zone (not counted individually)
-- **Load Balancers**: Each load balancer counted as one object
-- **Network Components**: NAT Gateways, Internet Gateways, etc. counted individually
-
-**Example Calculation:**
-```
-AWS Account with:
-- 3 VPCs
-- 12 Subnets
-- 5 DNS Hosted Zones
-- 8 Load Balancers
-- 2 NAT Gateways
-
-Total DDI Objects: 30
-```
-
 ### DDI Objects Count
 
 The tool provides a **DDI Objects** count that represents the sum of all DDI objects across your cloud infrastructure:
@@ -317,69 +293,6 @@ The tool provides a **DDI Objects** count that represents the sum of all DDI obj
 - **Load Balancing**: Sum of Load Balancers, Target Groups, Health Checks
 - **Other DDI Objects**: Sum of NAT Gateways, Internet Gateways, VPN Connections
 
-**Final DDI Objects = Sum of all individual DDI object types**
-
-**Example Output:**
-```
-AWS Resource Count Results
-==================================================
-Timestamp: 2024-01-15T10:30:00
-
---- DDI Objects Breakdown ---
-  vpc: 1
-  subnet: 1
-  route53-zone: 2
-  route53-record: 11
-
---- Active IPs Breakdown ---
-  ec2-instance: 2
-  load-balancer: 1
-
-==============================
- DDI Objects Count (for Sizing): 15
-==============================
-
-==============================
- Active IPs Count (for Sizing): 3
-==============================
-```
-
-**Note**: The exact counting rules may vary based on your Infoblox licensing agreement. Always verify counts with your Infoblox representative.
-
-### Console and TXT Output Example
-
-The key sizing numbers are prominently displayed at the end, clearly framed:
-
-```
-AZURE Resource Count Results
-==================================================
-Timestamp: 2025-07-11T23:29:24.219766
-
---- DDI Objects Breakdown ---
-  vnet: 6
-  subnet: 7
-
---- Active IPs Breakdown ---
-  vm: 2
-
-Discovered 15 resources:
-  - 2 vm(s) (e.g. linux02, route-az)
-  - 6 vnet(s) (e.g. blox42-demo-vnet1, blox42-demo-vnet2, ...)
-  - 7 subnet(s) (e.g. subnet-blox42-demo-vnet1, subnet-blox42-demo-vnet2, ...)
-
-==============================
- DDI Objects Count (for Sizing): 13
-==============================
-
-==============================
- Active IPs Count (for Sizing): 2
-==============================
-```
-
-- The key sizing numbers (DDI Objects Count, Active IPs Count) are prominently displayed at the end and clearly framed
-- Breakdowns are shown as separate blocks first
-- Resource overview is included for reference
-- Console output and TXT output file are identically structured
 
 ## Project Structure
 
@@ -424,46 +337,6 @@ The project follows a clean separation of concerns:
 - **`*_discovery.py`**: Core business logic and cloud provider integration
 - **`shared/`**: Reusable utilities and base classes
 
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-### Development Setup
-
-```bash
-# Clone the repository
-git clone https://github.com/your-username/Infoblox-Universal-DDI-cloud-usage.git
-cd Infoblox-Universal-DDI-cloud-usage
-
-# Install development dependencies
-pip install -r requirements.txt
-pip install pytest black flake8
-
-# Run tests
-pytest
-
-# Format code
-black .
-
-# Lint code
-flake8
-```
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Disclaimer
-
-This tool is provided "as is" without warranty of any kind. Resource counts may not be 100% accurate and should be verified independently. Please verify all resource counts with your Infoblox representative before making licensing decisions.
-
-## Support
-
-For issues and questions:
-- Create an issue on GitHub
-- Check the [documentation](docs/)
-- Contact your Infoblox representative for licensing questions
