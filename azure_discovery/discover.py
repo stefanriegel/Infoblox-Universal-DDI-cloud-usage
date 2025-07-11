@@ -91,40 +91,9 @@ def main(args=None):
         # Count DDI objects and active IPs
         count_results = discovery.count_resources()
 
-        # --- Improved Console Output (Scalable) ---
-        # 1. Summary of discovered resources by type (with up to 2 example names)
-        print("\n===== Azure Discovery Summary =====")
-        type_to_objs = {}
-        for obj in native_objects:
-            type_to_objs.setdefault(obj["resource_type"], []).append(obj)
-        print(f"Discovered {len(native_objects)} resources:")
-        for t, objs in type_to_objs.items():
-            examples = ", ".join([str(o["name"]) for o in objs[:2]])
-            more = f", ..." if len(objs) > 2 else ""
-            print(
-                f"  - {len(objs)} {t}(s)"
-                + (f" (e.g. {examples}{more})" if examples else "")
-            )
-
-        # 2. DDI Objects Breakdown
-        print(f"\nDDI Objects Breakdown:")
-        ddi_breakdown = count_results.get("ddi_breakdown", {})
-        if not ddi_breakdown:
-            print("  - None")
-        else:
-            for t, count in ddi_breakdown.items():
-                print(f"  - {t}: {count}")
-
-        # 3. Active IPs
-        print(f"\nActive IPs: {count_results.get('active_ips', 0)}")
-        ip_sources = count_results.get("ip_sources", {})
-        if ip_sources:
-            print("IP Sources:")
-            for t, count in ip_sources.items():
-                print(f"  - {t}: {count}")
-
-        print("===============================\n")
-        # --- End Improved Output ---
+        # Print discovery summary
+        from shared.output_utils import print_discovery_summary
+        print_discovery_summary(native_objects, count_results, "azure")
 
         # Save results
         if args.full:

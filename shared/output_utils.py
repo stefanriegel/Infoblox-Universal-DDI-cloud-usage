@@ -10,6 +10,64 @@ from typing import Dict, List, Any
 from datetime import datetime
 
 
+def print_discovery_summary(native_objects: List[Dict], count_results: Dict, provider: str):
+    """
+    Print discovery summary to console.
+    
+    Args:
+        native_objects: List of discovered resources
+        count_results: Resource count results
+        provider: Cloud provider name (aws, azure, gcp)
+    """
+    from datetime import datetime
+    print(f"\n===== {provider.upper()} Resource Count =====")
+    print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    # DDI Breakdown
+    ddi_breakdown = count_results.get("ddi_breakdown", {})
+    ddi_total = sum(ddi_breakdown.values())
+    print("\n--- DDI Objects Breakdown ---")
+    if not ddi_breakdown:
+        print("  (none)")
+    else:
+        for t, count in ddi_breakdown.items():
+            print(f"  {t}: {count}")
+    print()
+
+    # Active IPs Breakdown
+    ip_sources = count_results.get("ip_sources", {})
+    print("--- Active IPs Breakdown ---")
+    if not ip_sources:
+        print("  (none)")
+    else:
+        for t, count in ip_sources.items():
+            print(f"  {t}: {count}")
+    print()
+
+    # Ressourcen-Übersicht
+    print(f"Discovered {len(native_objects)} resources:")
+    type_to_objs = {}
+    for obj in native_objects:
+        type_to_objs.setdefault(obj["resource_type"], []).append(obj)
+    for t, objs in type_to_objs.items():
+        examples = ", ".join([str(o["name"]) for o in objs[:2]])
+        more = f", ..." if len(objs) > 2 else ""
+        print(
+            f"  - {len(objs)} {t}(s)"
+            + (f" (e.g. {examples}{more})" if examples else "")
+        )
+    print()
+
+    # Am Ende: Sizing-Zahlen prominent
+    print("==============================")
+    print(f" DDI Objects Count (for Sizing): {ddi_total}")
+    print("==============================")
+    print("==============================")
+    active_ips = count_results.get('active_ips', 0)
+    print(f" Active IPs Count (for Sizing): {active_ips}")
+    print("==============================\n")
+
+
 def save_discovery_results(
     data: List[Dict], output_dir: str, output_format: str, timestamp: str, provider: str
 ) -> Dict[str, str]:
@@ -116,7 +174,6 @@ def save_resource_count_results(
             json.dump(count_results, f, indent=2, default=str)
     elif output_format == "csv":
         flat_data = {
-            "total_objects": count_results.get("total_objects", 0),
             "ddi_objects": count_results.get("ddi_objects", 0),
             "active_ips": count_results.get("active_ips", 0),
             "timestamp": count_results.get("timestamp", ""),
@@ -125,32 +182,57 @@ def save_resource_count_results(
         df.to_csv(count_filepath, index=False)
     else:
         with open(count_filepath, "w") as f:
+            from datetime import datetime as dt
             f.write(f"{provider.upper()} Resource Count Results\n")
-            f.write("=" * 50 + "\n\n")
-            f.write(f"Timestamp: {count_results.get('timestamp', '')}\n\n")
-            f.write(f"Total Objects: {count_results.get('total_objects', 0)}\n")
-            f.write(f"DDI Objects: {count_results.get('ddi_objects', 0)}\n")
-            f.write(f"Active IPs: {count_results.get('active_ips', 0)}\n\n")
+            f.write("=" * 50 + "\n")
+            f.write(f"Timestamp: {count_results.get('timestamp', dt.now().strftime('%Y-%m-%d %H:%M:%S'))}\n\n")
 
+            # DDI Breakdown
             ddi_breakdown = count_results.get("ddi_breakdown", {})
-            if ddi_breakdown:
-                f.write("DDI Objects Breakdown:\n")
+            ddi_total = sum(ddi_breakdown.values())
+            f.write("--- DDI Objects Breakdown ---\n")
+            if not ddi_breakdown:
+                f.write("  (none)\n")
+            else:
                 for resource_type, count in ddi_breakdown.items():
                     f.write(f"  {resource_type}: {count}\n")
-                f.write("\n")
+            f.write("\n")
 
+            # Active IPs Breakdown
             ip_sources = count_results.get("ip_sources", {})
-            if ip_sources:
-                f.write("IP Sources:\n")
+            f.write("--- Active IPs Breakdown ---\n")
+            if not ip_sources:
+                f.write("  (none)\n")
+            else:
                 for resource_type, count in ip_sources.items():
                     f.write(f"  {resource_type}: {count}\n")
+            f.write("\n")
+
+            # Ressourcen-Übersicht (optional, falls gewünscht)
+            if "native_objects" in count_results:
+                native_objects = count_results["native_objects"]
+                f.write(f"Discovered {len(native_objects)} resources:\n")
+                type_to_objs = {}
+                for obj in native_objects:
+                    type_to_objs.setdefault(obj["resource_type"], []).append(obj)
+                for t, objs in type_to_objs.items():
+                    examples = ", ".join([str(o["name"]) for o in objs[:2]])
+                    more = f", ..." if len(objs) > 2 else ""
+                    f.write(
+                        f"  - {len(objs)} {t}(s)"
+                        + (f" (e.g. {examples}{more})" if examples else "")
+                        + "\n"
+                    )
                 f.write("\n")
 
-            breakdown_by_region = count_results.get("breakdown_by_region", {})
-            if breakdown_by_region:
-                f.write("Breakdown by Region:\n")
-                for region, count in breakdown_by_region.items():
-                    f.write(f"  {region}: {count}\n")
+            # Am Ende: Sizing-Zahlen prominent
+            f.write("==============================\n")
+            f.write(f" DDI Objects Count (for Sizing): {ddi_total}\n")
+            f.write("==============================\n")
+            f.write("==============================\n")
+            active_ips = count_results.get('active_ips', 0)
+            f.write(f" Active IPs Count (for Sizing): {active_ips}\n")
+            f.write("==============================\n\n")
 
     saved_files["resource_count"] = count_filepath
 
