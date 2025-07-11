@@ -119,7 +119,7 @@ export AWS_PROFILE="your_profile"
 aws sso login --profile your_profile
 ```
 
-**Required Permissions:**
+**Required Permissions (Read-Only):**
 - **EC2ReadOnlyAccess** - For EC2, VPC, and Load Balancer discovery across all regions
 - **Route53ReadOnlyAccess** - For DNS zone and record discovery (global)
 - **IAMReadOnlyAccess** - For account information and cross-account discovery
@@ -140,9 +140,9 @@ export AZURE_TENANT_ID="your_tenant_id"
 export AZURE_SUBSCRIPTION_ID="your_subscription_id"
 ```
 
-**Required Permissions:**
+**Required Permissions (Read-Only):**
 - **Reader** - Built-in role for subscription-level read access across all subscriptions
-- **Network Contributor** - For network resource discovery across all resource groups
+- **Network Reader** - For network resource discovery across all resource groups (read-only)
 - **Management Group Reader** - For multi-subscription discovery (if using Management Groups)
 
 ### GCP Setup
@@ -160,11 +160,11 @@ export GOOGLE_APPLICATION_CREDENTIALS="/path/to/service-account-key.json"
 export GOOGLE_CLOUD_PROJECT="your-project-id"
 ```
 
-**Required Permissions:**
+**Required Permissions (Read-Only):**
 - **Compute Instance Viewer** - For Compute Engine instance discovery across all zones
 - **Network Viewer** - For VPC and subnet discovery across all regions
 - **DNS Reader** - For Cloud DNS zone and record discovery (global)
-- **Project IAM Admin** - For multi-project discovery and project listing
+- **Project IAM Viewer** - For multi-project discovery and project listing (read-only)
 
 ## Usage
 
