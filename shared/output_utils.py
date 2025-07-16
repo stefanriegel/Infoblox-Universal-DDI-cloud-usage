@@ -10,7 +10,7 @@ from typing import Dict, List, Any
 from datetime import datetime
 
 
-def print_discovery_summary(native_objects: List[Dict], count_results: Dict, provider: str):
+def print_discovery_summary(native_objects: List[Dict], count_results: Dict, provider: str, extra_info: dict = {}):
     """
     Print discovery summary to console.
     
@@ -18,11 +18,21 @@ def print_discovery_summary(native_objects: List[Dict], count_results: Dict, pro
         native_objects: List of discovered resources
         count_results: Resource count results
         provider: Cloud provider name (aws, azure, gcp)
+        extra_info: Dict with keys like 'accounts', 'subscriptions', 'projects'
     """
     from datetime import datetime
     print(f"\n===== {provider.upper()} Resource Count =====")
     print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
+    # Print scanned account/subscription/project info
+    if extra_info:
+        if provider == "aws" and extra_info.get("accounts"):
+            print(f"Scanned AWS Account(s): {', '.join(extra_info['accounts'])}")
+        elif provider == "azure" and extra_info.get("subscriptions"):
+            print(f"Scanned Azure Subscription(s): {', '.join(extra_info['subscriptions'])}")
+        elif provider == "gcp" and extra_info.get("projects"):
+            print(f"Scanned GCP Project(s): {', '.join(extra_info['projects'])}")
+    
     # DDI Breakdown
     ddi_breakdown = count_results.get("ddi_breakdown", {})
     ddi_total = sum(ddi_breakdown.values())
@@ -69,7 +79,7 @@ def print_discovery_summary(native_objects: List[Dict], count_results: Dict, pro
 
 
 def save_discovery_results(
-    data: List[Dict], output_dir: str, output_format: str, timestamp: str, provider: str
+    data: List[Dict], output_dir: str, output_format: str, timestamp: str, provider: str, extra_info: dict = {}
 ) -> Dict[str, str]:
     """
     Save discovery results in the specified format.
@@ -94,7 +104,10 @@ def save_discovery_results(
     # Save based on format
     if output_format == "json":
         with open(filepath, "w") as f:
-            json.dump(data, f, indent=2, default=str)
+            output = {"resources": data}
+            if extra_info:
+                output.update(extra_info)
+            json.dump(output, f, indent=2, default=str)
     elif output_format == "csv":
         if not data:
             # Create empty DataFrame with expected columns
@@ -124,6 +137,16 @@ def save_discovery_results(
 
             f.write(f"{provider.upper()} Native Objects Discovery Results\n")
             f.write("=" * 50 + "\n\n")
+
+            # Print scanned account/subscription/project info
+            if extra_info:
+                if provider == "aws" and extra_info.get("accounts"):
+                    f.write(f"Scanned AWS Account(s): {', '.join(extra_info['accounts'])}\n")
+                elif provider == "azure" and extra_info.get("subscriptions"):
+                    f.write(f"Scanned Azure Subscription(s): {', '.join(extra_info['subscriptions'])}\n")
+                elif provider == "gcp" and extra_info.get("projects"):
+                    f.write(f"Scanned GCP Project(s): {', '.join(extra_info['projects'])}\n")
+                f.write("\n")
 
             for i, resource in enumerate(data, 1):
                 f.write(f"Resource {i}:\n")
@@ -161,6 +184,7 @@ def save_resource_count_results(
     output_format: str,
     timestamp: str,
     provider: str,
+    extra_info: dict = {},
 ) -> Dict[str, str]:
     os.makedirs(output_dir, exist_ok=True)
 
@@ -171,7 +195,10 @@ def save_resource_count_results(
 
     if output_format == "json":
         with open(count_filepath, "w") as f:
-            json.dump(count_results, f, indent=2, default=str)
+            output = dict(count_results)
+            if extra_info:
+                output.update(extra_info)
+            json.dump(output, f, indent=2, default=str)
     elif output_format == "csv":
         flat_data = {
             "ddi_objects": count_results.get("ddi_objects", 0),
@@ -186,6 +213,16 @@ def save_resource_count_results(
             f.write(f"{provider.upper()} Resource Count Results\n")
             f.write("=" * 50 + "\n")
             f.write(f"Timestamp: {count_results.get('timestamp', dt.now().strftime('%Y-%m-%d %H:%M:%S'))}\n\n")
+
+            # Print scanned account/subscription/project info
+            if extra_info:
+                if provider == "aws" and extra_info.get("accounts"):
+                    f.write(f"Scanned AWS Account(s): {', '.join(extra_info['accounts'])}\n")
+                elif provider == "azure" and extra_info.get("subscriptions"):
+                    f.write(f"Scanned Azure Subscription(s): {', '.join(extra_info['subscriptions'])}\n")
+                elif provider == "gcp" and extra_info.get("projects"):
+                    f.write(f"Scanned GCP Project(s): {', '.join(extra_info['projects'])}\n")
+                f.write("\n")
 
             # DDI Breakdown
             ddi_breakdown = count_results.get("ddi_breakdown", {})

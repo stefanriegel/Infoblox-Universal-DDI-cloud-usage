@@ -16,6 +16,7 @@ from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.dns import DnsManagementClient
+from azure.mgmt.privatedns import PrivateDnsManagementClient
 
 from .config import AzureConfig, get_azure_credential, validate_azure_config
 from shared.base_discovery import BaseDiscovery, DiscoveryConfig
@@ -78,6 +79,7 @@ class AzureDiscovery(BaseDiscovery):
             self.credential, self.subscription_id
         )
         self.dns_client = DnsManagementClient(self.credential, self.subscription_id)
+        self.privatedns_client = PrivateDnsManagementClient(self.credential, self.subscription_id)
 
     def discover_native_objects(self, max_workers: int = 8) -> List[Dict]:
         """
@@ -308,62 +310,243 @@ class AzureDiscovery(BaseDiscovery):
         except Exception as e:
             self.logger.warning(f"Error discovering Load Balancers in {rg_name}: {e}")
 
+        # VPN Gateways
+        try:
+            for vpngw in self.network_client.virtual_network_gateways.list(rg_name):
+                region = getattr(vpngw, "location", "unknown")
+                vpngw_dict = vars(vpngw)
+                formatted_vpngw = format_azure_resource(vpngw_dict, "gateway", region)
+                resources.append(formatted_vpngw)
+        except Exception as e:
+            self.logger.warning(f"Error discovering VPN Gateways in {rg_name}: {e}")
+
+        # Application Gateways
+        try:
+            for appgw in self.network_client.application_gateways.list(rg_name):
+                region = getattr(appgw, "location", "unknown")
+                appgw_dict = vars(appgw)
+                formatted_appgw = format_azure_resource(appgw_dict, "gateway", region)
+                resources.append(formatted_appgw)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Application Gateways in {rg_name}: {e}")
+
+        # Azure Firewalls
+        try:
+            for fw in self.network_client.azure_firewalls.list(rg_name):
+                region = getattr(fw, "location", "unknown")
+                fw_dict = vars(fw)
+                formatted_fw = format_azure_resource(fw_dict, "firewall", region)
+                resources.append(formatted_fw)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Azure Firewalls in {rg_name}: {e}")
+
+        # Private Endpoints
+        try:
+            for pe in self.network_client.private_endpoints.list(rg_name):
+                region = getattr(pe, "location", "unknown")
+                pe_dict = vars(pe)
+                formatted_pe = format_azure_resource(pe_dict, "endpoint", region)
+                resources.append(formatted_pe)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Private Endpoints in {rg_name}: {e}")
+
+        # NAT Gateways
+        try:
+            for natgw in self.network_client.nat_gateways.list(rg_name):
+                region = getattr(natgw, "location", "unknown")
+                natgw_dict = vars(natgw)
+                formatted_natgw = format_azure_resource(natgw_dict, "gateway", region)
+                resources.append(formatted_natgw)
+        except Exception as e:
+            self.logger.warning(f"Error discovering NAT Gateways in {rg_name}: {e}")
+
+        # Route Tables
+        try:
+            for rt in self.network_client.route_tables.list(rg_name):
+                region = getattr(rt, "location", "unknown")
+                rt_dict = vars(rt)
+                formatted_rt = format_azure_resource(rt_dict, "router", region)
+                resources.append(formatted_rt)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Route Tables in {rg_name}: {e}")
+
+        # Public IP Addresses
+        try:
+            for pip in self.network_client.public_ip_addresses.list(rg_name):
+                region = getattr(pip, "location", "unknown")
+                pip_dict = vars(pip)
+                formatted_pip = format_azure_resource(pip_dict, "endpoint", region)
+                resources.append(formatted_pip)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Public IP Addresses in {rg_name}: {e}")
+
+        # Network Security Groups
+        try:
+            for nsg in self.network_client.network_security_groups.list(rg_name):
+                region = getattr(nsg, "location", "unknown")
+                nsg_dict = vars(nsg)
+                formatted_nsg = format_azure_resource(nsg_dict, "switch", region)
+                resources.append(formatted_nsg)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Network Security Groups in {rg_name}: {e}")
+
+        # ExpressRoute Circuits
+        try:
+            for erc in self.network_client.express_route_circuits.list(rg_name):
+                region = getattr(erc, "location", "unknown")
+                erc_dict = vars(erc)
+                formatted_erc = format_azure_resource(erc_dict, "switch", region)
+                resources.append(formatted_erc)
+        except Exception as e:
+            self.logger.warning(f"Error discovering ExpressRoute Circuits in {rg_name}: {e}")
+
+        # Dedicated Hosts
+        try:
+            for host_group in self.compute_client.dedicated_host_groups.list_by_resource_group(rg_name):
+                region = getattr(host_group, "location", "unknown")
+                host_group_name = getattr(host_group, "name", None)
+                if not host_group_name:
+                    continue
+                for host in self.compute_client.dedicated_hosts.list_by_host_group(rg_name, host_group_name):
+                    host_dict = vars(host)
+                    formatted_host = format_azure_resource(host_dict, "server", region)
+                    resources.append(formatted_host)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Dedicated Hosts in {rg_name}: {e}")
+
         return resources
 
     def _discover_azure_dns_zones_and_records(self) -> List[Dict]:
-        """Discover Azure DNS zones and records."""
+        """Discover Azure DNS zones and records (public and private)."""
         resources = []
 
         try:
-            # Discover public DNS zones
-            for zone in self.dns_client.zones.list():
+            # Discover all public DNS zones
+            zones = list(self.dns_client.zones.list())
+            print(f"[DEBUG] Found {len(zones)} public DNS zones in subscription.")
+            for zone in zones:
                 zone_name = getattr(zone, "name", None)
+                zone_type = getattr(zone, "zone_type", None)
+                zone_id = getattr(zone, "id", None)
+                print(f"[DEBUG] Public Zone: name={zone_name}, type={zone_type}, id={zone_id}")
+
                 if not zone_name:
                     continue
 
                 region = getattr(zone, "location", "global")
+                state = str(zone_type).lower() if zone_type else "public"
+                resource_group = None
+                if zone_id:
+                    parts = zone_id.split("/")
+                    try:
+                        rg_index = parts.index("resourceGroups") + 1
+                        resource_group = parts[rg_index]
+                    except Exception:
+                        resource_group = None
 
-                # Add the zone as a resource
+                # Add the public zone as a resource
                 zone_resource = self._format_resource(
                     resource_data=vars(zone),
                     resource_type="dns-zone",
                     region=region,
                     name=zone_name,
                     requires_management_token=True,
-                    state="public",
+                    state=state,
                     tags=getattr(zone, "tags", {}),
                 )
                 resources.append(zone_resource)
 
-                # Discover records in the zone
-                try:
-                    for record_set in self.dns_client.record_sets.list_by_dns_zone(
-                        resource_group_name=zone_name, zone_name=zone_name
-                    ):
-                        record_name = getattr(record_set, "name", None)
-                        record_type = getattr(record_set, "type", None)
-                        if not record_name or not record_type:
-                            continue
-
-                        # Skip SOA records as they are system records
-                        if record_type == "SOA":
-                            continue
-
-                        record_resource = self._format_resource(
-                            resource_data=vars(record_set),
-                            resource_type="dns-record",
-                            region=region,
-                            name=record_name,
-                            requires_management_token=True,
-                            state=record_type,
-                            tags=getattr(record_set, "tags", {}),
+                # Discover records in the public zone
+                if resource_group:
+                    try:
+                        for record_set in self.dns_client.record_sets.list_by_dns_zone(
+                            resource_group_name=resource_group, zone_name=zone_name
+                        ):
+                            record_name = getattr(record_set, "name", None)
+                            record_type = getattr(record_set, "type", None)
+                            if not record_name or not record_type:
+                                continue
+                            if record_type == "SOA":
+                                continue
+                            record_resource = self._format_resource(
+                                resource_data=vars(record_set),
+                                resource_type="dns-record",
+                                region=region,
+                                name=record_name,
+                                requires_management_token=True,
+                                state=record_type,
+                                tags=getattr(record_set, "tags", {}),
+                            )
+                            resources.append(record_resource)
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Error discovering records in DNS zone {zone_name} (resource group {resource_group}): {e}"
                         )
-                        resources.append(record_resource)
+                else:
+                    self.logger.warning(f"Could not determine resource group for DNS zone {zone_name}, skipping record discovery.")
 
-                except Exception as e:
-                    self.logger.warning(
-                        f"Error discovering records in DNS zone {zone_name}: {e}"
-                    )
+            # Discover all private DNS zones
+            private_zones = list(self.privatedns_client.private_zones.list())
+            print(f"[DEBUG] Found {len(private_zones)} private DNS zones in subscription.")
+            for pzone in private_zones:
+                pzone_name = getattr(pzone, "name", None)
+                pzone_id = getattr(pzone, "id", None)
+                print(f"[DEBUG] Private Zone: name={pzone_name}, id={pzone_id}")
+
+                if not pzone_name:
+                    continue
+
+                region = getattr(pzone, "location", "global")
+                state = "private"
+                resource_group = None
+                if pzone_id:
+                    parts = pzone_id.split("/")
+                    try:
+                        rg_index = parts.index("resourceGroups") + 1
+                        resource_group = parts[rg_index]
+                    except Exception:
+                        resource_group = None
+
+                # Add the private zone as a resource
+                pzone_resource = self._format_resource(
+                    resource_data=vars(pzone),
+                    resource_type="dns-zone",
+                    region=region,
+                    name=pzone_name,
+                    requires_management_token=True,
+                    state=state,
+                    tags=getattr(pzone, "tags", {}),
+                )
+                resources.append(pzone_resource)
+
+                # Discover records in the private zone
+                if resource_group:
+                    try:
+                        for record_set in self.privatedns_client.record_sets.list(
+                            resource_group_name=resource_group, private_zone_name=pzone_name
+                        ):
+                            record_name = getattr(record_set, "name", None)
+                            record_type = getattr(record_set, "type", None)
+                            if not record_name or not record_type:
+                                continue
+                            if record_type == "SOA":
+                                continue
+                            record_resource = self._format_resource(
+                                resource_data=vars(record_set),
+                                resource_type="dns-record",
+                                region=region,
+                                name=record_name,
+                                requires_management_token=True,
+                                state=record_type,
+                                tags=getattr(record_set, "tags", {}),
+                            )
+                            resources.append(record_resource)
+                    except Exception as e:
+                        self.logger.warning(
+                            f"Error discovering records in Private DNS zone {pzone_name} (resource group {resource_group}): {e}"
+                        )
+                else:
+                    self.logger.warning(f"Could not determine resource group for Private DNS zone {pzone_name}, skipping record discovery.")
 
         except Exception as e:
             self.logger.error(f"Error discovering Azure DNS zones/records: {e}")
@@ -406,7 +589,7 @@ class AzureDiscovery(BaseDiscovery):
             "timestamp": count.timestamp,
         }
 
-    def save_discovery_results(self) -> Dict[str, str]:
+    def save_discovery_results(self, extra_info: dict = {}) -> Dict[str, str]:
         resources = self.discover_native_objects()
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         native_objects_files = save_discovery_results(
@@ -415,6 +598,7 @@ class AzureDiscovery(BaseDiscovery):
             self.config.output_format,
             timestamp,
             "azure",
+            extra_info=extra_info,
         )
         count_results = self.count_resources()
         count_files = save_resource_count_results(
@@ -423,6 +607,11 @@ class AzureDiscovery(BaseDiscovery):
             self.config.output_format,
             timestamp,
             "azure",
+            extra_info=extra_info,
         )
         saved_files = {**native_objects_files, **count_files}
         return saved_files
+
+    def get_scanned_subscription_ids(self) -> list:
+        """Return the Azure Subscription ID(s) scanned."""
+        return [self.subscription_id] if self.subscription_id else []

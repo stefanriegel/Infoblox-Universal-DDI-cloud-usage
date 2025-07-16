@@ -559,13 +559,14 @@ class AWSDiscovery(BaseDiscovery):
         }
 
     def save_discovery_results(
-        self, output_dir: Optional[str] = None
+        self, output_dir: Optional[str] = None, extra_info: dict = {}
     ) -> Dict[str, str]:
         """
         Save discovery results to files.
 
         Args:
             output_dir: Output directory (uses config default if None)
+            extra_info: Additional info to include in output files
 
         Returns:
             Dictionary mapping file types to file paths
@@ -581,7 +582,7 @@ class AWSDiscovery(BaseDiscovery):
 
         # Save native objects
         native_objects_files = save_discovery_results(
-            resources, output_directory, self.config.output_format, timestamp, "aws"
+            resources, output_directory, self.config.output_format, timestamp, "aws", extra_info=extra_info
         )
 
         # Save resource count results
@@ -592,9 +593,21 @@ class AWSDiscovery(BaseDiscovery):
             self.config.output_format,
             timestamp,
             "aws",
+            extra_info=extra_info,
         )
 
         # Combine all saved files
         saved_files = {**native_objects_files, **count_files}
 
         return saved_files
+
+    def get_scanned_account_ids(self) -> list:
+        """Return the AWS Account ID(s) scanned."""
+        import boto3
+        session = boto3.Session()
+        sts = session.client("sts")
+        try:
+            identity = sts.get_caller_identity()
+            return [identity.get("Account")]
+        except Exception:
+            return []

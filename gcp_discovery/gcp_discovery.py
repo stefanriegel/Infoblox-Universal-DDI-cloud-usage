@@ -504,9 +504,9 @@ class GCPDiscovery(BaseDiscovery):
             "timestamp": count.timestamp,
         }
 
-    def save_discovery_results(self, output_dir: Optional[str] = None) -> Dict[str, str]:
+    def save_discovery_results(self, output_dir: Optional[str] = None, extra_info: dict = {}) -> Dict[str, str]:
         if self._discovered_resources is None:
-            self.discover_native_objects()
+            self._discovered_resources = self.discover_native_objects()
         output_directory = output_dir or self.config.output_directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         native_objects_file = save_discovery_results(
@@ -515,6 +515,7 @@ class GCPDiscovery(BaseDiscovery):
             self.config.output_format,
             timestamp,
             "gcp",
+            extra_info=extra_info,
         )
         count_results = self.count_resources()
         count_files = save_resource_count_results(
@@ -523,6 +524,11 @@ class GCPDiscovery(BaseDiscovery):
             self.config.output_format,
             timestamp,
             "gcp",
+            extra_info=extra_info,
         )
         saved_files = {**native_objects_file, **count_files}
         return saved_files
+
+    def get_scanned_project_ids(self) -> list:
+        """Return the GCP Project ID(s) scanned."""
+        return [self.project_id] if self.project_id else []

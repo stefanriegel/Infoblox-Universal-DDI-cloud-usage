@@ -81,6 +81,7 @@ def main(args=None):
         regions=all_regions, output_directory="output", output_format=args.format
     )
     discovery = AzureDiscovery(config)
+    scanned_subscriptions = discovery.get_scanned_subscription_ids()
 
     try:
         # Discover Native Objects
@@ -93,14 +94,14 @@ def main(args=None):
 
         # Print discovery summary
         from shared.output_utils import print_discovery_summary
-        print_discovery_summary(native_objects, count_results, "azure")
+        print_discovery_summary(native_objects, count_results, "azure", {"subscriptions": scanned_subscriptions})
 
         # Save results
         if args.full:
             print(
                 f"Saving full resource/object data in {args.format.upper()} format..."
             )
-            saved_files = discovery.save_discovery_results()
+            saved_files = discovery.save_discovery_results(extra_info={"subscriptions": scanned_subscriptions})
             print("Results saved to:")
             for file_type, filepath in saved_files.items():
                 print(f"  {file_type}: {filepath}")
@@ -110,7 +111,7 @@ def main(args=None):
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             from shared.output_utils import save_resource_count_results
             summary_files = save_resource_count_results(
-                count_results, output_dir, args.format, timestamp, "azure"
+                count_results, output_dir, args.format, timestamp, "azure", extra_info={"subscriptions": scanned_subscriptions}
             )
             print(f"Summary saved to: {summary_files['resource_count']}")
 
