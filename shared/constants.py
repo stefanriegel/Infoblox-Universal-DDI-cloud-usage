@@ -205,3 +205,4 @@ GCP_REGIONS = [
     "asia-east1",
     "asia-southeast1",
 ]
+ 

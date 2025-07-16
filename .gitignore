@@ -164,7 +164,7 @@ logs/
 # Development reference materials (not shipped)
 base/
 *.pdf
-*.xlsx
+*.xlsx 
 
 # Project-specific
 output/

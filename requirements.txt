@@ -7,9 +7,10 @@ botocore>=1.39.0
 
 # Azure Dependencies
 azure-mgmt-compute>=30.0.0
-azure-mgmt-network==29.0.0
-azure-mgmt-resource>=23.0.0
 azure-mgmt-dns>=8.0.0
+azure-mgmt-network==29.0.0
+azure-mgmt-privatedns>=1.0.0  # For Azure Private DNS zone discovery
+azure-mgmt-resource>=23.0.0
 azure-identity>=1.12.0
 
 # GCP Dependencies
