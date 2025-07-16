@@ -4,33 +4,27 @@ AWS Cloud Discovery for Infoblox Universal DDI Resource Counter.
 Discovers AWS Native Objects and calculates Management Token requirements.
 """
 
-import sys
 import argparse
-import json
-import pandas as pd
-import math
-from pathlib import Path
+import sys
 from datetime import datetime
-from botocore.exceptions import NoCredentialsError, ClientError
-import boto3
+from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from .aws_discovery import AWSDiscovery
-from .config import AWSConfig, get_all_enabled_regions
+from aws_discovery.aws_discovery import AWSDiscovery
+from aws_discovery.config import AWSConfig, get_all_enabled_regions
+from shared.output_utils import print_discovery_summary
 
 
 def check_awscli_version():
-    import subprocess
     import re
+    import subprocess
     import sys
 
     try:
         result = subprocess.run(["aws", "--version"], capture_output=True, text=True)
-        version_match = re.search(
-            r"aws-cli/(\d+)\.(\d+)\.(\d+)", result.stdout + result.stderr
-        )
+        version_match = re.search(r"aws-cli/(\d+)\.(\d+)\.(\d+)", result.stdout + result.stderr)
         if not version_match:
             print(
                 "ERROR: Unable to determine AWS CLI version. Please ensure AWS CLI v2 is installed."
@@ -48,6 +42,9 @@ def check_awscli_version():
 
 
 def check_aws_credentials():
+    import boto3
+    from botocore.exceptions import ClientError, NoCredentialsError
+
     session = boto3.Session()
     credentials = session.get_credentials()
     if not credentials:
@@ -110,7 +107,9 @@ def main(args=None):
 
     # Initialize discovery with all regions
     config = AWSConfig(
-        regions=all_regions, output_directory="output", output_format=args.format
+        regions=all_regions,
+        output_directory="output",
+        output_format=args.format,
     )
     discovery = AWSDiscovery(config)
     scanned_accounts = discovery.get_scanned_account_ids()
@@ -125,15 +124,19 @@ def main(args=None):
         count_results = discovery.count_resources()
 
         # Print discovery summary
-        from shared.output_utils import print_discovery_summary
-        print_discovery_summary(native_objects, count_results, "aws", {"accounts": scanned_accounts})
+        print_discovery_summary(
+            native_objects,
+            count_results,
+            "aws",
+            {"accounts": scanned_accounts},
+        )
 
         # Save results
         if args.full:
-            print(
-                f"Saving full resource/object data in {args.format.upper()} format..."
+            print(f"Saving full resource/object data in {args.format.upper()} format...")
+            saved_files = discovery.save_discovery_results(
+                extra_info={"accounts": scanned_accounts}
             )
-            saved_files = discovery.save_discovery_results(extra_info={"accounts": scanned_accounts})
             print("Results saved to:")
             for file_type, filepath in saved_files.items():
                 print(f"  {file_type}: {filepath}")
@@ -142,8 +145,14 @@ def main(args=None):
             output_dir = config.output_directory
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             from shared.output_utils import save_resource_count_results
+
             summary_files = save_resource_count_results(
-                count_results, output_dir, args.format, timestamp, "aws", extra_info={"accounts": scanned_accounts}
+                count_results,
+                output_dir,
+                args.format,
+                timestamp,
+                "aws",
+                extra_info={"accounts": scanned_accounts},
             )
             print(f"Summary saved to: {summary_files['resource_count']}")
 

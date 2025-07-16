@@ -5,30 +5,27 @@ AWS Cloud Discovery for Infoblox Universal DDI Resource Counter.
 Discovers AWS Native Objects and calculates Management Token requirements.
 """
 
-import sys
 import logging
-import math
-import json
-import pandas as pd
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
-from tqdm import tqdm
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import threading
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
+
+from tqdm import tqdm
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from .config import AWSConfig, load_config, get_all_enabled_regions
-from .utils import get_aws_client
 from shared.base_discovery import BaseDiscovery, DiscoveryConfig
 from shared.output_utils import (
     get_resource_tags,
     save_discovery_results,
     save_resource_count_results,
 )
+
+from .config import AWSConfig
+from .utils import get_aws_client
 
 # Configure logging - suppress INFO messages and boto3/botocore logging
 logging.basicConfig(level=logging.WARNING)
@@ -118,9 +115,7 @@ class AWSDiscovery(BaseDiscovery):
         route53_resources = self._discover_route53_zones_and_records()
         all_resources.extend(route53_resources)
 
-        self.logger.info(
-            f"Discovery complete. Found {len(all_resources)} Native Objects"
-        )
+        self.logger.info(f"Discovery complete. Found {len(all_resources)} Native Objects")
 
         # Cache the results
         self._discovered_resources = all_resources
@@ -176,9 +171,7 @@ class AWSDiscovery(BaseDiscovery):
                             continue
 
                         # Get instance details
-                        instance_state = instance.get("State", {}).get(
-                            "Name", "unknown"
-                        )
+                        instance_state = instance.get("State", {}).get("Name", "unknown")
                         instance_type = instance.get("InstanceType", "unknown")
 
                         # Extract IP addresses
@@ -190,9 +183,7 @@ class AWSDiscovery(BaseDiscovery):
 
                         # Determine if Management Token is required
                         is_managed = self._is_managed_service(tags)
-                        requires_token = (
-                            bool(private_ip or public_ip) and not is_managed
-                        )
+                        requires_token = bool(private_ip or public_ip) and not is_managed
 
                         # Create resource details
                         details = {
@@ -310,13 +301,9 @@ class AWSDiscovery(BaseDiscovery):
                         "state": state,
                         "vpc_id": vpc_id,
                         "availability_zone": availability_zone,
-                        "available_ip_address_count": subnet.get(
-                            "AvailableIpAddressCount"
-                        ),
+                        "available_ip_address_count": subnet.get("AvailableIpAddressCount"),
                         "default_for_az": subnet.get("DefaultForAz", False),
-                        "map_public_ip_on_launch": subnet.get(
-                            "MapPublicIpOnLaunch", False
-                        ),
+                        "map_public_ip_on_launch": subnet.get("MapPublicIpOnLaunch", False),
                     }
 
                     # Format resource
@@ -359,12 +346,16 @@ class AWSDiscovery(BaseDiscovery):
                     scheme = lb.get("Scheme", "unknown")
 
                     # Get tags
-                    tags_response = elbv2.describe_tags(ResourceArns=[lb_arn])
-                    lb_tags = {}
-                    if tags_response.get("TagDescriptions"):
-                        lb_tags = get_resource_tags(
-                            tags_response["TagDescriptions"][0].get("Tags", [])
-                        )
+                    try:
+                        tags_response = elbv2.describe_tags(ResourceArns=[lb_arn])
+                        lb_tags = {}
+                        if tags_response.get("TagDescriptions"):
+                            lb_tags = get_resource_tags(
+                                tags_response["TagDescriptions"][0].get("Tags", [])
+                            )
+                    except Exception as e:
+                        self.logger.warning(f"Could not describe tags for {lb_arn}: {e}")
+                        lb_tags = {}
 
                     # Determine if Management Token is required
                     is_managed = self._is_managed_service(lb_tags)
@@ -420,7 +411,8 @@ class AWSDiscovery(BaseDiscovery):
                         lb_tags = get_resource_tags(
                             tags_response["TagDescriptions"][0].get("Tags", [])
                         )
-                except:
+                except Exception as e:
+                    self.logger.warning(f"Could not describe tags for {lb_name}: {e}")
                     lb_tags = {}
 
                 # Determine if Management Token is required
@@ -523,13 +515,9 @@ class AWSDiscovery(BaseDiscovery):
             value_lower = value.lower()
 
             # Common managed service indicators
-            if any(
-                indicator in key_lower for indicator in ["managed", "service", "aws"]
-            ):
+            if any(indicator in key_lower for indicator in ["managed", "service", "aws"]):
                 return True
-            if any(
-                indicator in value_lower for indicator in ["managed", "service", "aws"]
-            ):
+            if any(indicator in value_lower for indicator in ["managed", "service", "aws"]):
                 return True
 
         return False
@@ -582,7 +570,12 @@ class AWSDiscovery(BaseDiscovery):
 
         # Save native objects
         native_objects_files = save_discovery_results(
-            resources, output_directory, self.config.output_format, timestamp, "aws", extra_info=extra_info
+            resources,
+            output_directory,
+            self.config.output_format,
+            timestamp,
+            "aws",
+            extra_info=extra_info,
         )
 
         # Save resource count results
@@ -604,6 +597,7 @@ class AWSDiscovery(BaseDiscovery):
     def get_scanned_account_ids(self) -> list:
         """Return the AWS Account ID(s) scanned."""
         import boto3
+
         session = boto3.Session()
         sts = session.client("sts")
         try:

@@ -4,14 +4,11 @@ Azure Cloud Discovery for Infoblox Universal DDI Resource Counter.
 Discovers Azure Native Objects and calculates Management Token requirements.
 """
 
-import sys
 import argparse
-import json
-import pandas as pd
-import math
-from pathlib import Path
-from datetime import datetime
 import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -78,7 +75,9 @@ def main(args=None):
 
     # Initialize discovery with all regions
     config = AzureConfig(
-        regions=all_regions, output_directory="output", output_format=args.format
+        regions=all_regions,
+        output_directory="output",
+        output_format=args.format,
     )
     discovery = AzureDiscovery(config)
     scanned_subscriptions = discovery.get_scanned_subscription_ids()
@@ -94,14 +93,20 @@ def main(args=None):
 
         # Print discovery summary
         from shared.output_utils import print_discovery_summary
-        print_discovery_summary(native_objects, count_results, "azure", {"subscriptions": scanned_subscriptions})
+
+        print_discovery_summary(
+            native_objects,
+            count_results,
+            "azure",
+            {"subscriptions": scanned_subscriptions},
+        )
 
         # Save results
         if args.full:
-            print(
-                f"Saving full resource/object data in {args.format.upper()} format..."
+            print(f"Saving full resource/object data in {args.format.upper()} format...")
+            saved_files = discovery.save_discovery_results(
+                extra_info={"subscriptions": scanned_subscriptions}
             )
-            saved_files = discovery.save_discovery_results(extra_info={"subscriptions": scanned_subscriptions})
             print("Results saved to:")
             for file_type, filepath in saved_files.items():
                 print(f"  {file_type}: {filepath}")
@@ -110,8 +115,14 @@ def main(args=None):
             output_dir = config.output_directory
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             from shared.output_utils import save_resource_count_results
+
             summary_files = save_resource_count_results(
-                count_results, output_dir, args.format, timestamp, "azure", extra_info={"subscriptions": scanned_subscriptions}
+                count_results,
+                output_dir,
+                args.format,
+                timestamp,
+                "azure",
+                extra_info={"subscriptions": scanned_subscriptions},
             )
             print(f"Summary saved to: {summary_files['resource_count']}")
 

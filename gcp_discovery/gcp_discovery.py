@@ -5,25 +5,25 @@ GCP Cloud Discovery for Infoblox Universal DDI Resource Counter.
 Discovers GCP Native Objects and calculates Management Token requirements.
 """
 
-import sys
 import logging
-import math
-import json
-import pandas as pd
-from pathlib import Path
-from datetime import datetime
-from typing import Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
-from tqdm import tqdm
+import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-import threading
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, List, Optional
+
+from tqdm import tqdm
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from .config import GCPConfig, get_gcp_credential, validate_gcp_config
 from shared.base_discovery import BaseDiscovery, DiscoveryConfig
-from shared.output_utils import save_discovery_results, save_resource_count_results
+from shared.output_utils import (
+    save_discovery_results,
+    save_resource_count_results,
+)
+
+from .config import GCPConfig, get_gcp_credential
 
 # Configure logging
 logging.basicConfig(level=logging.WARNING)
@@ -66,8 +66,7 @@ class GCPDiscovery(BaseDiscovery):
             credentials, project = get_gcp_credential()
 
             # Import GCP clients
-            from google.cloud import compute_v1
-            from google.cloud import dns
+            from google.cloud import compute_v1, dns
 
             self.credentials = credentials
             self.project_id = project or self.gcp_config.project_id
@@ -75,12 +74,8 @@ class GCPDiscovery(BaseDiscovery):
             # Initialize clients
             self.compute_client = compute_v1.InstancesClient(credentials=credentials)
             self.networks_client = compute_v1.NetworksClient(credentials=credentials)
-            self.subnetworks_client = compute_v1.SubnetworksClient(
-                credentials=credentials
-            )
-            self.dns_client = dns.Client(
-                project=self.project_id, credentials=credentials
-            )
+            self.subnetworks_client = compute_v1.SubnetworksClient(credentials=credentials)
+            self.dns_client = dns.Client(project=self.project_id, credentials=credentials)
 
         except Exception as e:
             raise Exception(f"Failed to initialize GCP clients: {e}")
@@ -109,8 +104,7 @@ class GCPDiscovery(BaseDiscovery):
         # Discover regional resources in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             future_to_region = {
-                executor.submit(self._discover_region, region): region
-                for region in valid_regions
+                executor.submit(self._discover_region, region): region for region in valid_regions
             }
 
             # Use tqdm for progress tracking
@@ -132,9 +126,7 @@ class GCPDiscovery(BaseDiscovery):
         dns_resources = self._discover_cloud_dns_zones_and_records()
         all_resources.extend(dns_resources)
 
-        self.logger.info(
-            f"Discovery complete. Found {len(all_resources)} Native Objects"
-        )
+        self.logger.info(f"Discovery complete. Found {len(all_resources)} Native Objects")
 
         # Cache the results
         self._discovered_resources = all_resources
@@ -213,9 +205,7 @@ class GCPDiscovery(BaseDiscovery):
 
                         # Determine if Management Token is required
                         is_managed = self._is_managed_service(labels)
-                        requires_token = (
-                            bool(private_ip or public_ip) and not is_managed
-                        )
+                        requires_token = bool(private_ip or public_ip) and not is_managed
 
                         # Create resource details
                         details = {
@@ -226,9 +216,7 @@ class GCPDiscovery(BaseDiscovery):
                             "private_ip": private_ip,
                             "public_ip": public_ip,
                             "zone": zone,
-                            "creation_timestamp": getattr(
-                                instance, "creation_timestamp", None
-                            ),
+                            "creation_timestamp": getattr(instance, "creation_timestamp", None),
                             "cpu_platform": getattr(instance, "cpu_platform", None),
                         }
 
@@ -251,19 +239,14 @@ class GCPDiscovery(BaseDiscovery):
 
         except Exception as e:
             error_msg = str(e)
-            if (
-                "Unknown region" in error_msg
-                or "Invalid value for field 'region'" in error_msg
-            ):
+            if "Unknown region" in error_msg or "Invalid value for field 'region'" in error_msg:
                 # Skip invalid regions silently
                 self.logger.debug(
                     f"Region {region} not available for compute instances: {error_msg}"
                 )
             else:
                 # Log other errors
-                self.logger.error(
-                    f"Error discovering instances in region {region}: {e}"
-                )
+                self.logger.error(f"Error discovering instances in region {region}: {e}")
 
         return resources
 
@@ -298,9 +281,7 @@ class GCPDiscovery(BaseDiscovery):
                         ),
                         "routing_mode": getattr(network, "routing_mode", None),
                         "mtu": getattr(network, "mtu", None),
-                        "creation_timestamp": getattr(
-                            network, "creation_timestamp", None
-                        ),
+                        "creation_timestamp": getattr(network, "creation_timestamp", None),
                     }
 
                     # Format resource
@@ -331,9 +312,7 @@ class GCPDiscovery(BaseDiscovery):
             for subnet in page_result:
                 subnet_name = subnet.name
                 subnet_id = subnet.id
-                network = subnet.network.split("/")[
-                    -1
-                ]  # Extract network name from full path
+                network = subnet.network.split("/")[-1]  # Extract network name from full path
 
                 # Get labels (handle missing field gracefully)
                 try:
@@ -369,14 +348,9 @@ class GCPDiscovery(BaseDiscovery):
 
         except Exception as e:
             error_msg = str(e)
-            if (
-                "Unknown region" in error_msg
-                or "Invalid value for field 'region'" in error_msg
-            ):
+            if "Unknown region" in error_msg or "Invalid value for field 'region'" in error_msg:
                 # Skip invalid regions silently
-                self.logger.debug(
-                    f"Region {region} not available for subnets: {error_msg}"
-                )
+                self.logger.debug(f"Region {region} not available for subnets: {error_msg}")
             else:
                 # Log other errors
                 self.logger.error(f"Error discovering subnets in region {region}: {e}")
@@ -464,9 +438,7 @@ class GCPDiscovery(BaseDiscovery):
                 resources.append(formatted_resource)
 
         except Exception as e:
-            self.logger.error(
-                f"Error discovering DNS records for zone {zone.name}: {e}"
-            )
+            self.logger.error(f"Error discovering DNS records for zone {zone.name}: {e}")
 
         return resources
 
@@ -504,7 +476,9 @@ class GCPDiscovery(BaseDiscovery):
             "timestamp": count.timestamp,
         }
 
-    def save_discovery_results(self, output_dir: Optional[str] = None, extra_info: dict = {}) -> Dict[str, str]:
+    def save_discovery_results(
+        self, output_dir: Optional[str] = None, extra_info: dict = {}
+    ) -> Dict[str, str]:
         if self._discovered_resources is None:
             self._discovered_resources = self.discover_native_objects()
         output_directory = output_dir or self.config.output_directory

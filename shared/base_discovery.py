@@ -1,11 +1,11 @@
 import logging
 from abc import ABC, abstractmethod
-from datetime import datetime
-from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
-from .resource_counter import ResourceCounter, ResourceCount
 from .output_utils import save_discovery_results, save_resource_count_results
+from .resource_counter import ResourceCounter
 
 
 @dataclass
@@ -46,7 +46,6 @@ class BaseDiscovery(ABC):
         Returns:
             List of discovered resources
         """
-        pass
 
     def count_resources(self) -> Dict[str, Any]:
         resources = self.discover_native_objects()
@@ -62,9 +61,7 @@ class BaseDiscovery(ABC):
             "timestamp": count.timestamp,
         }
 
-    def save_discovery_results(
-        self, output_dir: Optional[str] = None
-    ) -> Dict[str, str]:
+    def save_discovery_results(self, output_dir: Optional[str] = None) -> Dict[str, str]:
         """
         Save discovery results to files.
 
@@ -150,13 +147,9 @@ class BaseDiscovery(ABC):
             key_lower = key.lower()
             value_lower = value.lower()
 
-            if any(
-                indicator in key_lower for indicator in ["managed", "service", "aws"]
-            ):
+            if any(indicator in key_lower for indicator in ["managed", "service", "aws"]):
                 return True
-            if any(
-                indicator in value_lower for indicator in ["managed", "service", "aws"]
-            ):
+            if any(indicator in value_lower for indicator in ["managed", "service", "aws"]):
                 return True
 
         return False
@@ -223,9 +216,7 @@ class BaseDiscovery(ABC):
         else:
             return {}
 
-    def _get_resource_id(
-        self, resource: Any, region: str, resource_type: str, name: str
-    ) -> str:
+    def _get_resource_id(self, resource: Any, region: str, resource_type: str, name: str) -> str:
         """
         Generate a consistent resource ID.
 

@@ -4,16 +4,21 @@ Shared output utilities for saving discovery results.
 
 import json
 import os
-import csv
-import pandas as pd
-from typing import Dict, List, Any
 from datetime import datetime
+from typing import Any, Dict, List
+
+import pandas as pd
 
 
-def print_discovery_summary(native_objects: List[Dict], count_results: Dict, provider: str, extra_info: dict = {}):
+def print_discovery_summary(
+    native_objects: List[Dict],
+    count_results: Dict,
+    provider: str,
+    extra_info: dict = {},
+):
     """
     Print discovery summary to console.
-    
+
     Args:
         native_objects: List of discovered resources
         count_results: Resource count results
@@ -21,6 +26,7 @@ def print_discovery_summary(native_objects: List[Dict], count_results: Dict, pro
         extra_info: Dict with keys like 'accounts', 'subscriptions', 'projects'
     """
     from datetime import datetime
+
     print(f"\n===== {provider.upper()} Resource Count =====")
     print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -32,7 +38,7 @@ def print_discovery_summary(native_objects: List[Dict], count_results: Dict, pro
             print(f"Scanned Azure Subscription(s): {', '.join(extra_info['subscriptions'])}")
         elif provider == "gcp" and extra_info.get("projects"):
             print(f"Scanned GCP Project(s): {', '.join(extra_info['projects'])}")
-    
+
     # DDI Breakdown
     ddi_breakdown = count_results.get("ddi_breakdown", {})
     ddi_total = sum(ddi_breakdown.values())
@@ -62,10 +68,7 @@ def print_discovery_summary(native_objects: List[Dict], count_results: Dict, pro
     for t, objs in type_to_objs.items():
         examples = ", ".join([str(o["name"]) for o in objs[:2]])
         more = f", ..." if len(objs) > 2 else ""
-        print(
-            f"  - {len(objs)} {t}(s)"
-            + (f" (e.g. {examples}{more})" if examples else "")
-        )
+        print(f"  - {len(objs)} {t}(s)" + (f" (e.g. {examples}{more})" if examples else ""))
     print()
 
     # Am Ende: Sizing-Zahlen prominent
@@ -73,13 +76,18 @@ def print_discovery_summary(native_objects: List[Dict], count_results: Dict, pro
     print(f" DDI Objects Count (for Sizing): {ddi_total}")
     print("==============================")
     print("==============================")
-    active_ips = count_results.get('active_ips', 0)
+    active_ips = count_results.get("active_ips", 0)
     print(f" Active IPs Count (for Sizing): {active_ips}")
     print("==============================\n")
 
 
 def save_discovery_results(
-    data: List[Dict], output_dir: str, output_format: str, timestamp: str, provider: str, extra_info: dict = {}
+    data: List[Dict],
+    output_dir: str,
+    output_format: str,
+    timestamp: str,
+    provider: str,
+    extra_info: dict = {},
 ) -> Dict[str, str]:
     """
     Save discovery results in the specified format.
@@ -143,7 +151,9 @@ def save_discovery_results(
                 if provider == "aws" and extra_info.get("accounts"):
                     f.write(f"Scanned AWS Account(s): {', '.join(extra_info['accounts'])}\n")
                 elif provider == "azure" and extra_info.get("subscriptions"):
-                    f.write(f"Scanned Azure Subscription(s): {', '.join(extra_info['subscriptions'])}\n")
+                    f.write(
+                        f"Scanned Azure Subscription(s): {', '.join(extra_info['subscriptions'])}\n"
+                    )
                 elif provider == "gcp" and extra_info.get("projects"):
                     f.write(f"Scanned GCP Project(s): {', '.join(extra_info['projects'])}\n")
                 f.write("\n")
@@ -173,9 +183,6 @@ def save_discovery_results(
                 f.write("\n")
 
     return {"native_objects": filepath}
-
-
-
 
 
 def save_resource_count_results(
@@ -210,16 +217,21 @@ def save_resource_count_results(
     else:
         with open(count_filepath, "w") as f:
             from datetime import datetime as dt
+
             f.write(f"{provider.upper()} Resource Count Results\n")
             f.write("=" * 50 + "\n")
-            f.write(f"Timestamp: {count_results.get('timestamp', dt.now().strftime('%Y-%m-%d %H:%M:%S'))}\n\n")
+            f.write(
+                f"Timestamp: {count_results.get('timestamp', dt.now().strftime('%Y-%m-%d %H:%M:%S'))}\n\n"
+            )
 
             # Print scanned account/subscription/project info
             if extra_info:
                 if provider == "aws" and extra_info.get("accounts"):
                     f.write(f"Scanned AWS Account(s): {', '.join(extra_info['accounts'])}\n")
                 elif provider == "azure" and extra_info.get("subscriptions"):
-                    f.write(f"Scanned Azure Subscription(s): {', '.join(extra_info['subscriptions'])}\n")
+                    f.write(
+                        f"Scanned Azure Subscription(s): {', '.join(extra_info['subscriptions'])}\n"
+                    )
                 elif provider == "gcp" and extra_info.get("projects"):
                     f.write(f"Scanned GCP Project(s): {', '.join(extra_info['projects'])}\n")
                 f.write("\n")
@@ -267,7 +279,7 @@ def save_resource_count_results(
             f.write(f" DDI Objects Count (for Sizing): {ddi_total}\n")
             f.write("==============================\n")
             f.write("==============================\n")
-            active_ips = count_results.get('active_ips', 0)
+            active_ips = count_results.get("active_ips", 0)
             f.write(f" Active IPs Count (for Sizing): {active_ips}\n")
             f.write("==============================\n\n")
 
@@ -295,21 +307,9 @@ def format_azure_resource(
         Formatted resource dictionary
     """
     # Extract common fields - use getattr for Azure SDK model compatibility
-    resource_id = (
-        getattr(resource, "id", "")
-        if hasattr(resource, "id")
-        else resource.get("id", "")
-    )
-    name = (
-        getattr(resource, "name", "")
-        if hasattr(resource, "name")
-        else resource.get("name", "")
-    )
-    tags = (
-        getattr(resource, "tags", {})
-        if hasattr(resource, "tags")
-        else resource.get("tags", {})
-    )
+    resource_id = getattr(resource, "id", "") if hasattr(resource, "id") else resource.get("id", "")
+    name = getattr(resource, "name", "") if hasattr(resource, "name") else resource.get("name", "")
+    tags = getattr(resource, "tags", {}) if hasattr(resource, "tags") else resource.get("tags", {})
 
     # Create formatted resource
     formatted = {

@@ -1,14 +1,12 @@
-import math
-from typing import Dict, List, Any
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Dict, List
 
 from .constants import (
     DDI_RESOURCE_TYPES,
-    ASSET_RESOURCE_TYPES,
+    ERROR_MESSAGES,
     IP_DETAIL_KEYS,
     SUPPORTED_PROVIDERS,
-    ERROR_MESSAGES,
 )
 
 
@@ -39,7 +37,7 @@ class ResourceCounter:
 
         ddi_objects = self._get_ddi_objects(native_objects)
         active_ips = self._get_active_ips(native_objects)
-        
+
         ddi_breakdown = self._calculate_ddi_breakdown(ddi_objects)
         ip_sources = self._calculate_ip_sources(native_objects)
         breakdown_by_region = self._calculate_breakdown_by_region(native_objects)
@@ -77,16 +75,16 @@ class ResourceCounter:
         for resource in resources:
             details = resource.get("details", {})
             resource_type = resource.get("resource_type", "unknown")
-            
+
             has_ip = False
             for key in IP_DETAIL_KEYS:
                 if details.get(key):
                     has_ip = True
                     break
-            
+
             if has_ip:
                 sources[resource_type] = sources.get(resource_type, 0) + 1
-        
+
         return sources
 
     def _calculate_breakdown_by_region(self, resources: List[Dict]) -> Dict[str, int]:
@@ -117,12 +115,9 @@ class ResourceCounter:
                         if ip:
                             ip_set.add(ip)
 
-            if (
-                resource.get("resource_type") == "subnet"
-                and "discovered_ips" in details
-            ):
+            if resource.get("resource_type") == "subnet" and "discovered_ips" in details:
                 for ip in details["discovered_ips"]:
                     if ip:
                         ip_set.add(ip)
 
-        return list(ip_set) 
+        return list(ip_set)

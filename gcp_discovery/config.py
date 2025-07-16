@@ -3,11 +3,11 @@ GCP Configuration for Cloud Discovery
 """
 
 import os
-import json
 from typing import List, Optional
+
 from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError
-from google.cloud import resourcemanager_v3
+
 from shared.config import BaseConfig
 
 

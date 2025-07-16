@@ -2,10 +2,10 @@
 Utility functions for AWS Cloud Discovery.
 """
 
+from typing import Any
+
 import boto3
 from botocore.exceptions import NoCredentialsError
-from typing import Any
-from shared.output_utils import get_resource_tags
 
 
 def get_aws_client(service_name: str, region: str, config) -> Any:

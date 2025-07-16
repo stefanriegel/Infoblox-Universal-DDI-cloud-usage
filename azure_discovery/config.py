@@ -4,12 +4,12 @@ Handles Azure-specific configuration and region management.
 """
 
 import os
-from typing import List, Optional
-from dataclasses import dataclass
-from azure.mgmt.resource import ResourceManagementClient
-from azure.identity import DefaultAzureCredential
 import subprocess
-import json
+from dataclasses import dataclass
+from typing import List, Optional
+
+from azure.identity import DefaultAzureCredential
+
 from shared.config import BaseConfig
 
 
@@ -32,7 +32,15 @@ class AzureConfig(BaseConfig):
                         "AZURE_SUBSCRIPTION_ID not set. Attempting to auto-detect from Azure CLI..."
                     )
                     result = subprocess.run(
-                        ["az", "account", "show", "--query", "id", "-o", "tsv"],
+                        [
+                            "az",
+                            "account",
+                            "show",
+                            "--query",
+                            "id",
+                            "-o",
+                            "tsv",
+                        ],
                         capture_output=True,
                         text=True,
                         check=True,
@@ -94,7 +102,7 @@ def get_all_azure_regions() -> List[str]:
     """
     try:
         # Use default Azure credential
-        credential = DefaultAzureCredential()
+        DefaultAzureCredential()
         subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID")
 
         if not subscription_id:
@@ -103,9 +111,7 @@ def get_all_azure_regions() -> List[str]:
 
         # For now, return major regions to avoid dependency issues
         # TODO: Implement full region discovery when azure-mgmt-subscription is available
-        print(
-            "Using major Azure regions (full region discovery requires azure-mgmt-subscription)"
-        )
+        print("Using major Azure regions (full region discovery requires azure-mgmt-subscription)")
         return get_major_azure_regions()
 
     except Exception as e:

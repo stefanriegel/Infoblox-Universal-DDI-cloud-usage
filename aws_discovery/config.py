@@ -3,11 +3,13 @@ Configuration module for AWS Cloud Discovery.
 """
 
 import os
-import boto3
-from typing import List, Optional
-from dataclasses import dataclass
 import sys
+from dataclasses import dataclass
+from typing import List, Optional
+
+import boto3
 from botocore.exceptions import NoCredentialsError
+
 from shared.config import BaseConfig
 
 
