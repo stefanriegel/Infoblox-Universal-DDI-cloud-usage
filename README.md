@@ -17,8 +17,6 @@ A Python tool that discovers and counts DDI Objects and Active IPs across AWS, A
 - [Usage](#usage)
 - [Output](#output)
 - [Project Structure](#project-structure)
-- [Contributing](#contributing)
-- [License](#license)
 
 ## Features
 
@@ -303,9 +301,3 @@ Infoblox-Universal-DDI-cloud-usage/
 ├── setup_venv.bat         # Windows setup script
 └── output/                # Generated output files
 ```
-
-
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
