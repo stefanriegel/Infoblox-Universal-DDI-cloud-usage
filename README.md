@@ -5,6 +5,8 @@
 [![Status](https://img.shields.io/badge/Status-Early%20Preview-orange.svg)](https://github.com/your-username/Infoblox-Universal-DDI-cloud-usage)
 
 > **⚠️ Early Preview**: This tool is currently in early preview and provided without guarantees. Resource counts should be verified independently before making licensing decisions.
+>
+> **✅ CI Testing**: Automated testing with real cloud credentials is now enabled on the `dev` branch.
 
 A Python tool that discovers and counts DDI Objects and Active IPs across AWS, Azure, and Google Cloud Platform (GCP) for Infoblox Universal DDI licensing assessment.
 
