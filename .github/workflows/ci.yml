@@ -122,6 +122,22 @@ jobs:
         echo "4" | bash setup_venv.sh
         source venv/bin/activate
 
+    - name: Create GCP service account key file
+      if: matrix.provider == 'gcp'
+      env:
+        GCP_SA_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+        GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
+      run: |
+        if [ -n "$GCP_SA_KEY" ]; then
+          echo "$GCP_SA_KEY" > gcp-key.json
+          echo "GCP service account key file created"
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" >> $GITHUB_ENV
+          echo "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" >> $GITHUB_ENV
+        else
+          echo "No GCP service account key available"
+        fi
+
     - name: Configure AWS credentials
       if: matrix.provider == 'aws'
       env:
@@ -158,14 +174,11 @@ jobs:
       env:
         GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
         GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
-        GCP_SA_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
       run: |
-        if [ -z "$GOOGLE_CLOUD_PROJECT" ]; then
+        if [ -z "$GOOGLE_CLOUD_PROJECT" ] || [ ! -f gcp-key.json ]; then
           echo "Skipping GCP test - no credentials in repository secrets"
           exit 0
         fi
-        # Write service account key to file using environment variable
-        echo "$GCP_SA_KEY" > gcp-key.json
         source venv/bin/activate
         echo "Testing GCP discovery..."
         python main.py gcp --format txt
