@@ -29,9 +29,13 @@ def validate_azure_credentials():
     except CredentialUnavailableError as e:
         print(f"ERROR: Azure credentials not available: {e}")
         print("Please configure one of:")
-        print("  - Service principal: Set AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID")
+        print(
+            "  - Service principal: Set AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID"
+        )
         print("  - Azure CLI: Run 'az login'")
-        print("  - Managed identity: Ensure running in Azure with managed identity enabled")
+        print(
+            "  - Managed identity: Ensure running in Azure with managed identity enabled"
+        )
         return False
     except Exception as e:
         print(f"ERROR: Failed to authenticate with Azure: {e}")
