@@ -158,13 +158,14 @@ jobs:
       env:
         GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
         GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
+        GCP_SA_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
       run: |
         if [ -z "$GOOGLE_CLOUD_PROJECT" ]; then
           echo "Skipping GCP test - no credentials in repository secrets"
           exit 0
         fi
-        # Write service account key to file
-        echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' > gcp-key.json
+        # Write service account key to file using environment variable
+        echo "$GCP_SA_KEY" > gcp-key.json
         source venv/bin/activate
         echo "Testing GCP discovery..."
         python main.py gcp --format txt
