@@ -8,11 +8,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import List, Optional
 
-from azure.identity import (
-    DefaultAzureCredential,
-    ClientSecretCredential,
-    ClientSecretCredential,
-)
+from azure.identity import DefaultAzureCredential, ClientSecretCredential
 
 from shared.config import BaseConfig
 
