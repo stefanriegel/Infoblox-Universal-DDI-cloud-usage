@@ -7,8 +7,37 @@ on:
     branches: [ dev ]
 
 jobs:
+  setup-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.8'
+
+    - name: Test setup script (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        echo "4" | bash setup_venv.sh
+        source venv/bin/activate
+        python -c "import boto3; import azure.mgmt.compute; import google.cloud.compute; print('All dependencies installed successfully')"
+
+    - name: Test setup script (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        & .\setup_venv.ps1
+        & venv\Scripts\Activate.ps1
+        python -c "import boto3; import azure.mgmt.compute; import google.cloud.compute; print('All dependencies installed successfully')"
+
   lint:
     runs-on: ubuntu-latest
+    needs: setup-test
 
     steps:
     - uses: actions/checkout@v4
@@ -21,20 +50,6 @@ jobs:
     - name: Install linting tools
       run: pip install flake8 black
 
-    - name: Install dependencies (Linux/macOS)
-      if: runner.os != 'Windows'
-      run: |
-        echo "4" | bash setup_venv.sh
-        source venv/bin/activate
-        pip install pytest
-
-    - name: Install dependencies (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        & .\setup_venv.ps1
-        & venv\Scripts\Activate.ps1
-        pip install pytest
-
     - name: Lint with flake8
       run: |
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=venv
@@ -44,7 +59,7 @@ jobs:
       run: |
         black --check --diff --exclude=venv .
 
-  test:
+  unit-test:
     runs-on: ${{ matrix.os }}
     needs: lint
     strategy:
@@ -73,21 +88,26 @@ jobs:
         & venv\Scripts\Activate.ps1
         pip install pytest
 
-    - name: Test with pytest (Linux/macOS)
+    - name: Run unit tests (Linux/macOS)
       if: runner.os != 'Windows'
       run: |
         source venv/bin/activate
         pytest
 
-    - name: Test with pytest (Windows)
+    - name: Run unit tests (Windows)
       if: runner.os == 'Windows'
       run: |
         & venv\Scripts\Activate.ps1
         pytest
 
-  creds-test:
+  integration-test:
     runs-on: ubuntu-latest
-    needs: test
+    needs: unit-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    
+    strategy:
+      matrix:
+        provider: [aws, azure, gcp]
 
     steps:
     - uses: actions/checkout@v4
@@ -101,9 +121,55 @@ jobs:
       run: |
         echo "4" | bash setup_venv.sh
         source venv/bin/activate
-        pip install pytest
 
-    - name: Test credential validation
+    - name: Configure AWS credentials
+      if: matrix.provider == 'aws'
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
       run: |
+        if [ -z "$AWS_ACCESS_KEY_ID" ]; then
+          echo "Skipping AWS test - no credentials in repository secrets"
+          exit 0
+        fi
         source venv/bin/activate
-        python -c "import main; main.main(['aws'])" || echo "Expected failure without credentials"
+        echo "Testing AWS discovery..."
+        python main.py aws --format txt
+
+    - name: Configure Azure credentials
+      if: matrix.provider == 'azure'
+      env:
+        AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+        AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+        AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      run: |
+        if [ -z "$AZURE_CLIENT_ID" ]; then
+          echo "Skipping Azure test - no credentials in repository secrets"
+          exit 0
+        fi
+        source venv/bin/activate
+        echo "Testing Azure discovery..."
+        python main.py azure --format txt
+
+    - name: Configure GCP credentials
+      if: matrix.provider == 'gcp'
+      env:
+        GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
+      run: |
+        if [ -z "$GOOGLE_CLOUD_PROJECT" ]; then
+          echo "Skipping GCP test - no credentials in repository secrets"
+          exit 0
+        fi
+        # Write service account key to file
+        echo '${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}' > gcp-key.json
+        source venv/bin/activate
+        echo "Testing GCP discovery..."
+        python main.py gcp --format txt
+
+    - name: Check output files
+      run: |
+        ls -la output/
+        echo "Output files generated successfully"
