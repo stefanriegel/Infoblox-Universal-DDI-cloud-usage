@@ -16,9 +16,7 @@ def test_main_help():
 
 def test_main_no_args():
     """Test that main.py fails gracefully with no arguments."""
-    result = subprocess.run(
-        [sys.executable, "main.py"], capture_output=True, text=True
-    )
+    result = subprocess.run([sys.executable, "main.py"], capture_output=True, text=True)
     assert result.returncode != 0
     assert "error:" in result.stderr.lower() or "usage:" in result.stderr.lower()
 
