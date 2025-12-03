@@ -88,58 +88,29 @@ jobs:
         & venv\Scripts\Activate.ps1
         pytest -v
 
-  # Step 4: Check if cloud credentials are available
-  check-credentials:
-    runs-on: ubuntu-latest
-    needs: unit-test
-    outputs:
-      has-aws: ${{ steps.check-aws.outputs.has-aws }}
-      has-azure: ${{ steps.check-azure.outputs.has-azure }}
-      has-gcp: ${{ steps.check-gcp.outputs.has-gcp }}
-    steps:
-    - id: check-aws
-      run: |
-        if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
-          echo "has-aws=true" >> $GITHUB_OUTPUT
-        else
-          echo "has-aws=false" >> $GITHUB_OUTPUT
-        fi
-    - id: check-azure
-      run: |
-        if [ -n "${{ secrets.AZURE_CLIENT_ID }}" ]; then
-          echo "has-azure=true" >> $GITHUB_OUTPUT
-        else
-          echo "has-azure=false" >> $GITHUB_OUTPUT
-        fi
-    - id: check-gcp
-      run: |
-        if [ -n "${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}" ]; then
-          echo "has-gcp=true" >> $GITHUB_OUTPUT
-        else
-          echo "has-gcp=false" >> $GITHUB_OUTPUT
-        fi
-    - name: Report credential status
-      run: |
-        echo "AWS credentials available: ${{ steps.check-aws.outputs.has-aws }}"
-        echo "Azure credentials available: ${{ steps.check-azure.outputs.has-azure }}"
-        echo "GCP credentials available: ${{ steps.check-gcp.outputs.has-gcp }}"
-
-  # Step 5: Integration tests with real cloud credentials
+  # Step 4: Integration tests with real cloud credentials
   integration-test:
     runs-on: ubuntu-latest
-    needs: check-credentials
+    needs: unit-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     
     strategy:
       matrix:
         provider: [aws, azure, gcp]
-        include:
-          - provider: aws
-            has-creds: ${{ needs.check-credentials.outputs.has-aws }}
-          - provider: azure
-            has-creds: ${{ needs.check-credentials.outputs.has-azure }}
-          - provider: gcp
-            has-creds: ${{ needs.check-credentials.outputs.has-gcp }}
+
+    # Set environment variables at the job level for all steps
+    env:
+      # AWS credentials
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      # Azure credentials
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # GCP credentials (project will be set in the step)
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
 
     # Set environment variables at the job level for all steps
     env:
@@ -169,42 +140,49 @@ jobs:
         source venv/bin/activate
 
     - name: Create GCP credentials file
-      if: matrix.provider == 'gcp' && matrix.has-creds == 'true'
+      if: matrix.provider == 'gcp' && env.GCP_SA_KEY != ''
       env:
         GCP_SA_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
       run: |
         echo "$GCP_SA_KEY" > gcp-key.json
         echo "GOOGLE_APPLICATION_CREDENTIALS=$PWD/gcp-key.json" >> $GITHUB_ENV
+        echo "GCP service account key created"
 
     - name: Test AWS discovery
-      if: matrix.provider == 'aws' && matrix.has-creds == 'true'
+      if: matrix.provider == 'aws' && env.AWS_ACCESS_KEY_ID != ''
       run: |
         source venv/bin/activate
         echo "Testing AWS discovery..."
         python main.py aws --format txt
 
     - name: Test Azure discovery
-      if: matrix.provider == 'azure' && matrix.has-creds == 'true'
+      if: matrix.provider == 'azure' && env.AZURE_CLIENT_ID != ''
       run: |
         source venv/bin/activate
         echo "Testing Azure discovery..."
         python main.py azure --format txt
 
     - name: Test GCP discovery
-      if: matrix.provider == 'gcp' && matrix.has-creds == 'true'
+      if: matrix.provider == 'gcp' && env.GCP_SA_KEY != ''
       run: |
         source venv/bin/activate
         echo "Testing GCP discovery..."
         python main.py gcp --format txt
 
     - name: Check output files
-      if: matrix.has-creds == 'true'
+      if: |
+        (matrix.provider == 'aws' && env.AWS_ACCESS_KEY_ID != '') ||
+        (matrix.provider == 'azure' && env.AZURE_CLIENT_ID != '') ||
+        (matrix.provider == 'gcp' && env.GCP_SA_KEY != '')
       run: |
         ls -la output/
         echo "Output files generated successfully"
 
     - name: Skip test (no credentials)
-      if: matrix.has-creds == 'false'
+      if: |
+        (matrix.provider == 'aws' && env.AWS_ACCESS_KEY_ID == '') ||
+        (matrix.provider == 'azure' && env.AZURE_CLIENT_ID == '') ||
+        (matrix.provider == 'gcp' && env.GCP_SA_KEY == '')
       run: |
         echo "Skipping ${{ matrix.provider }} test - no credentials configured"
         echo "To enable: Add ${{ matrix.provider }} credentials to repository secrets"
