@@ -2,6 +2,9 @@
 # Setup Python virtual environment and install dependencies for AWS, Azure, and GCP discovery
 set -e
 
+# Check for non-interactive mode (CI)
+PROVIDER_CHOICE="${1:-}"
+
 # Helper function for centered echo
 center_echo() {
   local text="$1"
@@ -38,14 +41,21 @@ center_echo "Provider Dependency Selection"
 echo "########################################"
 echo
 
-echo "Which provider dependencies do you want to install?"
-echo "  1) AWS"
-echo "  2) Azure"
-echo "  3) GCP"
-echo "  4) All"
-echo "----------------------------------------"
-echo
-read -p "Enter choice [1-4]: " choice
+# Use parameter if provided (non-interactive mode)
+if [ -n "$PROVIDER_CHOICE" ]; then
+  choice="$PROVIDER_CHOICE"
+  echo "Using provider choice from parameter: $choice"
+else
+  echo "Which provider dependencies do you want to install?"
+  echo "  1) AWS"
+  echo "  2) Azure"
+  echo "  3) GCP"
+  echo "  4) All"
+  echo "----------------------------------------"
+  echo
+  read -p "Enter choice [1-4]: " choice
+fi
+
 echo
 
 echo "########################################"
@@ -76,7 +86,7 @@ case $choice in
     ;;
   *)
     echo
-    echo "[ERROR] Invalid choice. Exiting."
+    echo "[ERROR] Invalid choice: $choice. Exiting."
     echo
     exit 1
     ;;
