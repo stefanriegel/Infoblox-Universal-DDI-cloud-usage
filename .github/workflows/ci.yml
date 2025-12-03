@@ -18,10 +18,18 @@ jobs:
       with:
         python-version: '3.8'
 
-    - name: Install dependencies
+    - name: Install dependencies (Linux/macOS)
+      if: runner.os != 'Windows'
       run: |
         echo "4" | bash setup_venv.sh
         source venv/bin/activate
+        pip install pytest black flake8
+
+    - name: Install dependencies (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        & .\setup_venv.ps1
+        & venv\Scripts\Activate.ps1
         pip install pytest black flake8
 
     - name: Lint with flake8
@@ -48,15 +56,30 @@ jobs:
       with:
         python-version: '3.8'
 
-    - name: Install dependencies
+    - name: Install dependencies (Linux/macOS)
+      if: runner.os != 'Windows'
       run: |
         echo "4" | bash setup_venv.sh
         source venv/bin/activate
         pip install pytest
 
-    - name: Test with pytest
+    - name: Install dependencies (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        & .\setup_venv.ps1
+        & venv\Scripts\Activate.ps1
+        pip install pytest
+
+    - name: Test with pytest (Linux/macOS)
+      if: runner.os != 'Windows'
       run: |
         source venv/bin/activate
+        pytest
+
+    - name: Test with pytest (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        & venv\Scripts\Activate.ps1
         pytest
 
   creds-test:
