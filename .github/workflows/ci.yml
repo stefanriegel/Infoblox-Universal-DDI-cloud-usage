@@ -111,3 +111,64 @@ jobs:
       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
       # GCP credentials (project will be set in the step)
       GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        echo "4" | bash setup_venv.sh
+        source venv/bin/activate
+
+    - name: Create GCP credentials file
+      if: matrix.provider == 'gcp' && env.GCP_SA_KEY != ''
+      env:
+        GCP_SA_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+      run: |
+        echo "$GCP_SA_KEY" > gcp-key.json
+        echo "GOOGLE_APPLICATION_CREDENTIALS=$PWD/gcp-key.json" >> $GITHUB_ENV
+        echo "GCP service account key created"
+
+    - name: Test AWS discovery
+      if: matrix.provider == 'aws' && env.AWS_ACCESS_KEY_ID != ''
+      run: |
+        source venv/bin/activate
+        echo "Testing AWS discovery..."
+        python main.py aws --format txt
+
+    - name: Test Azure discovery
+      if: matrix.provider == 'azure' && env.AZURE_CLIENT_ID != ''
+      run: |
+        source venv/bin/activate
+        echo "Testing Azure discovery..."
+        python main.py azure --format txt
+
+    - name: Test GCP discovery
+      if: matrix.provider == 'gcp' && env.GCP_SA_KEY != ''
+      run: |
+        source venv/bin/activate
+        echo "Testing GCP discovery..."
+        python main.py gcp --format txt
+
+    - name: Check output files
+      if: |
+        (matrix.provider == 'aws' && env.AWS_ACCESS_KEY_ID != '') ||
+        (matrix.provider == 'azure' && env.AZURE_CLIENT_ID != '') ||
+        (matrix.provider == 'gcp' && env.GCP_SA_KEY != '')
+      run: |
+        ls -la output/
+        echo "Output files generated successfully"
+
+    - name: Skip test (no credentials)
+      if: |
+        (matrix.provider == 'aws' && env.AWS_ACCESS_KEY_ID == '') ||
+        (matrix.provider == 'azure' && env.AZURE_CLIENT_ID == '') ||
+        (matrix.provider == 'gcp' && env.GCP_SA_KEY == '')
+      run: |
+        echo "Skipping ${{ matrix.provider }} test - no credentials configured"
+        echo "To enable: Add ${{ matrix.provider }} credentials to repository secrets"
