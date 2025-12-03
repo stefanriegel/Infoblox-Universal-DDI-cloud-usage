@@ -19,7 +19,7 @@ if (Test-Path "venv") {
 
 # --- Section: Create new environment ---
 Write-Host "[INFO] Creating new Python virtual environment..." -ForegroundColor Green
-python -m venv venv
+python3.11 -m venv venv
 & venv\Scripts\Activate.ps1
 
 # --- Section: Upgrade pip ---
