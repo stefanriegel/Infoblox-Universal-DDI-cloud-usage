@@ -133,8 +133,15 @@ jobs:
           echo "$GCP_SA_KEY" > gcp-key.json
           echo "GCP service account key file created at $GOOGLE_APPLICATION_CREDENTIALS"
           echo "File size: $(wc -c < gcp-key.json) bytes"
+          # Set environment variables for the entire job
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS" >> $GITHUB_ENV
           echo "GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT" >> $GITHUB_ENV
+          # Also export for immediate use in this step
+          export GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS
+          export GOOGLE_CLOUD_PROJECT=$GOOGLE_CLOUD_PROJECT
+          # Verify the credentials work
+          echo "Verifying GCP credentials..."
+          python -c "from google.auth import default; credentials, project = default(); print(f'Authenticated with project: {project}')" || echo "Warning: Could not verify credentials"
         else
           echo "No GCP service account key available"
           echo "GCP test will be skipped"
