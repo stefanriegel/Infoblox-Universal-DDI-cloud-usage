@@ -46,10 +46,10 @@ cd Infoblox-Universal-DDI-cloud-usage
 ```
 
 **Windows:**
-```cmd
+```powershell
 git clone https://github.com/your-username/Infoblox-Universal-DDI-cloud-usage.git
 cd Infoblox-Universal-DDI-cloud-usage
-setup_venv.bat
+.\setup_venv.ps1
 ```
 
 ### Basic Usage
@@ -81,8 +81,8 @@ The setup scripts handle everything automatically:
 ```
 
 **Windows:**
-```cmd
-setup_venv.bat
+```powershell
+.\setup_venv.ps1
 ```
 
 ### Manual Setup
@@ -301,6 +301,6 @@ Infoblox-Universal-DDI-cloud-usage/
 ├── main.py                 # Main entry point
 ├── requirements.txt        # Project dependencies
 ├── setup_venv.sh          # Linux/macOS setup script
-├── setup_venv.bat         # Windows setup script
+├── setup_venv.ps1         # Windows setup script
 └── output/                # Generated output files
 ```
