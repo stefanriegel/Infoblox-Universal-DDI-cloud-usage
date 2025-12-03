@@ -146,7 +146,10 @@ def main(args=None):
         # Persist unknown resources for debugging (JSON)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         from shared.output_utils import save_unknown_resources
-        unk = save_unknown_resources(native_objects, config.output_directory, timestamp, "gcp")
+
+        unk = save_unknown_resources(
+            native_objects, config.output_directory, timestamp, "gcp"
+        )
         if unk:
             print(f"Unknown resources saved to: {unk['unknown_resources']}")
 
@@ -168,18 +171,20 @@ def main(args=None):
         print("=" * 60)
 
         calculator = UniversalDDILicensingCalculator()
-        licensing_results = calculator.calculate_from_discovery_results(native_objects, provider='gcp')
+        licensing_results = calculator.calculate_from_discovery_results(
+            native_objects, provider="gcp"
+        )
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Export CSV for Sales Engineers
         csv_file = f"output/gcp_universal_ddi_licensing_{timestamp}.csv"
-        calculator.export_csv(csv_file, provider='gcp')
+        calculator.export_csv(csv_file, provider="gcp")
         print(f"Licensing CSV exported: {csv_file}")
 
         # Export text summary
         txt_file = f"output/gcp_universal_ddi_licensing_{timestamp}.txt"
-        calculator.export_text_summary(txt_file, provider='gcp')
+        calculator.export_text_summary(txt_file, provider="gcp")
         print(f"Licensing summary exported: {txt_file}")
 
         # Export estimator-only CSV
@@ -191,8 +196,8 @@ def main(args=None):
         proof_file = f"output/gcp_universal_ddi_proof_{timestamp}.json"
         calculator.export_proof_manifest(
             proof_file,
-            provider='gcp',
-            scope={'projects': scanned_projects},
+            provider="gcp",
+            scope={"projects": scanned_projects},
             regions=all_regions,
             native_objects=native_objects,
         )
@@ -200,7 +205,9 @@ def main(args=None):
 
         # Save results
         if args.full:
-            print(f"Saving full resource/object data in {args.format.upper()} format...")
+            print(
+                f"Saving full resource/object data in {args.format.upper()} format..."
+            )
             saved_files = discovery.save_discovery_results(
                 extra_info={"projects": scanned_projects}
             )
@@ -213,6 +220,7 @@ def main(args=None):
                 output_dir = config.output_directory
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 from shared.output_utils import save_resource_count_results
+
                 summary_files = save_resource_count_results(
                     count_results,
                     output_dir,
@@ -223,7 +231,9 @@ def main(args=None):
                 )
                 print(f"Summary saved to: {summary_files['resource_count']}")
             else:
-                print("Skipping legacy resource_count output (use --include-counts to enable)")
+                print(
+                    "Skipping legacy resource_count output (use --include-counts to enable)"
+                )
 
         print(f"\nDiscovery completed successfully!")
 

@@ -35,12 +35,18 @@ def print_discovery_summary(
         if provider == "aws" and extra_info.get("accounts"):
             print(f"Scanned AWS Account(s): {', '.join(extra_info['accounts'])}")
         elif provider == "azure" and extra_info.get("subscriptions"):
-            print(f"Scanned Azure Subscription(s): {', '.join(extra_info['subscriptions'])}")
+            print(
+                f"Scanned Azure Subscription(s): {', '.join(extra_info['subscriptions'])}"
+            )
         elif provider == "gcp" and extra_info.get("projects"):
             print(f"Scanned GCP Project(s): {', '.join(extra_info['projects'])}")
 
     # DDI Breakdown
-    ddi_breakdown = {k: v for k, v in (count_results.get("ddi_breakdown", {}) or {}).items() if k and k != "unknown"}
+    ddi_breakdown = {
+        k: v
+        for k, v in (count_results.get("ddi_breakdown", {}) or {}).items()
+        if k and k != "unknown"
+    }
     ddi_total = sum(ddi_breakdown.values())
     print("\n--- DDI Objects Breakdown ---")
     if not ddi_breakdown:
@@ -51,7 +57,11 @@ def print_discovery_summary(
     print()
 
     # Active IPs Breakdown
-    ip_sources = {k: v for k, v in (count_results.get("ip_sources", {}) or {}).items() if k and k != "unknown"}
+    ip_sources = {
+        k: v
+        for k, v in (count_results.get("ip_sources", {}) or {}).items()
+        if k and k != "unknown"
+    }
     print("--- Active IPs Breakdown ---")
     if not ip_sources:
         print("  (none)")
@@ -68,7 +78,10 @@ def print_discovery_summary(
     for t, objs in type_to_objs.items():
         examples = ", ".join([str(o["name"]) for o in objs[:2]])
         more = f", ..." if len(objs) > 2 else ""
-        print(f"  - {len(objs)} {t}(s)" + (f" (e.g. {examples}{more})" if examples else ""))
+        print(
+            f"  - {len(objs)} {t}(s)"
+            + (f" (e.g. {examples}{more})" if examples else "")
+        )
     print()
 
     # Am Ende: Sizing-Zahlen prominent
@@ -149,13 +162,17 @@ def save_discovery_results(
             # Print scanned account/subscription/project info
             if extra_info:
                 if provider == "aws" and extra_info.get("accounts"):
-                    f.write(f"Scanned AWS Account(s): {', '.join(extra_info['accounts'])}\n")
+                    f.write(
+                        f"Scanned AWS Account(s): {', '.join(extra_info['accounts'])}\n"
+                    )
                 elif provider == "azure" and extra_info.get("subscriptions"):
                     f.write(
                         f"Scanned Azure Subscription(s): {', '.join(extra_info['subscriptions'])}\n"
                     )
                 elif provider == "gcp" and extra_info.get("projects"):
-                    f.write(f"Scanned GCP Project(s): {', '.join(extra_info['projects'])}\n")
+                    f.write(
+                        f"Scanned GCP Project(s): {', '.join(extra_info['projects'])}\n"
+                    )
                 f.write("\n")
 
             for i, resource in enumerate(data, 1):
@@ -198,7 +215,11 @@ def save_unknown_resources(
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
-    unknown = [r for r in data if not r.get("resource_type") or r.get("resource_type") == "unknown"]
+    unknown = [
+        r
+        for r in data
+        if not r.get("resource_type") or r.get("resource_type") == "unknown"
+    ]
     if not unknown:
         return {}
 
@@ -206,7 +227,12 @@ def save_unknown_resources(
     filepath = os.path.join(output_dir, filename)
 
     with open(filepath, "w") as f:
-        json.dump({"count": len(unknown), "unknown_resources": unknown}, f, indent=2, default=str)
+        json.dump(
+            {"count": len(unknown), "unknown_resources": unknown},
+            f,
+            indent=2,
+            default=str,
+        )
 
     return {"unknown_resources": filepath}
 
@@ -253,13 +279,17 @@ def save_resource_count_results(
             # Print scanned account/subscription/project info
             if extra_info:
                 if provider == "aws" and extra_info.get("accounts"):
-                    f.write(f"Scanned AWS Account(s): {', '.join(extra_info['accounts'])}\n")
+                    f.write(
+                        f"Scanned AWS Account(s): {', '.join(extra_info['accounts'])}\n"
+                    )
                 elif provider == "azure" and extra_info.get("subscriptions"):
                     f.write(
                         f"Scanned Azure Subscription(s): {', '.join(extra_info['subscriptions'])}\n"
                     )
                 elif provider == "gcp" and extra_info.get("projects"):
-                    f.write(f"Scanned GCP Project(s): {', '.join(extra_info['projects'])}\n")
+                    f.write(
+                        f"Scanned GCP Project(s): {', '.join(extra_info['projects'])}\n"
+                    )
                 f.write("\n")
 
             # DDI Breakdown
@@ -333,9 +363,21 @@ def format_azure_resource(
         Formatted resource dictionary
     """
     # Extract common fields - use getattr for Azure SDK model compatibility
-    resource_id = getattr(resource, "id", "") if hasattr(resource, "id") else resource.get("id", "")
-    name = getattr(resource, "name", "") if hasattr(resource, "name") else resource.get("name", "")
-    tags = getattr(resource, "tags", {}) if hasattr(resource, "tags") else resource.get("tags", {})
+    resource_id = (
+        getattr(resource, "id", "")
+        if hasattr(resource, "id")
+        else resource.get("id", "")
+    )
+    name = (
+        getattr(resource, "name", "")
+        if hasattr(resource, "name")
+        else resource.get("name", "")
+    )
+    tags = (
+        getattr(resource, "tags", {})
+        if hasattr(resource, "tags")
+        else resource.get("tags", {})
+    )
 
     # Create formatted resource
     formatted = {

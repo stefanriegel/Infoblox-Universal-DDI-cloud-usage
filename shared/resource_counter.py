@@ -119,7 +119,10 @@ class ResourceCounter:
                         if ip:
                             ip_set.add(ip)
 
-            if resource.get("resource_type") == "subnet" and "discovered_ips" in details:
+            if (
+                resource.get("resource_type") == "subnet"
+                and "discovered_ips" in details
+            ):
                 for ip in details["discovered_ips"]:
                     if ip:
                         ip_set.add(ip)
