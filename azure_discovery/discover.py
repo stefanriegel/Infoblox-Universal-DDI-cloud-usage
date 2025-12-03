@@ -5,7 +5,6 @@ Discovers Azure Native Objects and calculates Management Token requirements.
 """
 
 import argparse
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -15,21 +14,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from .azure_discovery import AzureDiscovery
 from .config import AzureConfig, get_all_azure_regions
-
-
-def check_azure_cli_login():
-    try:
-        subprocess.run(
-            ["az", "account", "show"],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    except Exception:
-        print(
-            "ERROR: Azure CLI is not authenticated. Please run 'az login' or configure your credentials. Exiting."
-        )
-        sys.exit(1)
 
 
 def main(args=None):
@@ -73,9 +57,6 @@ def main(args=None):
     print(f"Output format: {args.format.upper()}")
     print(f"Parallel workers: {args.workers}")
     print()
-
-    # Pre-check Azure CLI login before any discovery or region fetching
-    check_azure_cli_login()
 
     # Get all available regions
     print("Fetching available regions...")
