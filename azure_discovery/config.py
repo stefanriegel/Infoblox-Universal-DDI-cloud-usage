@@ -8,7 +8,11 @@ import subprocess
 from dataclasses import dataclass
 from typing import List, Optional
 
-from azure.identity import DefaultAzureCredential, ClientSecretCredential, ClientSecretCredential
+from azure.identity import (
+    DefaultAzureCredential,
+    ClientSecretCredential,
+    ClientSecretCredential,
+)
 
 from shared.config import BaseConfig
 
@@ -110,7 +114,7 @@ def get_all_azure_regions() -> List[str]:
 def get_azure_credential():
     """
     Get Azure credential for authentication.
-    
+
     Tries service principal credentials first, then falls back to DefaultAzureCredential.
 
     Returns:
@@ -120,13 +124,11 @@ def get_azure_credential():
     client_id = os.getenv("AZURE_CLIENT_ID")
     client_secret = os.getenv("AZURE_CLIENT_SECRET")
     tenant_id = os.getenv("AZURE_TENANT_ID")
-    
+
     if client_id and client_secret and tenant_id:
         # Use service principal credentials if available
         return ClientSecretCredential(
-            client_id=client_id,
-            client_secret=client_secret,
-            tenant_id=tenant_id
+            client_id=client_id, client_secret=client_secret, tenant_id=tenant_id
         )
     else:
         # Fall back to DefaultAzureCredential (for Azure CLI, managed identity, etc.)
