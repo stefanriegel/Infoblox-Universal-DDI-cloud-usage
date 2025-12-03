@@ -1,5 +1,10 @@
 # Setup Python virtual environment and install dependencies for AWS, Azure, and GCP discovery
 
+# Check for non-interactive mode (CI) - accept parameter
+param(
+    [string]$ProviderChoice = ""
+)
+
 # --- Section: Clean up old environment ---
 Write-Host "================================" -ForegroundColor Cyan
 Write-Host " Infoblox Universal DDI Setup Routine" -ForegroundColor Cyan
@@ -27,15 +32,21 @@ Write-Host " Provider Dependency Selection" -ForegroundColor Cyan
 Write-Host "================================" -ForegroundColor Cyan
 Write-Host
 
-Write-Host "Which provider dependencies do you want to install?"
-Write-Host "  1) AWS"
-Write-Host "  2) Azure"
-Write-Host "  3) GCP"
-Write-Host "  4) All"
-Write-Host "---------------------------------"
-Write-Host
+# Use parameter if provided (non-interactive mode)
+if ($ProviderChoice) {
+    $choice = $ProviderChoice
+    Write-Host "Using provider choice from parameter: $choice" -ForegroundColor Yellow
+} else {
+    Write-Host "Which provider dependencies do you want to install?"
+    Write-Host "  1) AWS"
+    Write-Host "  2) Azure"
+    Write-Host "  3) GCP"
+    Write-Host "  4) All"
+    Write-Host "---------------------------------"
+    Write-Host
 
-$choice = Read-Host "Enter choice [1-4]"
+    $choice = Read-Host "Enter choice [1-4]"
+}
 
 Write-Host
 Write-Host "================================" -ForegroundColor Cyan
@@ -66,7 +77,7 @@ switch ($choice) {
     }
     default {
         Write-Host
-        Write-Host "[ERROR] Invalid choice. Exiting." -ForegroundColor Red
+        Write-Host "[ERROR] Invalid choice: $choice. Exiting." -ForegroundColor Red
         Write-Host
         exit 1
     }
