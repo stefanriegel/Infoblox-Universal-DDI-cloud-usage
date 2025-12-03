@@ -3,7 +3,6 @@
 
 # AWS Dependencies
 boto3>=1.26.0
-botocore>=1.39.0
 
 # Azure Dependencies
 azure-mgmt-compute>=30.0.0
