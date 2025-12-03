@@ -532,67 +532,6 @@ class AWSDiscovery(BaseDiscovery):
         resources = self.discover_native_objects()
         return [obj for obj in resources if not obj["requires_management_token"]]
 
-    def count_resources(self) -> Dict:
-        resources = self.discover_native_objects()
-        count = self.resource_counter.count_resources(resources)
-
-        return {
-            "total_objects": count.total_objects,
-            "ddi_objects": count.ddi_objects,
-            "ddi_breakdown": count.ddi_breakdown,
-            "active_ips": count.active_ips,
-            "ip_sources": count.ip_sources,
-            "breakdown_by_region": count.breakdown_by_region,
-            "timestamp": count.timestamp,
-        }
-
-    def save_discovery_results(
-        self, output_dir: Optional[str] = None, extra_info: dict = {}
-    ) -> Dict[str, str]:
-        """
-        Save discovery results to files.
-
-        Args:
-            output_dir: Output directory (uses config default if None)
-            extra_info: Additional info to include in output files
-
-        Returns:
-            Dictionary mapping file types to file paths
-        """
-        # Get discovered resources (will use cached results if available)
-        resources = self.discover_native_objects()
-
-        # Use provided output directory or config default
-        output_directory = output_dir or self.config.output_directory
-
-        # Generate timestamp
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        # Save native objects
-        native_objects_files = save_discovery_results(
-            resources,
-            output_directory,
-            self.config.output_format,
-            timestamp,
-            "aws",
-            extra_info=extra_info,
-        )
-
-        # Save resource count results
-        count_results = self.count_resources()
-        count_files = save_resource_count_results(
-            count_results,
-            output_directory,
-            self.config.output_format,
-            timestamp,
-            "aws",
-            extra_info=extra_info,
-        )
-
-        # Combine all saved files
-        saved_files = {**native_objects_files, **count_files}
-
-        return saved_files
 
     def get_scanned_account_ids(self) -> list:
         """Return the AWS Account ID(s) scanned."""

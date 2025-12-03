@@ -28,9 +28,6 @@ class AzureConfig(BaseConfig):
             self.subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID")
             if not self.subscription_id:
                 try:
-                    print(
-                        "AZURE_SUBSCRIPTION_ID not set. Attempting to auto-detect from Azure CLI..."
-                    )
                     result = subprocess.run(
                         [
                             "az",
@@ -47,15 +44,9 @@ class AzureConfig(BaseConfig):
                     )
                     sub_id = result.stdout.strip()
                     if sub_id:
-                        print(f"Auto-detected Azure subscription ID: {sub_id}")
                         self.subscription_id = sub_id
-                    else:
-                        print(
-                            "Could not auto-detect subscription ID from Azure CLI. Using major regions only."
-                        )
-                except Exception as e:
-                    print(f"Failed to auto-detect subscription ID: {e}")
-                    print("Using major regions only.")
+                except Exception:
+                    pass
 
 
 def get_major_azure_regions() -> List[str]:
@@ -106,17 +97,13 @@ def get_all_azure_regions() -> List[str]:
         subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID")
 
         if not subscription_id:
-            print("Warning: AZURE_SUBSCRIPTION_ID not set. Using major regions only.")
             return get_major_azure_regions()
 
         # For now, return major regions to avoid dependency issues
         # TODO: Implement full region discovery when azure-mgmt-subscription is available
-        print("Using major Azure regions (full region discovery requires azure-mgmt-subscription)")
         return get_major_azure_regions()
 
-    except Exception as e:
-        print(f"Error fetching Azure regions: {e}")
-        print("Falling back to major regions...")
+    except Exception:
         return get_major_azure_regions()
 
 

@@ -86,6 +86,11 @@ def main(args=None):
             action="store_true",
             help="Save/export full resource/object data (default: only summary and token calculation)",
         )
+        parser.add_argument(
+            "--include-counts",
+            action="store_true",
+            help="Also write legacy resource_count files alongside licensing outputs",
+        )
         args = parser.parse_args()
 
     print("AWS Cloud Discovery for Management Token Calculation")
@@ -123,6 +128,13 @@ def main(args=None):
         # Count DDI objects and active IPs
         count_results = discovery.count_resources()
 
+        # Persist unknown resources for debugging (JSON)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        from shared.output_utils import save_unknown_resources
+        unk = save_unknown_resources(native_objects, config.output_directory, timestamp, "aws")
+        if unk:
+            print(f"Unknown resources saved to: {unk['unknown_resources']}")
+
         # Print discovery summary
         print_discovery_summary(
             native_objects,
@@ -130,6 +142,51 @@ def main(args=None):
             "aws",
             {"accounts": scanned_accounts},
         )
+        
+        # Always generate Universal DDI licensing calculations
+        from shared.licensing_calculator import UniversalDDILicensingCalculator
+
+        print("\n" + "=" * 60)
+        print("GENERATING INFOBLOX UNIVERSAL DDI LICENSING CALCULATIONS")
+        print("=" * 60)
+
+        calculator = UniversalDDILicensingCalculator()
+        licensing_results = calculator.calculate_from_discovery_results(native_objects, provider='aws')
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Export CSV for Sales Engineers
+        csv_file = f"output/aws_universal_ddi_licensing_{timestamp}.csv"
+        calculator.export_csv(csv_file, provider='aws')
+        print(f"Licensing CSV exported: {csv_file}")
+
+        # Export text summary
+        txt_file = f"output/aws_universal_ddi_licensing_{timestamp}.txt"
+        calculator.export_text_summary(txt_file, provider='aws')
+        print(f"Licensing summary exported: {txt_file}")
+
+        # Export estimator-only CSV
+        estimator_csv = f"output/aws_universal_ddi_estimator_{timestamp}.csv"
+        calculator.export_estimator_csv(estimator_csv)
+        print(f"Estimator CSV exported: {estimator_csv}")
+
+        # Export auditable proof manifest (scope + hashes)
+        proof_file = f"output/aws_universal_ddi_proof_{timestamp}.json"
+        calculator.export_proof_manifest(
+            proof_file,
+            provider='aws',
+            scope={'accounts': scanned_accounts},
+            regions=all_regions,
+            native_objects=native_objects,
+        )
+        print(f"Proof manifest exported: {proof_file}")
+        
+        # Print summary to console
+        print(f"\nUNIVERSAL DDI LICENSING SUMMARY:")
+        print(f"DDI Objects: {licensing_results['counts']['ddi_objects']:,} ({licensing_results['token_requirements']['ddi_objects_tokens']} tokens)")
+        print(f"Active IPs: {licensing_results['counts']['active_ip_addresses']:,} ({licensing_results['token_requirements']['active_ips_tokens']} tokens)")
+        print(f"Managed Assets: {licensing_results['counts']['managed_assets']:,} ({licensing_results['token_requirements']['managed_assets_tokens']} tokens)")
+        print(f"TOTAL MANAGEMENT TOKENS REQUIRED: {licensing_results['token_requirements']['total_management_tokens']}")
 
         # Save results
         if args.full:
@@ -141,20 +198,22 @@ def main(args=None):
             for file_type, filepath in saved_files.items():
                 print(f"  {file_type}: {filepath}")
         else:
-            # Save only the summary (DDI objects and active IPs)
-            output_dir = config.output_directory
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            from shared.output_utils import save_resource_count_results
-
-            summary_files = save_resource_count_results(
-                count_results,
-                output_dir,
-                args.format,
-                timestamp,
-                "aws",
-                extra_info={"accounts": scanned_accounts},
-            )
-            print(f"Summary saved to: {summary_files['resource_count']}")
+            # Save only legacy count file if requested
+            if args.include_counts:
+                output_dir = config.output_directory
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                from shared.output_utils import save_resource_count_results
+                summary_files = save_resource_count_results(
+                    count_results,
+                    output_dir,
+                    args.format,
+                    timestamp,
+                    "aws",
+                    extra_info={"accounts": scanned_accounts},
+                )
+                print(f"Summary saved to: {summary_files['resource_count']}")
+            else:
+                print("Skipping legacy resource_count output (use --include-counts to enable)")
 
         print(f"\nDiscovery completed successfully!")
 

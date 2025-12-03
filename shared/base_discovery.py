@@ -61,12 +61,13 @@ class BaseDiscovery(ABC):
             "timestamp": count.timestamp,
         }
 
-    def save_discovery_results(self, output_dir: Optional[str] = None) -> Dict[str, str]:
+    def save_discovery_results(self, output_dir: Optional[str] = None, extra_info: Dict[str, Any] = {}) -> Dict[str, str]:
         """
         Save discovery results to files.
 
         Args:
             output_dir: Output directory (uses config default if None)
+            extra_info: Additional scope/context to include (accounts/subscriptions/projects)
 
         Returns:
             Dictionary mapping file types to file paths
@@ -87,6 +88,7 @@ class BaseDiscovery(ABC):
             self.config.output_format,
             timestamp,
             self.config.provider,
+            extra_info=extra_info,
         )
 
         count_results = self.count_resources()
@@ -96,6 +98,7 @@ class BaseDiscovery(ABC):
             self.config.output_format,
             timestamp,
             self.config.provider,
+            extra_info=extra_info,
         )
 
         saved_files = {**native_objects_files, **count_files}

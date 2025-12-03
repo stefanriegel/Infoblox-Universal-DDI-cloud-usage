@@ -96,6 +96,16 @@ def main(args=None):
             action="store_true",
             help="Save/export full resource/object data (default: only summary and token calculation)",
         )
+        parser.add_argument(
+            "--licensing",
+            action="store_true",
+            help="Generate Infoblox Universal DDI licensing calculations for Sales Engineers",
+        )
+        parser.add_argument(
+            "--include-counts",
+            action="store_true",
+            help="Also write legacy resource_count files alongside licensing outputs",
+        )
         args = parser.parse_args()
 
     print("GCP Cloud Discovery for Management Token Calculation")
@@ -133,6 +143,13 @@ def main(args=None):
         # Count DDI objects and active IPs
         count_results = discovery.count_resources()
 
+        # Persist unknown resources for debugging (JSON)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        from shared.output_utils import save_unknown_resources
+        unk = save_unknown_resources(native_objects, config.output_directory, timestamp, "gcp")
+        if unk:
+            print(f"Unknown resources saved to: {unk['unknown_resources']}")
+
         # Print discovery summary
         from shared.output_utils import print_discovery_summary
 
@@ -142,6 +159,44 @@ def main(args=None):
             "gcp",
             {"projects": scanned_projects},
         )
+
+        # Always generate Universal DDI licensing calculations
+        from shared.licensing_calculator import UniversalDDILicensingCalculator
+
+        print("\n" + "=" * 60)
+        print("GENERATING INFOBLOX UNIVERSAL DDI LICENSING CALCULATIONS")
+        print("=" * 60)
+
+        calculator = UniversalDDILicensingCalculator()
+        licensing_results = calculator.calculate_from_discovery_results(native_objects, provider='gcp')
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        # Export CSV for Sales Engineers
+        csv_file = f"output/gcp_universal_ddi_licensing_{timestamp}.csv"
+        calculator.export_csv(csv_file, provider='gcp')
+        print(f"Licensing CSV exported: {csv_file}")
+
+        # Export text summary
+        txt_file = f"output/gcp_universal_ddi_licensing_{timestamp}.txt"
+        calculator.export_text_summary(txt_file, provider='gcp')
+        print(f"Licensing summary exported: {txt_file}")
+
+        # Export estimator-only CSV
+        estimator_csv = f"output/gcp_universal_ddi_estimator_{timestamp}.csv"
+        calculator.export_estimator_csv(estimator_csv)
+        print(f"Estimator CSV exported: {estimator_csv}")
+
+        # Export auditable proof manifest (scope + hashes)
+        proof_file = f"output/gcp_universal_ddi_proof_{timestamp}.json"
+        calculator.export_proof_manifest(
+            proof_file,
+            provider='gcp',
+            scope={'projects': scanned_projects},
+            regions=all_regions,
+            native_objects=native_objects,
+        )
+        print(f"Proof manifest exported: {proof_file}")
 
         # Save results
         if args.full:
@@ -153,20 +208,22 @@ def main(args=None):
             for file_type, filepath in saved_files.items():
                 print(f"  {file_type}: {filepath}")
         else:
-            # Save only the summary (DDI objects and active IPs)
-            output_dir = config.output_directory
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            from shared.output_utils import save_resource_count_results
-
-            summary_files = save_resource_count_results(
-                count_results,
-                output_dir,
-                args.format,
-                timestamp,
-                "gcp",
-                extra_info={"projects": scanned_projects},
-            )
-            print(f"Summary saved to: {summary_files['resource_count']}")
+            # Save only legacy count file if requested
+            if args.include_counts:
+                output_dir = config.output_directory
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                from shared.output_utils import save_resource_count_results
+                summary_files = save_resource_count_results(
+                    count_results,
+                    output_dir,
+                    args.format,
+                    timestamp,
+                    "gcp",
+                    extra_info={"projects": scanned_projects},
+                )
+                print(f"Summary saved to: {summary_files['resource_count']}")
+            else:
+                print("Skipping legacy resource_count output (use --include-counts to enable)")
 
         print(f"\nDiscovery completed successfully!")
 

@@ -40,23 +40,23 @@ def print_discovery_summary(
             print(f"Scanned GCP Project(s): {', '.join(extra_info['projects'])}")
 
     # DDI Breakdown
-    ddi_breakdown = count_results.get("ddi_breakdown", {})
+    ddi_breakdown = {k: v for k, v in (count_results.get("ddi_breakdown", {}) or {}).items() if k and k != "unknown"}
     ddi_total = sum(ddi_breakdown.values())
     print("\n--- DDI Objects Breakdown ---")
     if not ddi_breakdown:
         print("  (none)")
     else:
-        for t, count in ddi_breakdown.items():
+        for t, count in sorted(ddi_breakdown.items()):
             print(f"  {t}: {count}")
     print()
 
     # Active IPs Breakdown
-    ip_sources = count_results.get("ip_sources", {})
+    ip_sources = {k: v for k, v in (count_results.get("ip_sources", {}) or {}).items() if k and k != "unknown"}
     print("--- Active IPs Breakdown ---")
     if not ip_sources:
         print("  (none)")
     else:
-        for t, count in ip_sources.items():
+        for t, count in sorted(ip_sources.items()):
             print(f"  {t}: {count}")
     print()
 
@@ -183,6 +183,32 @@ def save_discovery_results(
                 f.write("\n")
 
     return {"native_objects": filepath}
+
+
+def save_unknown_resources(
+    data: List[Dict],
+    output_dir: str,
+    timestamp: str,
+    provider: str,
+) -> Dict[str, str]:
+    """Save unknown resources (missing or 'unknown' resource_type) as a JSON file for debugging.
+
+    Returns dict with key 'unknown_resources' when any unknown resources exist; otherwise empty dict.
+    """
+    # Create output directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+
+    unknown = [r for r in data if not r.get("resource_type") or r.get("resource_type") == "unknown"]
+    if not unknown:
+        return {}
+
+    filename = f"{provider}_unknown_resources_{timestamp}.json"
+    filepath = os.path.join(output_dir, filename)
+
+    with open(filepath, "w") as f:
+        json.dump({"count": len(unknown), "unknown_resources": unknown}, f, indent=2, default=str)
+
+    return {"unknown_resources": filepath}
 
 
 def save_resource_count_results(

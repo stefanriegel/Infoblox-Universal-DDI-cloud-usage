@@ -29,10 +29,10 @@ from .config import AzureConfig, get_azure_credential
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
-# Suppress Azure SDK logging
-logging.getLogger("azure").setLevel(logging.WARNING)
-logging.getLogger("azure.core").setLevel(logging.WARNING)
-logging.getLogger("azure.mgmt").setLevel(logging.WARNING)
+# Suppress Azure SDK logging (be quiet like AWS)
+logging.getLogger("azure").setLevel(logging.ERROR)
+logging.getLogger("azure.core").setLevel(logging.ERROR)
+logging.getLogger("azure.mgmt").setLevel(logging.ERROR)
 
 
 class AzureDiscovery(BaseDiscovery):
@@ -101,8 +101,8 @@ class AzureDiscovery(BaseDiscovery):
                 for rg in resource_groups
             }
 
-            # Use tqdm for progress tracking
-            with tqdm(total=len(resource_groups), desc="Scanning resource groups") as pbar:
+            # Use tqdm for progress tracking (match AWS label)
+            with tqdm(total=len(resource_groups), desc="Completed") as pbar:
                 for future in as_completed(future_to_rg):
                     resource_group = future_to_rg[future]
                     try:
@@ -406,12 +406,12 @@ class AzureDiscovery(BaseDiscovery):
         try:
             # Discover all public DNS zones
             zones = list(self.dns_client.zones.list())
-            print(f"[DEBUG] Found {len(zones)} public DNS zones in subscription.")
+            self.logger.debug(f"Found {len(zones)} public DNS zones in subscription.")
             for zone in zones:
                 zone_name = getattr(zone, "name", None)
                 zone_type = getattr(zone, "zone_type", None)
                 zone_id = getattr(zone, "id", None)
-                print(f"[DEBUG] Public Zone: name={zone_name}, type={zone_type}, id={zone_id}")
+                self.logger.debug(f"Public Zone: name={zone_name}, type={zone_type}, id={zone_id}")
 
                 if not zone_name:
                     continue
@@ -473,11 +473,11 @@ class AzureDiscovery(BaseDiscovery):
 
             # Discover all private DNS zones
             private_zones = list(self.privatedns_client.private_zones.list())
-            print(f"[DEBUG] Found {len(private_zones)} private DNS zones in subscription.")
+            self.logger.debug(f"Found {len(private_zones)} private DNS zones in subscription.")
             for pzone in private_zones:
                 pzone_name = getattr(pzone, "name", None)
                 pzone_id = getattr(pzone, "id", None)
-                print(f"[DEBUG] Private Zone: name={pzone_name}, id={pzone_id}")
+                self.logger.debug(f"Private Zone: name={pzone_name}, id={pzone_id}")
 
                 if not pzone_name:
                     continue
@@ -577,41 +577,6 @@ class AzureDiscovery(BaseDiscovery):
 
         return False
 
-    def count_resources(self) -> Dict:
-        resources = self.discover_native_objects()
-        count = self.resource_counter.count_resources(resources)
-        return {
-            "total_objects": count.total_objects,
-            "ddi_objects": count.ddi_objects,
-            "ddi_breakdown": count.ddi_breakdown,
-            "active_ips": count.active_ips,
-            "ip_sources": count.ip_sources,
-            "breakdown_by_region": count.breakdown_by_region,
-            "timestamp": count.timestamp,
-        }
-
-    def save_discovery_results(self, extra_info: dict = {}) -> Dict[str, str]:
-        resources = self.discover_native_objects()
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        native_objects_files = save_discovery_results(
-            resources,
-            self.config.output_directory,
-            self.config.output_format,
-            timestamp,
-            "azure",
-            extra_info=extra_info,
-        )
-        count_results = self.count_resources()
-        count_files = save_resource_count_results(
-            count_results,
-            self.config.output_directory,
-            self.config.output_format,
-            timestamp,
-            "azure",
-            extra_info=extra_info,
-        )
-        saved_files = {**native_objects_files, **count_files}
-        return saved_files
 
     def get_scanned_subscription_ids(self) -> list:
         """Return the Azure Subscription ID(s) scanned."""

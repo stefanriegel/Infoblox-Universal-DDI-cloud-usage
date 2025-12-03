@@ -66,7 +66,9 @@ class ResourceCounter:
     def _calculate_ddi_breakdown(self, ddi_objects: List[Dict]) -> Dict[str, int]:
         breakdown = {}
         for obj in ddi_objects:
-            resource_type = obj.get("resource_type", "unknown")
+            resource_type = obj.get("resource_type")
+            if not resource_type or resource_type == "unknown":
+                continue
             breakdown[resource_type] = breakdown.get(resource_type, 0) + 1
         return breakdown
 
@@ -74,7 +76,7 @@ class ResourceCounter:
         sources = {}
         for resource in resources:
             details = resource.get("details", {})
-            resource_type = resource.get("resource_type", "unknown")
+            resource_type = resource.get("resource_type")
 
             has_ip = False
             for key in IP_DETAIL_KEYS:
@@ -83,6 +85,8 @@ class ResourceCounter:
                     break
 
             if has_ip:
+                if not resource_type or resource_type == "unknown":
+                    continue
                 sources[resource_type] = sources.get(resource_type, 0) + 1
 
         return sources

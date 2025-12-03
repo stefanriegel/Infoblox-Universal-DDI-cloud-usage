@@ -1,0 +1,131 @@
+version: 1
+description: "Maps licensing metrics to existing tool resource types and discovery methods"
+
+mappings:
+  # DDI Objects mappings
+  - metric_id: ddi_objects
+    provider: aws
+    resource_types:
+      - vpc
+      - subnet
+      - route53-zone
+      - route53-record
+    apis:
+      - service: ec2
+        operations: [DescribeVpcs, DescribeSubnets]
+      - service: route53
+        operations: [ListHostedZones, ListResourceRecordSets]
+    compute:
+      type: aggregate_counts
+      description: "Sum all DDI resource types from AWS discovery"
+
+  - metric_id: ddi_objects  
+    provider: azure
+    resource_types:
+      - vnet
+      - subnet
+      - dns-zone
+      - dns-record
+      - dhcp-range
+      - ipam-block
+      - ipam-space
+    apis:
+      - resource: Microsoft.Network/virtualNetworks
+      - resource: Microsoft.Network/dnsZones
+      - resource: Microsoft.Network/privateDnsZones
+    compute:
+      type: aggregate_counts
+      description: "Sum all DDI resource types from Azure discovery"
+
+  - metric_id: ddi_objects
+    provider: gcp
+    resource_types:
+      - vpc-network
+      - subnet
+      - dns-zone
+      - dns-record
+    apis:
+      - service: compute
+        methods: [networks.list, subnetworks.aggregatedList]
+      - service: dns
+        methods: [managedZones.list, resourceRecordSets.list]
+    compute:
+      type: aggregate_counts
+      description: "Sum all DDI resource types from GCP discovery"
+
+  # Active IPs mappings
+  - metric_id: active_ips
+    provider: aws
+    source: existing_discovery
+    extraction_method: "Extract IPs from EC2 instances, load balancers, NAT gateways"
+    ip_sources:
+      - ec2-instance: [private_ip, public_ip]
+      - application-load-balancer: [dns_name_resolved_ips]
+      - network-load-balancer: [dns_name_resolved_ips] 
+      - classic-load-balancer: [dns_name_resolved_ips]
+    compute:
+      type: extract_unique_ips
+      description: "Extract and deduplicate all active IP addresses from discovered resources"
+
+  - metric_id: active_ips
+    provider: azure
+    source: existing_discovery
+    extraction_method: "Extract IPs from VMs, load balancers, application gateways"
+    ip_sources:
+      - vm: [private_ip, public_ip]
+      - load_balancer: [frontend_ip]
+      - gateway: [frontend_ip]
+    compute:
+      type: extract_unique_ips
+      description: "Extract and deduplicate all active IP addresses from discovered resources"
+
+  - metric_id: active_ips
+    provider: gcp
+    source: existing_discovery  
+    extraction_method: "Extract IPs from compute instances, load balancers"
+    ip_sources:
+      - compute-instance: [internal_ip, external_ip]
+    compute:
+      type: extract_unique_ips
+      description: "Extract and deduplicate all active IP addresses from discovered resources"
+
+  # Managed Assets mappings
+  - metric_id: managed_assets
+    provider: aws
+    resource_types:
+      - ec2-instance
+      - application-load-balancer
+      - network-load-balancer
+      - classic-load-balancer
+    compute:
+      type: count_distinct_assets
+      filter: "state == 'running' OR state == 'active'"
+      description: "Count running/active compute and network infrastructure assets"
+
+  - metric_id: managed_assets
+    provider: azure
+    resource_types:
+      - vm
+      - load_balancer
+      - gateway
+    compute:
+      type: count_distinct_assets
+      filter: "state == 'running' OR state == 'active'"
+      description: "Count running/active compute and network infrastructure assets"
+
+  - metric_id: managed_assets
+    provider: gcp
+    resource_types:
+      - compute-instance
+    compute:
+      type: count_distinct_assets
+      filter: "status == 'RUNNING'"
+      description: "Count running compute instances and network assets"
+
+# Configuration for integrating with existing tool
+integration:
+  existing_discovery_output: "Uses existing {provider}_native_objects_*.json files"
+  resource_type_field: "resource_type"
+  details_field: "details"
+  ip_extraction_keys: ["ip", "private_ip", "public_ip", "private_ips", "public_ips"]
+  state_field: "state"

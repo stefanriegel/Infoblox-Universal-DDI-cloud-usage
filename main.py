@@ -36,6 +36,11 @@ def main():
         action="store_true",
         help="Save/export full resource/object data (default: only summary and resource count)",
     )
+    parser.add_argument(
+        "--include-counts",
+        action="store_true",
+        help="Also write legacy resource_count files alongside licensing outputs",
+    )
     # Remove extra_args, use parse_known_args instead
     args, unknown = parser.parse_known_args()
     try:
@@ -46,6 +51,7 @@ def main():
             aws_args.format = args.format
             aws_args.workers = args.workers
             aws_args.full = args.full
+            aws_args.include_counts = args.include_counts
 
             aws_main(aws_args)
         elif args.provider == "azure":
@@ -55,6 +61,7 @@ def main():
             azure_args.format = args.format
             azure_args.workers = args.workers
             azure_args.full = args.full
+            azure_args.include_counts = args.include_counts
             azure_main(azure_args)
         elif args.provider == "gcp":
             from gcp_discovery.discover import main as gcp_main
@@ -63,6 +70,7 @@ def main():
             gcp_args.format = args.format
             gcp_args.workers = args.workers
             gcp_args.full = args.full
+            gcp_args.include_counts = args.include_counts
             gcp_main(gcp_args)
         else:
             print(f"Unsupported provider: {args.provider}")

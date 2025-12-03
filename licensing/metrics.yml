@@ -1,0 +1,138 @@
+version: 1
+source:
+  url: https://docs.infoblox.com/space/BloxOneDDI/846954761/Universal+DDI+Licensing
+  retrieved_at: 2025-10-17T07:35:16Z
+  document: "Universal DDI Licensing - Universal DDI - Infoblox Documentation Portal.pdf"
+  note: "Extracted from official Infoblox Universal DDI licensing documentation"
+
+metrics:
+  - id: ddi_objects
+    name: DDI Objects
+    scope: common
+    unit: objects
+    definition: "These are objects used for managing DNS, DHCP, and IPAM. They include (but are not limited to) DNS Zones/Records, DHCP Ranges, Subnets and DDNS records."
+    includes:
+      - "Views"
+      - "Zones"
+      - "Applied Access Control Rules (each occurrence of an applied rule)"
+      - "DNS Records"
+      - "DTC LBDNs"
+      - "DTC Servers"
+      - "DTC Pools"
+      - "DTC Applied Topology Rules (each occurrence of an applied rule)"
+      - "DTC Applied Health Checks"
+      - "Ranges"
+      - "Exclusion Ranges"
+      - "Applied Filter Rules (each occurrence of an applied rule)"
+      - "Applied Options (options that are assigned at any level of the hierarchy)"
+      - "DDNS Zones"
+      - "IP Spaces"
+      - "Address Blocks"
+      - "Subnets"
+      - "Host Records"
+    excludes:
+      - "Assets (counted separately)"
+    counting_method: "Count all DDI objects as defined in the supported objects table"
+    sizing_factor: 25  # Native Objects per management token
+    citations:
+      - section: "Management Tokens"
+        quote: "DDI objects: These are objects used for managing DNS, DHCP, and IPAM. They include (but are not limited to) DNS Zones/Records, DHCP Ranges, Subnets and DDNS records."
+      - section: "Object Type Table"
+        quote: "Native Objects: 25 # of Objects per Token"
+
+  - id: active_ips
+    name: Active IP Addresses
+    scope: common
+    unit: ips
+    definition: "These are active IP addresses (IPs) being observed in your networking environment and managed by IPAM. Active IPs are de-duplicated based on the IP Spaces with which they are associated."
+    includes:
+      - "IP addresses found in new or renew DHCP leases"
+      - "Discovered IP addresses"
+      - "Reservations (including Network and Broadcast addresses)"
+      - "Fixed Addresses"
+    excludes:
+      - "DNS source queries are not counted towards the active IP count"
+    counting_method: "Count unique occurrences across the included IP sources, de-duplicated by IP Space association"
+    sizing_factor: 13  # Native Active IPs per management token
+    citations:
+      - section: "Management Tokens"
+        quote: "Active IP addresses: These are active IP addresses (IPs) being observed in your networking environment and managed by IPAM. Active IPs are de-duplicated based on the IP Spaces with which they are associated."
+      - section: "Object Type Table"
+        quote: "Active IP Addresses: 13 # of Objects per Token"
+
+  - id: managed_assets
+    name: Managed Assets
+    scope: common
+    unit: assets
+    definition: "A managed asset that is counted against the management tokens is an identified physical or virtual component on the network that has at least one associated IP address."
+    includes:
+      - "virtual machines"
+      - "gateways"
+      - "endpoints"
+      - "firewalls"
+      - "switches"
+      - "routers"
+      - "servers"
+    excludes:
+      - "Asset types without associated IP addresses (security groups, S3 buckets, subnets, projects)"
+      - "Token-Free Cloud Discovery Assets"
+    counting_method: "Count assets with at least one associated IP address, de-duplicated to ensure information from multiple sources is consolidated and only counted as a single asset"
+    sizing_factor: 3   # Native Assets per management token
+    citations:
+      - section: "Management Tokens"
+        quote: "Managed Assets: A managed asset that is counted against the management tokens is an identified physical or virtual component on the network that has at least one associated IP address."
+      - section: "Token Consumption"
+        quote: "Tokens are only consumed for assets with IP addresses. Certain cloud discovery assets do not consume tokens."
+      - section: "Object Type Table"
+        quote: "Assets: 3 # of Objects per Token"
+
+provider_mappings:
+  aws:
+    ddi_objects:
+      - "VPCs (vpc)"
+      - "Subnets (subnet)"  
+      - "Route53 Hosted Zones (route53-zone)"
+      - "Route53 Records (route53-record)"
+    active_ips:
+      - "EC2 instance private IPs"
+      - "EC2 instance public IPs"
+      - "Load balancer IPs"
+      - "NAT gateway IPs"
+    managed_assets:
+      - "EC2 instances (ec2-instance)"
+      - "Application load balancers (application-load-balancer)"
+      - "Network load balancers (network-load-balancer)"
+      - "Classic load balancers (classic-load-balancer)"
+
+  azure:
+    ddi_objects:
+      - "Virtual networks (vnet)"
+      - "Subnets (subnet)"
+      - "DNS zones (dns-zone)"
+      - "DNS records (dns-record)"
+      - "Private DNS zones"
+      - "DHCP ranges (dhcp-range)"
+      - "IPAM blocks (ipam-block)"
+    active_ips:
+      - "VM private IPs"
+      - "VM public IPs"
+      - "Load balancer IPs"
+      - "Application gateway IPs"
+    managed_assets:
+      - "Virtual machines (vm)"
+      - "Load balancers (load_balancer)"
+      - "Application gateways (gateway)"
+
+  gcp:
+    ddi_objects:
+      - "VPC networks (vpc-network)"
+      - "Subnets (subnet)"
+      - "Cloud DNS zones (dns-zone)"
+      - "DNS records (dns-record)"
+    active_ips:
+      - "Compute instance internal IPs"
+      - "Compute instance external IPs"
+      - "Load balancer IPs"
+    managed_assets:
+      - "Compute instances (compute-instance)"
+      - "Load balancers"

@@ -463,45 +463,6 @@ class GCPDiscovery(BaseDiscovery):
 
         return False
 
-    def count_resources(self) -> Dict:
-        resources = self.discover_native_objects()
-        count = self.resource_counter.count_resources(resources)
-        return {
-            "total_objects": count.total_objects,
-            "ddi_objects": count.ddi_objects,
-            "ddi_breakdown": count.ddi_breakdown,
-            "active_ips": count.active_ips,
-            "ip_sources": count.ip_sources,
-            "breakdown_by_region": count.breakdown_by_region,
-            "timestamp": count.timestamp,
-        }
-
-    def save_discovery_results(
-        self, output_dir: Optional[str] = None, extra_info: dict = {}
-    ) -> Dict[str, str]:
-        if self._discovered_resources is None:
-            self._discovered_resources = self.discover_native_objects()
-        output_directory = output_dir or self.config.output_directory
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        native_objects_file = save_discovery_results(
-            self._discovered_resources,
-            output_directory,
-            self.config.output_format,
-            timestamp,
-            "gcp",
-            extra_info=extra_info,
-        )
-        count_results = self.count_resources()
-        count_files = save_resource_count_results(
-            count_results,
-            output_directory,
-            self.config.output_format,
-            timestamp,
-            "gcp",
-            extra_info=extra_info,
-        )
-        saved_files = {**native_objects_file, **count_files}
-        return saved_files
 
     def get_scanned_project_ids(self) -> list:
         """Return the GCP Project ID(s) scanned."""
