@@ -27,6 +27,6 @@ tqdm>=4.64.0
 pandas>=1.5.0
 
 # Development Dependencies (optional)
-# pytest>=8.0.0
-# black>=25.0.0
-# flake8>=7.0.0 
+pytest>=8.0.0
+black>=25.0.0
+flake8>=7.0.0 
