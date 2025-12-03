@@ -39,3 +39,13 @@ def test_import_shared_modules():
     assert resource_counter is not None
     assert constants is not None
     assert licensing_calculator is not None
+
+
+def test_main_without_credentials():
+    """Test that main.py fails gracefully without credentials."""
+    import subprocess
+    import sys
+
+    result = subprocess.run([sys.executable, "main.py", "aws"], capture_output=True, text=True)
+    assert result.returncode != 0  # Should fail
+    assert "credentials" in result.stderr.lower() or "auth" in result.stderr.lower() or "error" in result.stderr.lower()
