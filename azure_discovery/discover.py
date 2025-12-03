@@ -16,6 +16,28 @@ from .azure_discovery import AzureDiscovery
 from .config import AzureConfig, get_all_azure_regions
 
 
+def validate_azure_credentials():
+    """Validate that Azure credentials are configured and working."""
+    from azure.identity import CredentialUnavailableError
+    from .config import get_azure_credential
+
+    try:
+        credential = get_azure_credential()
+        # Try to get a token to verify credentials work
+        token = credential.get_token("https://management.azure.com/.default")
+        return True
+    except CredentialUnavailableError as e:
+        print(f"ERROR: Azure credentials not available: {e}")
+        print("Please configure one of:")
+        print("  - Service principal: Set AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID")
+        print("  - Azure CLI: Run 'az login'")
+        print("  - Managed identity: Ensure running in Azure with managed identity enabled")
+        return False
+    except Exception as e:
+        print(f"ERROR: Failed to authenticate with Azure: {e}")
+        return False
+
+
 def main(args=None):
     """Main discovery function."""
     if args is None:
@@ -57,6 +79,10 @@ def main(args=None):
     print(f"Output format: {args.format.upper()}")
     print(f"Parallel workers: {args.workers}")
     print()
+
+    # Validate credentials before attempting discovery
+    if not validate_azure_credentials():
+        return 1
 
     # Get all available regions
     print("Fetching available regions...")
