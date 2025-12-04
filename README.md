@@ -2,7 +2,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Early%20Preview-orange.svg)](https://github.com/your-username/Infoblox-Universal-DDI-cloud-usage)
+[![Status](https://img.shields.io/badge/Status-Early%20Preview-orange.svg)](https://github.com/stefanriegel/Infoblox-Universal-DDI-cloud-usage)
 
 > **⚠️ Early Preview**: This tool is currently in early preview and provided without guarantees. Resource counts should be verified independently before making licensing decisions.
 
@@ -38,14 +38,14 @@ A Python tool that discovers and counts DDI Objects and Active IPs across AWS, A
 
 **macOS/Linux:**
 ```bash
-git clone https://github.com/your-username/Infoblox-Universal-DDI-cloud-usage.git
+git clone https://github.com/stefanriegel/Infoblox-Universal-DDI-cloud-usage.git
 cd Infoblox-Universal-DDI-cloud-usage
 ./setup_venv.sh
 ```
 
 **Windows:**
 ```powershell
-git clone https://github.com/your-username/Infoblox-Universal-DDI-cloud-usage.git
+git clone https://github.com/stefanriegel/Infoblox-Universal-DDI-cloud-usage.git
 cd Infoblox-Universal-DDI-cloud-usage
 .\setup_venv.ps1
 ```
