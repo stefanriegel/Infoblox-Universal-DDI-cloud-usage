@@ -27,7 +27,7 @@ fi
 
 # --- Section: Create new environment ---
 echo "[INFO] Creating new Python virtual environment..."
-python3.11 -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 echo
 
