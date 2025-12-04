@@ -36,7 +36,7 @@ def main():
     parser.add_argument(
         "--full",
         action="store_true",
-        help="Save/export full resource/object data (default: only summary and resource count)",
+        help="Save/export full resource/object data (default: only summary and token calculation)",
     )
     parser.add_argument(
         "--include-counts",
