@@ -277,20 +277,17 @@ Infoblox-Universal-DDI-cloud-usage/
 │   └── workflows/
 │       └── ci.yml          # GitHub Actions CI/CD pipeline
 ├── aws_discovery/          # AWS discovery module
-│   ├── __init__.py
 │   ├── aws_discovery.py    # Core AWS discovery logic
 │   ├── config.py           # AWS configuration and credentials
 │   ├── discover.py         # AWS CLI entry point
 │   ├── requirements.txt    # AWS-specific dependencies
 │   └── utils.py            # AWS utilities
 ├── azure_discovery/        # Azure discovery module
-│   ├── __init__.py
 │   ├── azure_discovery.py  # Core Azure discovery logic
 │   ├── config.py           # Azure configuration and credentials
 │   ├── discover.py         # Azure CLI entry point
 │   └── requirements.txt    # Azure-specific dependencies
 ├── gcp_discovery/          # GCP discovery module
-│   ├── __init__.py
 │   ├── config.py           # GCP configuration and credentials
 │   ├── discover.py         # GCP CLI entry point
 │   ├── gcp_discovery.py    # Core GCP discovery logic
@@ -299,7 +296,6 @@ Infoblox-Universal-DDI-cloud-usage/
 │   ├── mapping.yml         # Resource type mappings
 │   └── metrics.yml         # Licensing metrics
 ├── shared/                 # Shared utilities
-│   ├── __init__.py
 │   ├── base_discovery.py   # Base discovery class
 │   ├── config.py           # Base configuration
 │   ├── constants.py        # Shared constants
@@ -307,7 +303,6 @@ Infoblox-Universal-DDI-cloud-usage/
 │   ├── output_utils.py     # Output formatting utilities
 │   └── resource_counter.py # Resource counting logic
 ├── tests/                  # Unit tests
-│   ├── __init__.py
 │   └── test_main.py        # CLI interface tests
 ├── .gitignore              # Git ignore rules
 ├── LICENSE                 # MIT License
