@@ -273,32 +273,48 @@ Tracks IP addresses currently assigned to running resources:
 
 ```
 Infoblox-Universal-DDI-cloud-usage/
+├── .github/
+│   └── workflows/
+│       └── ci.yml          # GitHub Actions CI/CD pipeline
 ├── aws_discovery/          # AWS discovery module
+│   ├── __init__.py
 │   ├── aws_discovery.py    # Core AWS discovery logic
+│   ├── config.py           # AWS configuration and credentials
 │   ├── discover.py         # AWS CLI entry point
-│   ├── config.py           # AWS configuration
+│   ├── requirements.txt    # AWS-specific dependencies
 │   └── utils.py            # AWS utilities
 ├── azure_discovery/        # Azure discovery module
+│   ├── __init__.py
 │   ├── azure_discovery.py  # Core Azure discovery logic
+│   ├── config.py           # Azure configuration and credentials
 │   ├── discover.py         # Azure CLI entry point
-│   ├── config.py           # Azure configuration
-│   └── utils.py            # Azure utilities
+│   └── requirements.txt    # Azure-specific dependencies
 ├── gcp_discovery/          # GCP discovery module
-│   ├── gcp_discovery.py    # Core GCP discovery logic
+│   ├── __init__.py
+│   ├── config.py           # GCP configuration and credentials
 │   ├── discover.py         # GCP CLI entry point
-│   ├── config.py           # GCP configuration
-│   └── utils.py            # GCP utilities
+│   ├── gcp_discovery.py    # Core GCP discovery logic
+│   └── requirements.txt    # GCP-specific dependencies
+├── licensing/              # Licensing calculation data
+│   ├── mapping.yml         # Resource type mappings
+│   └── metrics.yml         # Licensing metrics
 ├── shared/                 # Shared utilities
+│   ├── __init__.py
 │   ├── base_discovery.py   # Base discovery class
-│   ├── output_utils.py     # Output formatting
-│   ├── resource_counter.py # Resource counting logic
+│   ├── config.py           # Base configuration
 │   ├── constants.py        # Shared constants
-│   ├── logging_utils.py    # Logging utilities
-│   ├── validation.py       # Input validation
-│   └── config.py           # Base configuration
-├── main.py                 # Main entry point
-├── requirements.txt        # Project dependencies
+│   ├── licensing_calculator.py # Universal DDI licensing calculations
+│   ├── output_utils.py     # Output formatting utilities
+│   └── resource_counter.py # Resource counting logic
+├── tests/                  # Unit tests
+│   ├── __init__.py
+│   └── test_main.py        # CLI interface tests
+├── .gitignore              # Git ignore rules
+├── LICENSE                 # MIT License
+├── main.py                 # Main CLI entry point
+├── README.md               # This file
+├── requirements.txt        # Consolidated project dependencies
 ├── setup_venv.sh          # Linux/macOS setup script
 ├── setup_venv.ps1         # Windows setup script
-└── output/                # Generated output files
+└── output/                # Generated output files (created at runtime)
 ```
