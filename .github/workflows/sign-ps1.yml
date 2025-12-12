@@ -30,16 +30,30 @@ jobs:
         $cert | Export-Certificate -FilePath cert.cer -Type CERT
         Write-Host "Certificate exported to cert.cer"
 
+        # Store thumbprint for next step
+        $cert.Thumbprint | Out-File -FilePath cert_thumbprint.txt
+        Write-Host "Thumbprint saved to cert_thumbprint.txt"
+
     - name: Sign PowerShell script
       shell: powershell
       run: |
         Write-Host "Signing setup_venv.ps1..."
-        $cert = Get-ChildItem Cert:\CurrentUser\My -CodeSigningCert | Select-Object -First 1
+        $thumbprint = Get-Content cert_thumbprint.txt
+        Write-Host "Using certificate thumbprint: $thumbprint"
+
+        $cert = Get-ChildItem Cert:\CurrentUser\My\$thumbprint
         if (-not $cert) {
-          throw "No code signing certificate found"
+          Write-Host "Certificate not found. Available certificates:"
+          Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.HasPrivateKey } | Format-Table Subject, Thumbprint
+          throw "Code signing certificate not found"
         }
 
-        Set-AuthenticodeSignature -FilePath "setup_venv.ps1" -Certificate $cert
+        Write-Host "Using certificate: $($cert.Subject)"
+        $result = Set-AuthenticodeSignature -FilePath "setup_venv.ps1" -Certificate $cert
+        Write-Host "Signature result: $($result.Status)"
+        if ($result.Status -ne "Valid") {
+          throw "Failed to sign script: $($result.StatusMessage)"
+        }
         Write-Host "Script signed successfully"
 
     - name: Verify signature
