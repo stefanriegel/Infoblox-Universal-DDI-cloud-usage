@@ -141,7 +141,7 @@ def main(args=None):
         from shared.output_utils import save_unknown_resources
 
         unk = save_unknown_resources(
-            native_objects, config.output_directory, timestamp, "azure"
+            all_native_objects, config.output_directory, timestamp, "azure"
         )
         if unk:
             print(f"Unknown resources saved to: {unk['unknown_resources']}")
@@ -165,7 +165,7 @@ def main(args=None):
 
         calculator = UniversalDDILicensingCalculator()
         licensing_results = calculator.calculate_from_discovery_results(
-            native_objects, provider="azure"
+            all_native_objects, provider="azure"
         )
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -190,9 +190,9 @@ def main(args=None):
         calculator.export_proof_manifest(
             proof_file,
             provider="azure",
-            scope={"subscriptions": scanned_subscriptions},
+            scope={"subscriptions": scanned_subs},
             regions=all_regions,
-            native_objects=native_objects,
+            native_objects=all_native_objects,
         )
         print(f"Proof manifest exported: {proof_file}")
 
@@ -202,7 +202,7 @@ def main(args=None):
                 f"Saving full resource/object data in {args.format.upper()} format..."
             )
             saved_files = discovery.save_discovery_results(
-                extra_info={"subscriptions": scanned_subscriptions}
+                extra_info={"subscriptions": scanned_subs}
             )
             print("Results saved to:")
             for file_type, filepath in saved_files.items():
@@ -220,7 +220,7 @@ def main(args=None):
                     args.format,
                     timestamp,
                     "azure",
-                    extra_info={"subscriptions": scanned_subscriptions},
+                    extra_info={"subscriptions": scanned_subs},
                 )
                 print(f"Summary saved to: {summary_files['resource_count']}")
             else:
