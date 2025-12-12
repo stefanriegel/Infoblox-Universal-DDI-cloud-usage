@@ -25,11 +25,7 @@ class ResourceCounter:
     def __init__(self, provider: str):
         self.provider = provider.lower()
         if self.provider not in SUPPORTED_PROVIDERS:
-            raise ValueError(
-                ERROR_MESSAGES["unsupported_provider"].format(
-                    provider=provider, supported=SUPPORTED_PROVIDERS
-                )
-            )
+            raise ValueError(ERROR_MESSAGES["unsupported_provider"].format(provider=provider, supported=SUPPORTED_PROVIDERS))
 
     def count_resources(self, native_objects: List[Dict]) -> ResourceCount:
         if not native_objects:
@@ -119,10 +115,7 @@ class ResourceCounter:
                         if ip:
                             ip_set.add(ip)
 
-            if (
-                resource.get("resource_type") == "subnet"
-                and "discovered_ips" in details
-            ):
+            if resource.get("resource_type") == "subnet" and "discovered_ips" in details:
                 for ip in details["discovered_ips"]:
                     if ip:
                         ip_set.add(ip)

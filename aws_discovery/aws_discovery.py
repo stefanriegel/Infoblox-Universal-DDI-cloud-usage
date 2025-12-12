@@ -86,10 +86,7 @@ class AWSDiscovery(BaseDiscovery):
 
         # Discover regional resources in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_region = {
-                executor.submit(self._discover_region, region): region
-                for region in self.config.regions
-            }
+            future_to_region = {executor.submit(self._discover_region, region): region for region in self.config.regions}
 
             # Use tqdm for progress tracking
             with tqdm(total=len(self.config.regions), desc="Completed") as pbar:
@@ -98,9 +95,7 @@ class AWSDiscovery(BaseDiscovery):
                     try:
                         region_resources = future.result()
                         all_resources.extend(region_resources)
-                        self.logger.debug(
-                            f"Discovered {len(region_resources)} resources in {region}"
-                        )
+                        self.logger.debug(f"Discovered {len(region_resources)} resources in {region}")
                     except Exception as e:
                         self.logger.error(f"Error discovering region {region}: {e}")
                     finally:
@@ -110,9 +105,7 @@ class AWSDiscovery(BaseDiscovery):
         route53_resources = self._discover_route53_zones_and_records()
         all_resources.extend(route53_resources)
 
-        self.logger.info(
-            f"Discovery complete. Found {len(all_resources)} Native Objects"
-        )
+        self.logger.info(f"Discovery complete. Found {len(all_resources)} Native Objects")
 
         # Cache the results
         self._discovered_resources = all_resources
@@ -168,9 +161,7 @@ class AWSDiscovery(BaseDiscovery):
                             continue
 
                         # Get instance details
-                        instance_state = instance.get("State", {}).get(
-                            "Name", "unknown"
-                        )
+                        instance_state = instance.get("State", {}).get("Name", "unknown")
                         instance_type = instance.get("InstanceType", "unknown")
 
                         # Extract IP addresses
@@ -182,9 +173,7 @@ class AWSDiscovery(BaseDiscovery):
 
                         # Determine if Management Token is required
                         is_managed = self._is_managed_service(tags)
-                        requires_token = (
-                            bool(private_ip or public_ip) and not is_managed
-                        )
+                        requires_token = bool(private_ip or public_ip) and not is_managed
 
                         # Create resource details
                         details = {
@@ -302,13 +291,9 @@ class AWSDiscovery(BaseDiscovery):
                         "state": state,
                         "vpc_id": vpc_id,
                         "availability_zone": availability_zone,
-                        "available_ip_address_count": subnet.get(
-                            "AvailableIpAddressCount"
-                        ),
+                        "available_ip_address_count": subnet.get("AvailableIpAddressCount"),
                         "default_for_az": subnet.get("DefaultForAz", False),
-                        "map_public_ip_on_launch": subnet.get(
-                            "MapPublicIpOnLaunch", False
-                        ),
+                        "map_public_ip_on_launch": subnet.get("MapPublicIpOnLaunch", False),
                     }
 
                     # Format resource
@@ -355,13 +340,9 @@ class AWSDiscovery(BaseDiscovery):
                         tags_response = elbv2.describe_tags(ResourceArns=[lb_arn])
                         lb_tags = {}
                         if tags_response.get("TagDescriptions"):
-                            lb_tags = get_resource_tags(
-                                tags_response["TagDescriptions"][0].get("Tags", [])
-                            )
+                            lb_tags = get_resource_tags(tags_response["TagDescriptions"][0].get("Tags", []))
                     except Exception as e:
-                        self.logger.warning(
-                            f"Could not describe tags for {lb_arn}: {e}"
-                        )
+                        self.logger.warning(f"Could not describe tags for {lb_arn}: {e}")
                         lb_tags = {}
 
                     # Determine if Management Token is required
@@ -415,9 +396,7 @@ class AWSDiscovery(BaseDiscovery):
                     tags_response = elb.describe_tags(LoadBalancerNames=[lb_name])
                     lb_tags = {}
                     if tags_response.get("TagDescriptions"):
-                        lb_tags = get_resource_tags(
-                            tags_response["TagDescriptions"][0].get("Tags", [])
-                        )
+                        lb_tags = get_resource_tags(tags_response["TagDescriptions"][0].get("Tags", []))
                 except Exception as e:
                     self.logger.warning(f"Could not describe tags for {lb_name}: {e}")
                     lb_tags = {}
@@ -522,13 +501,9 @@ class AWSDiscovery(BaseDiscovery):
             value_lower = value.lower()
 
             # Common managed service indicators
-            if any(
-                indicator in key_lower for indicator in ["managed", "service", "aws"]
-            ):
+            if any(indicator in key_lower for indicator in ["managed", "service", "aws"]):
                 return True
-            if any(
-                indicator in value_lower for indicator in ["managed", "service", "aws"]
-            ):
+            if any(indicator in value_lower for indicator in ["managed", "service", "aws"]):
                 return True
 
         return False

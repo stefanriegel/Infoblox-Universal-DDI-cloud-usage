@@ -25,9 +25,7 @@ class UniversalDDILicensingCalculator:
         self.results = {}
         self.current_provider: str | None = None
 
-    def calculate_from_discovery_results(
-        self, native_objects: List[Dict], provider: str | None = None
-    ) -> Dict[str, Any]:
+    def calculate_from_discovery_results(self, native_objects: List[Dict], provider: str | None = None) -> Dict[str, Any]:
         """
         Calculate licensing requirements from native discovery results.
 
@@ -51,15 +49,10 @@ class UniversalDDILicensingCalculator:
         # Calculate required tokens
         tokens_for_ddi = max(
             1,
-            (ddi_objects + self.DDI_OBJECTS_PER_TOKEN - 1)
-            // self.DDI_OBJECTS_PER_TOKEN,
+            (ddi_objects + self.DDI_OBJECTS_PER_TOKEN - 1) // self.DDI_OBJECTS_PER_TOKEN,
         )
-        tokens_for_ips = max(
-            1, (active_ips + self.ACTIVE_IPS_PER_TOKEN - 1) // self.ACTIVE_IPS_PER_TOKEN
-        )
-        tokens_for_assets = max(
-            1, (managed_assets + self.ASSETS_PER_TOKEN - 1) // self.ASSETS_PER_TOKEN
-        )
+        tokens_for_ips = max(1, (active_ips + self.ACTIVE_IPS_PER_TOKEN - 1) // self.ACTIVE_IPS_PER_TOKEN)
+        tokens_for_assets = max(1, (managed_assets + self.ASSETS_PER_TOKEN - 1) // self.ASSETS_PER_TOKEN)
 
         # Total management tokens needed (sum of all three categories)
         total_management_tokens = tokens_for_ddi + tokens_for_ips + tokens_for_assets
@@ -128,9 +121,7 @@ class UniversalDDILicensingCalculator:
             "dns-record",
         }
 
-        return len(
-            [r for r in resources if r.get("resource_type") in ddi_resource_types]
-        )
+        return len([r for r in resources if r.get("resource_type") in ddi_resource_types])
 
     def _count_active_ips(self, resources: List[Dict]) -> int:
         """Count Active IP Addresses.
@@ -226,9 +217,7 @@ class UniversalDDILicensingCalculator:
 
         return asset_count
 
-    def _get_provider_breakdown(
-        self, resources: List[Dict]
-    ) -> Dict[str, Dict[str, int]]:
+    def _get_provider_breakdown(self, resources: List[Dict]) -> Dict[str, Dict[str, int]]:
         """Get breakdown of counts by cloud provider."""
         providers = {}
 
@@ -259,12 +248,8 @@ class UniversalDDILicensingCalculator:
 
         # Count unique IPs per provider
         for provider in providers:
-            provider_resources = [
-                r for r in resources if self._determine_provider(r) == provider
-            ]
-            providers[provider]["active_ips"] = self._count_active_ips(
-                provider_resources
-            )
+            provider_resources = [r for r in resources if self._determine_provider(r) == provider]
+            providers[provider]["active_ips"] = self._count_active_ips(provider_resources)
 
         return providers
 
@@ -372,9 +357,7 @@ class UniversalDDILicensingCalculator:
     def export_csv(self, output_file: str, provider: str | None = None) -> str:
         """Export licensing calculations to CSV format for Sales Engineers (active provider only)."""
         if not self.results:
-            raise ValueError(
-                "No calculation results available. Run calculate_from_discovery_results first."
-            )
+            raise ValueError("No calculation results available. Run calculate_from_discovery_results first.")
 
         with open(output_file, "w", newline="") as csvfile:
             writer = csv.writer(csvfile)
@@ -452,9 +435,7 @@ class UniversalDDILicensingCalculator:
     def export_text_summary(self, output_file: str, provider: str | None = None) -> str:
         """Export a text summary for Sales Engineers (only for the active provider)."""
         if not self.results:
-            raise ValueError(
-                "No calculation results available. Run calculate_from_discovery_results first."
-            )
+            raise ValueError("No calculation results available. Run calculate_from_discovery_results first.")
 
         with open(output_file, "w") as f:
             f.write("INFOBLOX UNIVERSAL DDI LICENSING CALCULATOR\n")
@@ -478,9 +459,7 @@ class UniversalDDILicensingCalculator:
                 f"Managed Assets: {self.results['counts']['managed_assets']:,} "
                 f"({self.results['token_requirements']['managed_assets_tokens']} tokens required)\n"
             )
-            f.write(
-                f"\nTOTAL MANAGEMENT TOKENS REQUIRED: {self.results['token_requirements']['total_management_tokens']}\n\n"
-            )
+            f.write(f"\nTOTAL MANAGEMENT TOKENS REQUIRED: {self.results['token_requirements']['total_management_tokens']}\n\n")
 
             # Provider breakdown (only active provider)
             f.write("CLOUD PROVIDER BREAKDOWN\n")
@@ -516,9 +495,7 @@ class UniversalDDILicensingCalculator:
           - tokens_total
         """
         if not self.results:
-            raise ValueError(
-                "No calculation results available. Run calculate_from_discovery_results first."
-            )
+            raise ValueError("No calculation results available. Run calculate_from_discovery_results first.")
 
         counts = self.results["counts"]
         tokens = self.results["token_requirements"]
@@ -562,9 +539,7 @@ class UniversalDDILicensingCalculator:
         and a SHA-256 hash over the discovered object set and over this manifest.
         """
         if not self.results:
-            raise ValueError(
-                "No calculation results available. Run calculate_from_discovery_results first."
-            )
+            raise ValueError("No calculation results available. Run calculate_from_discovery_results first.")
         import hashlib
         import json as _json
 

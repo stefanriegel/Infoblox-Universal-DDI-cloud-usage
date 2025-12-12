@@ -117,10 +117,9 @@ def get_all_azure_regions() -> List[str]:
                 return get_major_azure_regions()
 
         from azure.mgmt.subscription import SubscriptionClient
+
         subscription_client = SubscriptionClient(credential)
-        locations = subscription_client.subscriptions.list_locations(
-            subscription_id
-        )
+        locations = subscription_client.subscriptions.list_locations(subscription_id)
         regions = [loc.name for loc in locations if loc.name]
         return regions if regions else get_major_azure_regions()
 
@@ -144,12 +143,10 @@ def get_all_subscription_ids() -> List[str]:
     try:
         credential = get_azure_credential()
         from azure.mgmt.subscription import SubscriptionClient
+
         subscription_client = SubscriptionClient(credential)
         subscriptions = list(subscription_client.subscriptions.list())
-        return [
-            sub.subscription_id for sub in subscriptions
-            if sub.state == 'Enabled'
-        ]
+        return [sub.subscription_id for sub in subscriptions if sub.state == "Enabled"]
     except Exception as e:
         print(f"Error getting subscriptions: {e}")
         return []
@@ -171,11 +168,7 @@ def get_azure_credential():
 
     if client_id and client_secret and tenant_id:
         # Use service principal credentials if available
-        return ClientSecretCredential(
-            client_id=client_id,
-            client_secret=client_secret,
-            tenant_id=tenant_id
-        )
+        return ClientSecretCredential(client_id=client_id, client_secret=client_secret, tenant_id=tenant_id)
     else:
         # Fall back to DefaultAzureCredential
         return DefaultAzureCredential()
@@ -193,9 +186,7 @@ def validate_azure_config(config: AzureConfig) -> bool:
     """
     if not config.subscription_id:
         print("Error: Azure subscription ID is required")
-        print(
-            "Set AZURE_SUBSCRIPTION_ID env var or configure in config"
-        )
+        print("Set AZURE_SUBSCRIPTION_ID env var or configure in config")
         return False
 
     if not config.regions:

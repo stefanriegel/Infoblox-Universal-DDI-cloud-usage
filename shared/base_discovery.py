@@ -61,9 +61,7 @@ class BaseDiscovery(ABC):
             "timestamp": count.timestamp,
         }
 
-    def save_discovery_results(
-        self, output_dir: Optional[str] = None, extra_info: Dict[str, Any] = {}
-    ) -> Dict[str, str]:
+    def save_discovery_results(self, output_dir: Optional[str] = None, extra_info: Dict[str, Any] = {}) -> Dict[str, str]:
         """
         Save discovery results to files.
 
@@ -152,13 +150,9 @@ class BaseDiscovery(ABC):
             key_lower = key.lower()
             value_lower = value.lower()
 
-            if any(
-                indicator in key_lower for indicator in ["managed", "service", "aws"]
-            ):
+            if any(indicator in key_lower for indicator in ["managed", "service", "aws"]):
                 return True
-            if any(
-                indicator in value_lower for indicator in ["managed", "service", "aws"]
-            ):
+            if any(indicator in value_lower for indicator in ["managed", "service", "aws"]):
                 return True
 
         return False
@@ -225,9 +219,7 @@ class BaseDiscovery(ABC):
         else:
             return {}
 
-    def _get_resource_id(
-        self, resource: Any, region: str, resource_type: str, name: str
-    ) -> str:
+    def _get_resource_id(self, resource: Any, region: str, resource_type: str, name: str) -> str:
         """
         Generate a consistent resource ID.
 

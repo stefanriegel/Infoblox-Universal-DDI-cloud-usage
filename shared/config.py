@@ -16,9 +16,7 @@ class BaseConfig:
         os.makedirs(self.output_directory, exist_ok=True)
         # Validate output format
         if self.output_format not in ["json", "csv", "txt"]:
-            raise ValueError(
-                f"Invalid output format: {self.output_format}. Supported: json, csv, txt"
-            )
+            raise ValueError(f"Invalid output format: {self.output_format}. Supported: json, csv, txt")
 
     def validate(self) -> bool:
         if not self.output_directory:
@@ -44,9 +42,7 @@ class DiscoveryConfig:
         os.makedirs(self.output_directory, exist_ok=True)
         # Validate output format
         if self.output_format not in ["json", "csv", "txt"]:
-            raise ValueError(
-                f"Invalid output format: {self.output_format}. Supported: json, csv, txt"
-            )
+            raise ValueError(f"Invalid output format: {self.output_format}. Supported: json, csv, txt")
 
     def validate(self) -> bool:
         if not self.output_directory:

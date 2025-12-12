@@ -27,9 +27,7 @@ def check_gcloud_version():
             result.stdout + result.stderr,
         )
         if not version_match:
-            print(
-                "ERROR: Unable to determine gcloud version. Please ensure Google Cloud SDK is installed."
-            )
+            print("ERROR: Unable to determine gcloud version. Please ensure Google Cloud SDK is installed.")
             sys.exit(1)
         major, minor, patch = map(int, version_match.groups())
         if (major, minor, patch) < (300, 0, 0):
@@ -80,9 +78,7 @@ def main(args=None):
     """Main discovery function."""
     if args is None:
         # If called directly, parse arguments from command line
-        parser = argparse.ArgumentParser(
-            description="GCP Cloud Discovery for Management Token Calculation"
-        )
+        parser = argparse.ArgumentParser(description="GCP Cloud Discovery for Management Token Calculation")
         parser.add_argument(
             "--format",
             choices=["json", "csv", "txt"],
@@ -151,9 +147,7 @@ def main(args=None):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         from shared.output_utils import save_unknown_resources
 
-        unk = save_unknown_resources(
-            native_objects, config.output_directory, timestamp, "gcp"
-        )
+        unk = save_unknown_resources(native_objects, config.output_directory, timestamp, "gcp")
         if unk:
             print(f"Unknown resources saved to: {unk['unknown_resources']}")
 
@@ -175,9 +169,7 @@ def main(args=None):
         print("=" * 60)
 
         calculator = UniversalDDILicensingCalculator()
-        calculator.calculate_from_discovery_results(
-            native_objects, provider="gcp"
-        )
+        calculator.calculate_from_discovery_results(native_objects, provider="gcp")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -209,12 +201,8 @@ def main(args=None):
 
         # Save results
         if args.full:
-            print(
-                f"Saving full resource/object data in {args.format.upper()} format..."
-            )
-            saved_files = discovery.save_discovery_results(
-                extra_info={"projects": scanned_projects}
-            )
+            print(f"Saving full resource/object data in {args.format.upper()} format...")
+            saved_files = discovery.save_discovery_results(extra_info={"projects": scanned_projects})
             print("Results saved to:")
             for file_type, filepath in saved_files.items():
                 print(f"  {file_type}: {filepath}")
@@ -235,9 +223,7 @@ def main(args=None):
                 )
                 print(f"Summary saved to: {summary_files['resource_count']}")
             else:
-                print(
-                    "Skipping legacy resource_count output (use --include-counts to enable)"
-                )
+                print("Skipping legacy resource_count output (use --include-counts to enable)")
 
         print("\nDiscovery completed successfully!")
 

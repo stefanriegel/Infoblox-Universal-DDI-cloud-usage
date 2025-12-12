@@ -63,19 +63,11 @@ class AzureDiscovery(BaseDiscovery):
         if not self.subscription_id:
             raise ValueError("Azure subscription ID is required")
 
-        self.compute_client = ComputeManagementClient(
-            self.credential, self.subscription_id
-        )
-        self.network_client = NetworkManagementClient(
-            self.credential, self.subscription_id
-        )
-        self.resource_client = ResourceManagementClient(
-            self.credential, self.subscription_id
-        )
+        self.compute_client = ComputeManagementClient(self.credential, self.subscription_id)
+        self.network_client = NetworkManagementClient(self.credential, self.subscription_id)
+        self.resource_client = ResourceManagementClient(self.credential, self.subscription_id)
         self.dns_client = DnsManagementClient(self.credential, self.subscription_id)
-        self.privatedns_client = PrivateDnsManagementClient(
-            self.credential, self.subscription_id
-        )
+        self.privatedns_client = PrivateDnsManagementClient(self.credential, self.subscription_id)
 
     def discover_native_objects(self, max_workers: int = 8) -> List[Dict]:
         """
@@ -99,10 +91,7 @@ class AzureDiscovery(BaseDiscovery):
 
         # Discover resources in resource groups in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
-            future_to_rg = {
-                executor.submit(self._discover_resource_group_resources, rg): rg
-                for rg in resource_groups
-            }
+            future_to_rg = {executor.submit(self._discover_resource_group_resources, rg): rg for rg in resource_groups}
 
             # Use tqdm for progress tracking (match AWS label)
             with tqdm(total=len(resource_groups), desc="Completed") as pbar:
@@ -111,13 +100,9 @@ class AzureDiscovery(BaseDiscovery):
                     try:
                         rg_resources = future.result()
                         all_resources.extend(rg_resources)
-                        self.logger.debug(
-                            f"Discovered {len(rg_resources)} resources in {resource_group.name}"
-                        )
+                        self.logger.debug(f"Discovered {len(rg_resources)} resources in {resource_group.name}")
                     except Exception as e:
-                        self.logger.error(
-                            f"Error discovering resource group {resource_group.name}: {e}"
-                        )
+                        self.logger.error(f"Error discovering resource group {resource_group.name}: {e}")
                     finally:
                         pbar.update(1)
 
@@ -125,9 +110,7 @@ class AzureDiscovery(BaseDiscovery):
         dns_resources = self._discover_azure_dns_zones_and_records()
         all_resources.extend(dns_resources)
 
-        self.logger.info(
-            f"Discovery complete. Found {len(all_resources)} Native Objects"
-        )
+        self.logger.info(f"Discovery complete. Found {len(all_resources)} Native Objects")
 
         # Cache the results
         self._discovered_resources = all_resources
@@ -161,9 +144,7 @@ class AzureDiscovery(BaseDiscovery):
 
                 try:
                     # Get detailed VM info including network interfaces
-                    vm_detail = self.compute_client.virtual_machines.get(
-                        rg_name, vm_name, expand="instanceView"
-                    )
+                    vm_detail = self.compute_client.virtual_machines.get(rg_name, vm_name, expand="instanceView")
 
                     # Extract IP addresses
                     private_ips = []
@@ -184,17 +165,10 @@ class AzureDiscovery(BaseDiscovery):
 
                                     try:
                                         # Get the network interface details
-                                        nic = (
-                                            self.network_client.network_interfaces.get(
-                                                nic_rg, nic_name
-                                            )
-                                        )
+                                        nic = self.network_client.network_interfaces.get(nic_rg, nic_name)
 
                                         # Extract private IPs
-                                        if (
-                                            hasattr(nic, "ip_configurations")
-                                            and nic.ip_configurations
-                                        ):
+                                        if hasattr(nic, "ip_configurations") and nic.ip_configurations:
                                             for ip_config in nic.ip_configurations:
                                                 if (
                                                     hasattr(
@@ -203,9 +177,7 @@ class AzureDiscovery(BaseDiscovery):
                                                     )
                                                     and ip_config.private_ip_address
                                                 ):
-                                                    private_ips.append(
-                                                        ip_config.private_ip_address
-                                                    )
+                                                    private_ips.append(ip_config.private_ip_address)
 
                                                 # Extract public IP if present
                                                 if (
@@ -222,9 +194,7 @@ class AzureDiscovery(BaseDiscovery):
                                                         )
                                                         and ip_config.public_ip_address.ip_address
                                                     ):
-                                                        public_ips.append(
-                                                            ip_config.public_ip_address.ip_address
-                                                        )
+                                                        public_ips.append(ip_config.public_ip_address.ip_address)
                                     except Exception as e:
                                         self.logger.warning(
                                             f"Error getting network interface {nic_name} for VM {vm_name}: {e}"
@@ -237,9 +207,7 @@ class AzureDiscovery(BaseDiscovery):
 
                     # Use vars() to convert Azure SDK model to dict
                     vm_dict = vars(vm)
-                    formatted_vm = format_azure_resource(
-                        vm_dict, "vm", region, requires_token
-                    )
+                    formatted_vm = format_azure_resource(vm_dict, "vm", region, requires_token)
 
                     # Add IP addresses to details
                     if private_ips or public_ips:
@@ -255,9 +223,7 @@ class AzureDiscovery(BaseDiscovery):
                     resources.append(formatted_vm)
 
                 except Exception as e:
-                    self.logger.warning(
-                        f"Error getting detailed VM info for {vm_name}: {e}"
-                    )
+                    self.logger.warning(f"Error getting detailed VM info for {vm_name}: {e}")
                     # Fallback to basic VM info without IP addresses
                     vm_dict = vars(vm)
                     formatted_vm = format_azure_resource(vm_dict, "vm", region)
@@ -272,9 +238,7 @@ class AzureDiscovery(BaseDiscovery):
                 region = getattr(vnet, "location", "unknown")
                 vnet_name = getattr(vnet, "name", None)
                 if not vnet_name:
-                    self.logger.warning(
-                        f"VNet with no name in {rg_name}, skipping subnets."
-                    )
+                    self.logger.warning(f"VNet with no name in {rg_name}, skipping subnets.")
                     continue
 
                 vnet_dict = vars(vnet)
@@ -285,14 +249,10 @@ class AzureDiscovery(BaseDiscovery):
                 try:
                     for subnet in self.network_client.subnets.list(rg_name, vnet_name):
                         subnet_dict = vars(subnet)
-                        formatted_subnet = format_azure_resource(
-                            subnet_dict, "subnet", region
-                        )
+                        formatted_subnet = format_azure_resource(subnet_dict, "subnet", region)
                         resources.append(formatted_subnet)
                 except Exception as e:
-                    self.logger.warning(
-                        f"Error discovering subnets in VNet {vnet_name} in {rg_name}: {e}"
-                    )
+                    self.logger.warning(f"Error discovering subnets in VNet {vnet_name} in {rg_name}: {e}")
         except Exception as e:
             self.logger.warning(f"Error discovering VNets in {rg_name}: {e}")
 
@@ -324,9 +284,7 @@ class AzureDiscovery(BaseDiscovery):
                 formatted_appgw = format_azure_resource(appgw_dict, "gateway", region)
                 resources.append(formatted_appgw)
         except Exception as e:
-            self.logger.warning(
-                f"Error discovering Application Gateways in {rg_name}: {e}"
-            )
+            self.logger.warning(f"Error discovering Application Gateways in {rg_name}: {e}")
 
         # Azure Firewalls
         try:
@@ -346,9 +304,7 @@ class AzureDiscovery(BaseDiscovery):
                 formatted_pe = format_azure_resource(pe_dict, "endpoint", region)
                 resources.append(formatted_pe)
         except Exception as e:
-            self.logger.warning(
-                f"Error discovering Private Endpoints in {rg_name}: {e}"
-            )
+            self.logger.warning(f"Error discovering Private Endpoints in {rg_name}: {e}")
 
         # NAT Gateways
         try:
@@ -378,9 +334,7 @@ class AzureDiscovery(BaseDiscovery):
                 formatted_pip = format_azure_resource(pip_dict, "endpoint", region)
                 resources.append(formatted_pip)
         except Exception as e:
-            self.logger.warning(
-                f"Error discovering Public IP Addresses in {rg_name}: {e}"
-            )
+            self.logger.warning(f"Error discovering Public IP Addresses in {rg_name}: {e}")
 
         # Network Security Groups
         try:
@@ -390,9 +344,7 @@ class AzureDiscovery(BaseDiscovery):
                 formatted_nsg = format_azure_resource(nsg_dict, "switch", region)
                 resources.append(formatted_nsg)
         except Exception as e:
-            self.logger.warning(
-                f"Error discovering Network Security Groups in {rg_name}: {e}"
-            )
+            self.logger.warning(f"Error discovering Network Security Groups in {rg_name}: {e}")
 
         # ExpressRoute Circuits
         try:
@@ -402,24 +354,16 @@ class AzureDiscovery(BaseDiscovery):
                 formatted_erc = format_azure_resource(erc_dict, "switch", region)
                 resources.append(formatted_erc)
         except Exception as e:
-            self.logger.warning(
-                f"Error discovering ExpressRoute Circuits in {rg_name}: {e}"
-            )
+            self.logger.warning(f"Error discovering ExpressRoute Circuits in {rg_name}: {e}")
 
         # Dedicated Hosts
         try:
-            for (
-                host_group
-            ) in self.compute_client.dedicated_host_groups.list_by_resource_group(
-                rg_name
-            ):
+            for host_group in self.compute_client.dedicated_host_groups.list_by_resource_group(rg_name):
                 region = getattr(host_group, "location", "unknown")
                 host_group_name = getattr(host_group, "name", None)
                 if not host_group_name:
                     continue
-                for host in self.compute_client.dedicated_hosts.list_by_host_group(
-                    rg_name, host_group_name
-                ):
+                for host in self.compute_client.dedicated_hosts.list_by_host_group(rg_name, host_group_name):
                     host_dict = vars(host)
                     formatted_host = format_azure_resource(host_dict, "server", region)
                     resources.append(formatted_host)
@@ -440,9 +384,7 @@ class AzureDiscovery(BaseDiscovery):
                 zone_name = getattr(zone, "name", None)
                 zone_type = getattr(zone, "zone_type", None)
                 zone_id = getattr(zone, "id", None)
-                self.logger.debug(
-                    f"Public Zone: name={zone_name}, type={zone_type}, id={zone_id}"
-                )
+                self.logger.debug(f"Public Zone: name={zone_name}, type={zone_type}, id={zone_id}")
 
                 if not zone_name:
                     continue
@@ -504,9 +446,7 @@ class AzureDiscovery(BaseDiscovery):
 
             # Discover all private DNS zones
             private_zones = list(self.privatedns_client.private_zones.list())
-            self.logger.debug(
-                f"Found {len(private_zones)} private DNS zones in subscription."
-            )
+            self.logger.debug(f"Found {len(private_zones)} private DNS zones in subscription.")
             for pzone in private_zones:
                 pzone_name = getattr(pzone, "name", None)
                 pzone_id = getattr(pzone, "id", None)

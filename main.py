@@ -13,9 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 def main():
     """Main function."""
-    parser = argparse.ArgumentParser(
-        description="Infoblox Universal DDI Resource Counter"
-    )
+    parser = argparse.ArgumentParser(description="Infoblox Universal DDI Resource Counter")
     parser.add_argument(
         "provider",
         choices=["aws", "azure", "gcp"],

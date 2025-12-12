@@ -24,13 +24,9 @@ def check_awscli_version():
 
     try:
         result = subprocess.run(["aws", "--version"], capture_output=True, text=True)
-        version_match = re.search(
-            r"aws-cli/(\d+)\.(\d+)\.(\d+)", result.stdout + result.stderr
-        )
+        version_match = re.search(r"aws-cli/(\d+)\.(\d+)\.(\d+)", result.stdout + result.stderr)
         if not version_match:
-            print(
-                "ERROR: Unable to determine AWS CLI version. Please ensure AWS CLI v2 is installed."
-            )
+            print("ERROR: Unable to determine AWS CLI version. Please ensure AWS CLI v2 is installed.")
             sys.exit(1)
         major, minor, patch = map(int, version_match.groups())
         if (major, minor, patch) < (2, 0, 0):
@@ -71,9 +67,7 @@ def main(args=None):
     """Main discovery function."""
     if args is None:
         # If called directly, parse arguments from command line
-        parser = argparse.ArgumentParser(
-            description="AWS Cloud Discovery for Management Token Calculation"
-        )
+        parser = argparse.ArgumentParser(description="AWS Cloud Discovery for Management Token Calculation")
         parser.add_argument(
             "--format",
             choices=["json", "csv", "txt"],
@@ -137,9 +131,7 @@ def main(args=None):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         from shared.output_utils import save_unknown_resources
 
-        unk = save_unknown_resources(
-            native_objects, config.output_directory, timestamp, "aws"
-        )
+        unk = save_unknown_resources(native_objects, config.output_directory, timestamp, "aws")
         if unk:
             print(f"Unknown resources saved to: {unk['unknown_resources']}")
 
@@ -159,9 +151,7 @@ def main(args=None):
         print("=" * 60)
 
         calculator = UniversalDDILicensingCalculator()
-        licensing_results = calculator.calculate_from_discovery_results(
-            native_objects, provider="aws"
-        )
+        licensing_results = calculator.calculate_from_discovery_results(native_objects, provider="aws")
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
@@ -205,18 +195,12 @@ def main(args=None):
             f"Managed Assets: {licensing_results['counts']['managed_assets']:,} "
             f"({licensing_results['token_requirements']['managed_assets_tokens']} tokens)"
         )
-        print(
-            f"TOTAL MANAGEMENT TOKENS REQUIRED: {licensing_results['token_requirements']['total_management_tokens']}"
-        )
+        print(f"TOTAL MANAGEMENT TOKENS REQUIRED: {licensing_results['token_requirements']['total_management_tokens']}")
 
         # Save results
         if args.full:
-            print(
-                f"Saving full resource/object data in {args.format.upper()} format..."
-            )
-            saved_files = discovery.save_discovery_results(
-                extra_info={"accounts": scanned_accounts}
-            )
+            print(f"Saving full resource/object data in {args.format.upper()} format...")
+            saved_files = discovery.save_discovery_results(extra_info={"accounts": scanned_accounts})
             print("Results saved to:")
             for file_type, filepath in saved_files.items():
                 print(f"  {file_type}: {filepath}")
@@ -237,9 +221,7 @@ def main(args=None):
                 )
                 print(f"Summary saved to: {summary_files['resource_count']}")
             else:
-                print(
-                    "Skipping legacy resource_count output (use --include-counts to enable)"
-                )
+                print("Skipping legacy resource_count output (use --include-counts to enable)")
 
         print("\nDiscovery completed successfully!")
 
