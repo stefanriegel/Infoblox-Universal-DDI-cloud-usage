@@ -107,6 +107,24 @@ def get_all_azure_regions() -> List[str]:
         return get_major_azure_regions()
 
 
+def get_all_subscription_ids() -> List[str]:
+    """
+    Get all enabled Azure subscription IDs accessible to the current credentials.
+
+    Returns:
+        List of subscription IDs
+    """
+    try:
+        credential = get_azure_credential()
+        from azure.mgmt.subscription import SubscriptionClient
+        subscription_client = SubscriptionClient(credential)
+        subscriptions = list(subscription_client.subscriptions.list())
+        return [sub.subscription_id for sub in subscriptions if sub.state == 'Enabled']
+    except Exception as e:
+        print(f"Error getting subscriptions: {e}")
+        return []
+
+
 def get_azure_credential():
     """
     Get Azure credential for authentication.

@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from .azure_discovery import AzureDiscovery
-from .config import AzureConfig, get_all_azure_regions
+from .config import AzureConfig, get_all_azure_regions, get_all_subscription_ids
 
 
 def validate_azure_credentials():
@@ -94,20 +94,44 @@ def main(args=None):
     print(f"Found {len(all_regions)} available regions")
     print()
 
-    # Initialize discovery with all regions
+    # Get all subscriptions
+    all_subs = get_all_subscription_ids()
+    if not all_subs:
+        print("No subscriptions found. Please check your Azure credentials and permissions.")
+        return 1
+    print(f"Found {len(all_subs)} enabled subscriptions")
+    print()
+
+    # Discover across all subscriptions
+    all_native_objects = []
+    scanned_subs = []
+    for sub_id in all_subs:
+        print(f"Scanning subscription: {sub_id}")
+        config = AzureConfig(
+            regions=all_regions,
+            output_directory="output",
+            output_format=args.format,
+            subscription_id=sub_id
+        )
+        discovery = AzureDiscovery(config)
+        native_objects = discovery.discover_native_objects(max_workers=args.workers)
+        all_native_objects.extend(native_objects)
+        scanned_subs.append(sub_id)
+        print(f"Found {len(native_objects)} Native Objects in this subscription")
+
+    print(f"\nTotal Native Objects found across all subscriptions: {len(all_native_objects)}")
+
+    # Create a dummy discovery for counting and saving
     config = AzureConfig(
         regions=all_regions,
         output_directory="output",
         output_format=args.format,
+        subscription_id=all_subs[0] if all_subs else ""
     )
     discovery = AzureDiscovery(config)
-    scanned_subscriptions = discovery.get_scanned_subscription_ids()
+    discovery._discovered_resources = all_native_objects  # Set the aggregated resources
 
     try:
-        # Discover Native Objects
-        print("Starting Azure Discovery...")
-        native_objects = discovery.discover_native_objects(max_workers=args.workers)
-        print(f"Found {len(native_objects)} Native Objects")
 
         # Count DDI objects and active IPs
         count_results = discovery.count_resources()
@@ -126,10 +150,10 @@ def main(args=None):
         from shared.output_utils import print_discovery_summary
 
         print_discovery_summary(
-            native_objects,
+            all_native_objects,
             count_results,
             "azure",
-            {"subscriptions": scanned_subscriptions},
+            {"subscriptions": scanned_subs},
         )
 
         # Always generate Universal DDI licensing calculations
