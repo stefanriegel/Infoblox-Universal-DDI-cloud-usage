@@ -9,11 +9,15 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from .azure_discovery import AzureDiscovery
+from .config import (
+    AzureConfig,
+    get_all_azure_regions,
+    get_all_subscription_ids,
+)
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from .azure_discovery import AzureDiscovery
-from .config import AzureConfig, get_all_azure_regions, get_all_subscription_ids
 
 
 def validate_azure_credentials():
@@ -24,17 +28,19 @@ def validate_azure_credentials():
     try:
         credential = get_azure_credential()
         # Try to get a token to verify credentials work
-        token = credential.get_token("https://management.azure.com/.default")
+        credential.get_token("https://management.azure.com/.default")
         return True
     except CredentialUnavailableError as e:
         print(f"ERROR: Azure credentials not available: {e}")
         print("Please configure one of:")
         print(
-            "  - Service principal: Set AZURE_CLIENT_ID, AZURE_CLIENT_SECRET, AZURE_TENANT_ID"
+            "  - Service principal: Set AZURE_CLIENT_ID,"
+            " AZURE_CLIENT_SECRET, AZURE_TENANT_ID"
         )
         print("  - Azure CLI: Run 'az login'")
         print(
-            "  - Managed identity: Ensure running in Azure with managed identity enabled"
+            "  - Managed identity: Ensure running in Azure with "
+            "managed identity enabled"
         )
         return False
     except Exception as e:
@@ -47,7 +53,7 @@ def main(args=None):
     if args is None:
         # If called directly, parse arguments from command line
         parser = argparse.ArgumentParser(
-            description="Azure Cloud Discovery for Management Token Calculation"
+            description="Azure Cloud Discovery for Management Token Calc"
         )
         parser.add_argument(
             "--format",
@@ -64,17 +70,26 @@ def main(args=None):
         parser.add_argument(
             "--full",
             action="store_true",
-            help="Save/export full resource/object data (default: only summary and token calculation)",
+            help=(
+                "Save/export full resource/object data "
+                "(default: only summary and token calculation)"
+            ),
         )
         parser.add_argument(
             "--licensing",
             action="store_true",
-            help="Generate Infoblox Universal DDI licensing calculations for Sales Engineers",
+            help=(
+                "Generate Infoblox Universal DDI licensing calculations "
+                "for Sales Engineers"
+            ),
         )
         parser.add_argument(
             "--include-counts",
             action="store_true",
-            help="Also write legacy resource_count files alongside licensing outputs",
+            help=(
+                "Also write legacy resource_count files alongside "
+                "licensing outputs"
+            ),
         )
         args = parser.parse_args()
 
@@ -97,7 +112,9 @@ def main(args=None):
     # Get all subscriptions
     all_subs = get_all_subscription_ids()
     if not all_subs:
-        print("No subscriptions found. Please check your Azure credentials and permissions.")
+        print(
+            "No subscriptions found. Check your Azure credentials and permissions."
+        )
         return 1
     print(f"Found {len(all_subs)} enabled subscriptions")
     print()
@@ -114,12 +131,19 @@ def main(args=None):
             subscription_id=sub_id
         )
         discovery = AzureDiscovery(config)
-        native_objects = discovery.discover_native_objects(max_workers=args.workers)
+        native_objects = discovery.discover_native_objects(
+            max_workers=args.workers
+        )
         all_native_objects.extend(native_objects)
         scanned_subs.append(sub_id)
-        print(f"Found {len(native_objects)} Native Objects in this subscription")
+        print(
+            f"Found {len(native_objects)} Native Objects in this subscription"
+        )
 
-    print(f"\nTotal Native Objects found across all subscriptions: {len(all_native_objects)}")
+    print(
+        f"\nTotal Native Objects found across all subscriptions: "
+        f"{len(all_native_objects)}"
+    )
 
     # Create a dummy discovery for counting and saving
     config = AzureConfig(
@@ -129,7 +153,7 @@ def main(args=None):
         subscription_id=all_subs[0] if all_subs else ""
     )
     discovery = AzureDiscovery(config)
-    discovery._discovered_resources = all_native_objects  # Set the aggregated resources
+    discovery._discovered_resources = all_native_objects  # Set resources
 
     try:
 
@@ -164,7 +188,7 @@ def main(args=None):
         print("=" * 60)
 
         calculator = UniversalDDILicensingCalculator()
-        licensing_results = calculator.calculate_from_discovery_results(
+        calculator.calculate_from_discovery_results(
             all_native_objects, provider="azure"
         )
 
@@ -199,7 +223,8 @@ def main(args=None):
         # Save results
         if args.full:
             print(
-                f"Saving full resource/object data in {args.format.upper()} format..."
+                f"Saving full resource/object data in "
+                f"{args.format.upper()} format..."
             )
             saved_files = discovery.save_discovery_results(
                 extra_info={"subscriptions": scanned_subs}
@@ -225,10 +250,10 @@ def main(args=None):
                 print(f"Summary saved to: {summary_files['resource_count']}")
             else:
                 print(
-                    "Skipping legacy resource_count output (use --include-counts to enable)"
+                    "Skipping legacy resource_count output (use --include-counts)"
                 )
 
-        print(f"\nDiscovery completed successfully!")
+        print("\nDiscovery completed successfully!")
 
         return 0
 

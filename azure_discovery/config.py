@@ -100,7 +100,7 @@ def get_all_azure_regions() -> List[str]:
             return get_major_azure_regions()
 
         # For now, return major regions to avoid dependency issues
-        # TODO: Implement full region discovery when azure-mgmt-subscription is available
+        # TODO: Implement full region discovery
         return get_major_azure_regions()
 
     except Exception:
@@ -109,7 +109,7 @@ def get_all_azure_regions() -> List[str]:
 
 def get_all_subscription_ids() -> List[str]:
     """
-    Get all enabled Azure subscription IDs accessible to the current credentials.
+    Get all enabled Azure subscription IDs accessible to current credentials.
 
     Returns:
         List of subscription IDs
@@ -119,7 +119,11 @@ def get_all_subscription_ids() -> List[str]:
         from azure.mgmt.subscription import SubscriptionClient
         subscription_client = SubscriptionClient(credential)
         subscriptions = list(subscription_client.subscriptions.list())
-        return [sub.subscription_id for sub in subscriptions if sub.state == 'Enabled']
+        enabled_subs = [
+            sub.subscription_id for sub in subscriptions
+            if sub.state == 'Enabled'
+        ]
+        return enabled_subs
     except Exception as e:
         print(f"Error getting subscriptions: {e}")
         return []
@@ -129,7 +133,7 @@ def get_azure_credential():
     """
     Get Azure credential for authentication.
 
-    Tries service principal credentials first, then falls back to DefaultAzureCredential.
+    Tries service principal first, then DefaultAzureCredential.
 
     Returns:
         Azure credential object
@@ -142,7 +146,9 @@ def get_azure_credential():
     if client_id and client_secret and tenant_id:
         # Use service principal credentials if available
         return ClientSecretCredential(
-            client_id=client_id, client_secret=client_secret, tenant_id=tenant_id
+            client_id=client_id,
+            client_secret=client_secret,
+            tenant_id=tenant_id
         )
     else:
         # Fall back to DefaultAzureCredential (for Azure CLI, managed identity, etc.)
@@ -161,7 +167,9 @@ def validate_azure_config(config: AzureConfig) -> bool:
     """
     if not config.subscription_id:
         print("Error: Azure subscription ID is required")
-        print("Set AZURE_SUBSCRIPTION_ID environment variable or configure in config")
+        print(
+            "Set AZURE_SUBSCRIPTION_ID env var or configure in config"
+        )
         return False
 
     if not config.regions:
