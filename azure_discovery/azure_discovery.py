@@ -6,7 +6,6 @@ Discovers Azure Native Objects and calculates Management Token requirements.
 
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 from typing import Dict, List
 
 from azure.mgmt.compute import ComputeManagementClient
@@ -17,11 +16,7 @@ from azure.mgmt.resource import ResourceManagementClient
 from tqdm import tqdm
 
 from shared.base_discovery import BaseDiscovery, DiscoveryConfig
-from shared.output_utils import (
-    format_azure_resource,
-    save_discovery_results,
-    save_resource_count_results,
-)
+from shared.output_utils import format_azure_resource
 
 from .config import AzureConfig, get_azure_credential
 
@@ -568,7 +563,8 @@ class AzureDiscovery(BaseDiscovery):
                             resources.append(record_resource)
                     except Exception as e:
                         self.logger.warning(
-                            f"Error discovering records in Private DNS zone {pzone_name} (resource group {resource_group}): {e}"
+                            f"Error discovering records in Private DNS zone "
+                            f"{pzone_name} (resource group {resource_group}): {e}"
                         )
                 else:
                     self.logger.warning(

@@ -149,7 +149,8 @@ ERROR_MESSAGES = {
     "credentials_not_found": "Credentials not found. Please configure your cloud provider credentials.",
     "discovery_failed": "Discovery failed: {error}",
     "import_error": "Error importing {module} module: {error}",
-    "installation_required": "Please ensure you have installed the required dependencies: pip install -r {provider}/requirements.txt",
+    "installation_required": "Please ensure you have installed the required dependencies: "
+    "pip install -r {provider}/requirements.txt",
 }
 
 # Logging configuration

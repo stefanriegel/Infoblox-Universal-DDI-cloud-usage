@@ -11,11 +11,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from .config import GCPConfig, get_all_gcp_regions
 from .gcp_discovery import GCPDiscovery
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 def check_gcloud_version():
@@ -34,7 +34,9 @@ def check_gcloud_version():
         major, minor, patch = map(int, version_match.groups())
         if (major, minor, patch) < (300, 0, 0):
             print(
-                f"ERROR: Google Cloud SDK version 300.0.0 or higher is required. Detected version: {major}.{minor}.{patch}. Please upgrade your Google Cloud SDK."
+                f"ERROR: Google Cloud SDK version 300.0.0 or higher is required. "
+                f"Detected version: {major}.{minor}.{patch}. "
+                "Please upgrade your Google Cloud SDK."
             )
             sys.exit(1)
     except Exception as e:
@@ -59,12 +61,14 @@ def check_gcp_credentials():
         )
         if not result.stdout.strip():
             print(
-                "ERROR: No active GCP credentials found. Please run 'gcloud auth login' or 'gcloud auth application-default login'. Exiting."
+                "ERROR: No active GCP credentials found. Please run 'gcloud auth login' "
+                "or 'gcloud auth application-default login'. Exiting."
             )
             sys.exit(1)
     except subprocess.CalledProcessError as e:
         print(
-            f"ERROR: GCP credentials are invalid or expired: {e}\nPlease check your credentials or run 'gcloud auth login'. Exiting."
+            f"ERROR: GCP credentials are invalid or expired: {e}\n"
+            "Please check your credentials or run 'gcloud auth login'. Exiting."
         )
         sys.exit(1)
     except FileNotFoundError:
@@ -171,7 +175,7 @@ def main(args=None):
         print("=" * 60)
 
         calculator = UniversalDDILicensingCalculator()
-        licensing_results = calculator.calculate_from_discovery_results(
+        calculator.calculate_from_discovery_results(
             native_objects, provider="gcp"
         )
 
@@ -235,7 +239,7 @@ def main(args=None):
                     "Skipping legacy resource_count output (use --include-counts to enable)"
                 )
 
-        print(f"\nDiscovery completed successfully!")
+        print("\nDiscovery completed successfully!")
 
         return 0
 

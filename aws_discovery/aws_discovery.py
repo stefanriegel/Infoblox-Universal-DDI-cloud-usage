@@ -8,24 +8,19 @@ Discovers AWS Native Objects and calculates Management Token requirements.
 import logging
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from tqdm import tqdm
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from shared.base_discovery import BaseDiscovery, DiscoveryConfig
-from shared.output_utils import (
-    get_resource_tags,
-    save_discovery_results,
-    save_resource_count_results,
-)
+from shared.output_utils import get_resource_tags
 
 from .config import AWSConfig
 from .utils import get_aws_client
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Configure logging - suppress INFO messages and boto3/botocore logging
 logging.basicConfig(level=logging.WARNING)

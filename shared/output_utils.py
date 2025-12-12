@@ -322,7 +322,7 @@ def save_resource_count_results(
                     type_to_objs.setdefault(obj["resource_type"], []).append(obj)
                 for t, objs in type_to_objs.items():
                     examples = ", ".join([str(o["name"]) for o in objs[:2]])
-                    more = f", ..." if len(objs) > 2 else ""
+        more = ", ..." if len(objs) > 2 else ""
                     f.write(
                         f"  - {len(objs)} {t}(s)"
                         + (f" (e.g. {examples}{more})" if examples else "")
@@ -363,11 +363,6 @@ def format_azure_resource(
         Formatted resource dictionary
     """
     # Extract common fields - use getattr for Azure SDK model compatibility
-    resource_id = (
-        getattr(resource, "id", "")
-        if hasattr(resource, "id")
-        else resource.get("id", "")
-    )
     name = (
         getattr(resource, "name", "")
         if hasattr(resource, "name")

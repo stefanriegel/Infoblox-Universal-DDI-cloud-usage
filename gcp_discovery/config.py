@@ -59,7 +59,8 @@ def get_gcp_credential():
         return credentials, project
     except DefaultCredentialsError as e:
         raise Exception(
-            f"GCP credentials not found: {e}. Please run 'gcloud auth application-default login' or set GOOGLE_APPLICATION_CREDENTIALS."
+            f"GCP credentials not found: {e}. Please run 'gcloud auth "
+            "application-default login' or set GOOGLE_APPLICATION_CREDENTIALS."
         )
 
 

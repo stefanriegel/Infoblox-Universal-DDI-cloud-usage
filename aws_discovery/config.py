@@ -51,7 +51,9 @@ def get_all_enabled_regions() -> List[str]:
         return sorted(enabled_regions)
     except NoCredentialsError:
         print(
-            """ERROR: AWS credentials not found.\nPlease configure credentials, set AWS_PROFILE, or run 'aws sso login' for SSO profiles.\nExiting."""
+            "ERROR: AWS credentials not found.\n"
+            "Please configure credentials, set AWS_PROFILE, "
+            "or run 'aws sso login' for SSO profiles.\nExiting."
         )
         sys.exit(1)
     except Exception as e:

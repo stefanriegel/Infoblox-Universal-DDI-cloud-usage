@@ -26,5 +26,6 @@ def get_aws_client(service_name: str, region: str, config) -> Any:
             return boto3.client(service_name, region_name=region)
     except NoCredentialsError:
         raise RuntimeError(
-            "AWS credentials not found. Please configure AWS credentials, set AWS_PROFILE, or run 'aws sso login' for SSO profiles."
+            "AWS credentials not found. Please configure AWS credentials, "
+            "set AWS_PROFILE, or run 'aws sso login' for SSO profiles."
         )

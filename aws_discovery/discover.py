@@ -9,12 +9,12 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from aws_discovery.aws_discovery import AWSDiscovery
 from aws_discovery.config import AWSConfig, get_all_enabled_regions
 from shared.output_utils import print_discovery_summary
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 def check_awscli_version():
@@ -35,7 +35,9 @@ def check_awscli_version():
         major, minor, patch = map(int, version_match.groups())
         if (major, minor, patch) < (2, 0, 0):
             print(
-                f"ERROR: AWS CLI version 2.0.0 or higher is required. Detected version: {major}.{minor}.{patch}. Please upgrade your AWS CLI."
+                f"ERROR: AWS CLI version 2.0.0 or higher is required. "
+                f"Detected version: {major}.{minor}.{patch}. "
+                "Please upgrade your AWS CLI."
             )
             sys.exit(1)
     except Exception as e:
@@ -59,7 +61,8 @@ def check_aws_credentials():
         sts.get_caller_identity()
     except (NoCredentialsError, ClientError) as e:
         print(
-            f"ERROR: AWS credentials are invalid or expired: {e}\nPlease check your credentials or run 'aws sso login'. Exiting."
+            f"ERROR: AWS credentials are invalid or expired: {e}\n"
+            "Please check your credentials or run 'aws sso login'. Exiting."
         )
         sys.exit(1)
 
@@ -189,15 +192,18 @@ def main(args=None):
         print(f"Proof manifest exported: {proof_file}")
 
         # Print summary to console
-        print(f"\nUNIVERSAL DDI LICENSING SUMMARY:")
+        print("\nUNIVERSAL DDI LICENSING SUMMARY:")
         print(
-            f"DDI Objects: {licensing_results['counts']['ddi_objects']:,} ({licensing_results['token_requirements']['ddi_objects_tokens']} tokens)"
+            f"DDI Objects: {licensing_results['counts']['ddi_objects']:,} "
+            f"({licensing_results['token_requirements']['ddi_objects_tokens']} tokens)"
         )
         print(
-            f"Active IPs: {licensing_results['counts']['active_ip_addresses']:,} ({licensing_results['token_requirements']['active_ips_tokens']} tokens)"
+            f"Active IPs: {licensing_results['counts']['active_ip_addresses']:,} "
+            f"({licensing_results['token_requirements']['active_ips_tokens']} tokens)"
         )
         print(
-            f"Managed Assets: {licensing_results['counts']['managed_assets']:,} ({licensing_results['token_requirements']['managed_assets_tokens']} tokens)"
+            f"Managed Assets: {licensing_results['counts']['managed_assets']:,} "
+            f"({licensing_results['token_requirements']['managed_assets_tokens']} tokens)"
         )
         print(
             f"TOTAL MANAGEMENT TOKENS REQUIRED: {licensing_results['token_requirements']['total_management_tokens']}"
@@ -235,7 +241,7 @@ def main(args=None):
                     "Skipping legacy resource_count output (use --include-counts to enable)"
                 )
 
-        print(f"\nDiscovery completed successfully!")
+        print("\nDiscovery completed successfully!")
 
         return 0
 

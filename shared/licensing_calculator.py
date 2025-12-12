@@ -7,10 +7,8 @@ Uses official Infoblox Universal DDI licensing metrics from the documentation.
 """
 
 from datetime import datetime
-from typing import Dict, List, Tuple, Any
-import json
+from typing import Dict, List, Any
 import csv
-import os
 from shared.constants import AWS_REGIONS, AZURE_REGIONS, GCP_REGIONS
 
 
@@ -567,7 +565,8 @@ class UniversalDDILicensingCalculator:
             raise ValueError(
                 "No calculation results available. Run calculate_from_discovery_results first."
             )
-        import hashlib, json as _json
+        import hashlib
+        import json as _json
 
         # Minimal resource projection for hashing to keep stable
         def project(r: Dict) -> Dict:

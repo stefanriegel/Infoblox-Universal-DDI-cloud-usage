@@ -8,22 +8,17 @@ Discovers GCP Native Objects and calculates Management Token requirements.
 import logging
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List
 
 from tqdm import tqdm
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from shared.base_discovery import BaseDiscovery, DiscoveryConfig
-from shared.output_utils import (
-    save_discovery_results,
-    save_resource_count_results,
-)
 
 from .config import GCPConfig, get_gcp_credential
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Configure logging
 logging.basicConfig(level=logging.WARNING)
