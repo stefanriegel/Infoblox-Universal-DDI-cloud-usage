@@ -133,104 +133,20 @@ class AzureDiscovery(BaseDiscovery):
 
         resources = []
 
-        # VMs
-        try:
-            for vm in self.compute_client.virtual_machines.list(rg_name):
-                vm_name = getattr(vm, "name", None)
-                if not vm_name:
-                    continue
-
-                region = getattr(vm, "location", "unknown")
-
-                try:
-                    # Get detailed VM info including network interfaces
-                    vm_detail = self.compute_client.virtual_machines.get(rg_name, vm_name, expand="instanceView")
-
-                    # Extract IP addresses
-                    private_ips = []
-                    public_ips = []
-
-                    if (
-                        hasattr(vm_detail, "network_profile")
-                        and vm_detail.network_profile
-                        and vm_detail.network_profile.network_interfaces
-                    ):
-                        for nic_ref in vm_detail.network_profile.network_interfaces:
-                            if hasattr(nic_ref, "id") and nic_ref.id:
-                                # Parse the NIC ID to get resource group and name
-                                nic_id_parts = nic_ref.id.split("/")
-                                if len(nic_id_parts) >= 9:
-                                    nic_rg = nic_id_parts[4]  # Resource group
-                                    nic_name = nic_id_parts[8]  # NIC name
-
-                                    try:
-                                        # Get the network interface details
-                                        nic = self.network_client.network_interfaces.get(nic_rg, nic_name)
-
-                                        # Extract private IPs
-                                        if hasattr(nic, "ip_configurations") and nic.ip_configurations:
-                                            for ip_config in nic.ip_configurations:
-                                                if (
-                                                    hasattr(
-                                                        ip_config,
-                                                        "private_ip_address",
-                                                    )
-                                                    and ip_config.private_ip_address
-                                                ):
-                                                    private_ips.append(ip_config.private_ip_address)
-
-                                                # Extract public IP if present
-                                                if (
-                                                    hasattr(
-                                                        ip_config,
-                                                        "public_ip_address",
-                                                    )
-                                                    and ip_config.public_ip_address
-                                                ):
-                                                    if (
-                                                        hasattr(
-                                                            ip_config.public_ip_address,
-                                                            "ip_address",
-                                                        )
-                                                        and ip_config.public_ip_address.ip_address
-                                                    ):
-                                                        public_ips.append(ip_config.public_ip_address.ip_address)
-                                    except Exception as e:
-                                        self.logger.warning(
-                                            f"Error getting network interface {nic_name} for VM {vm_name}: {e}"
-                                        )
-
-                    # Determine if Management Token is required
-                    has_network_interfaces = len(private_ips) > 0 or len(public_ips) > 0
-                    is_managed = self._is_managed_service(getattr(vm, "tags", {}))
-                    requires_token = has_network_interfaces and not is_managed
-
-                    # Use vars() to convert Azure SDK model to dict
-                    vm_dict = vars(vm)
-                    formatted_vm = format_azure_resource(vm_dict, "vm", region, requires_token)
-
-                    # Add IP addresses to details
-                    if private_ips or public_ips:
-                        formatted_vm["details"].update(
-                            {
-                                "private_ip": (private_ips[0] if private_ips else None),
-                                "public_ip": (public_ips[0] if public_ips else None),
-                                "private_ips": private_ips,
-                                "public_ips": public_ips,
-                            }
-                        )
-
-                    resources.append(formatted_vm)
-
-                except Exception as e:
-                    self.logger.warning(f"Error getting detailed VM info for {vm_name}: {e}")
-                    # Fallback to basic VM info without IP addresses
-                    vm_dict = vars(vm)
-                    formatted_vm = format_azure_resource(vm_dict, "vm", region)
-                    resources.append(formatted_vm)
-
-        except Exception as e:
-            self.logger.warning(f"Error discovering VMs in {rg_name}: {e}")
+        # Discover resources by type
+        resources.extend(self._discover_vms(rg_name))
+        resources.extend(self._discover_vnets(rg_name))
+        resources.extend(self._discover_load_balancers(rg_name))
+        resources.extend(self._discover_vpn_gateways(rg_name))
+        resources.extend(self._discover_application_gateways(rg_name))
+        resources.extend(self._discover_azure_firewalls(rg_name))
+        resources.extend(self._discover_private_endpoints(rg_name))
+        resources.extend(self._discover_nat_gateways(rg_name))
+        resources.extend(self._discover_route_tables(rg_name))
+        resources.extend(self._discover_public_ip_addresses(rg_name))
+        resources.extend(self._discover_network_security_groups(rg_name))
+        resources.extend(self._discover_express_route_circuits(rg_name))
+        resources.extend(self._discover_dedicated_hosts(rg_name))
 
         # VNets
         try:
@@ -370,6 +286,282 @@ class AzureDiscovery(BaseDiscovery):
         except Exception as e:
             self.logger.warning(f"Error discovering Dedicated Hosts in {rg_name}: {e}")
 
+        return resources
+
+    def _discover_vms(self, rg_name: str) -> List[Dict]:
+        """Discover Virtual Machines in a resource group."""
+        resources = []
+        try:
+            for vm in self.compute_client.virtual_machines.list(rg_name):
+                vm_name = getattr(vm, "name", None)
+                if not vm_name:
+                    continue
+
+                region = getattr(vm, "location", "unknown")
+
+                try:
+                    # Get detailed VM info including network interfaces
+                    vm_detail = self.compute_client.virtual_machines.get(rg_name, vm_name, expand="instanceView")
+
+                    # Extract IP addresses
+                    private_ips = []
+                    public_ips = []
+
+                    if (
+                        hasattr(vm_detail, "network_profile")
+                        and vm_detail.network_profile
+                        and vm_detail.network_profile.network_interfaces
+                    ):
+                        for nic_ref in vm_detail.network_profile.network_interfaces:
+                            if hasattr(nic_ref, "id") and nic_ref.id:
+                                # Parse the NIC ID to get resource group and name
+                                nic_id_parts = nic_ref.id.split("/")
+                                if len(nic_id_parts) >= 9:
+                                    nic_rg = nic_id_parts[4]  # Resource group
+                                    nic_name = nic_id_parts[8]  # NIC name
+
+                                    try:
+                                        # Get the network interface details
+                                        nic = self.network_client.network_interfaces.get(nic_rg, nic_name)
+
+                                        # Extract private IPs
+                                        if hasattr(nic, "ip_configurations") and nic.ip_configurations:
+                                            for ip_config in nic.ip_configurations:
+                                                if (
+                                                    hasattr(
+                                                        ip_config,
+                                                        "private_ip_address",
+                                                    )
+                                                    and ip_config.private_ip_address
+                                                ):
+                                                    private_ips.append(ip_config.private_ip_address)
+
+                                                # Extract public IP if present
+                                                if (
+                                                    hasattr(
+                                                        ip_config,
+                                                        "public_ip_address",
+                                                    )
+                                                    and ip_config.public_ip_address
+                                                ):
+                                                    if (
+                                                        hasattr(
+                                                            ip_config.public_ip_address,
+                                                            "ip_address",
+                                                        )
+                                                        and ip_config.public_ip_address.ip_address
+                                                    ):
+                                                        public_ips.append(ip_config.public_ip_address.ip_address)
+                                    except Exception as e:
+                                        self.logger.warning(
+                                            f"Error getting network interface {nic_name} for VM {vm_name}: {e}"
+                                        )
+
+                    # Determine if Management Token is required
+                    has_network_interfaces = len(private_ips) > 0 or len(public_ips) > 0
+                    is_managed = self._is_managed_service(getattr(vm, "tags", {}))
+                    requires_token = has_network_interfaces and not is_managed
+
+                    # Use vars() to convert Azure SDK model to dict
+                    vm_dict = vars(vm)
+                    formatted_vm = format_azure_resource(vm_dict, "vm", region, requires_token)
+
+                    # Add IP addresses to details
+                    if private_ips or public_ips:
+                        formatted_vm["details"].update(
+                            {
+                                "private_ip": (private_ips[0] if private_ips else None),
+                                "public_ip": (public_ips[0] if public_ips else None),
+                                "private_ips": private_ips,
+                                "public_ips": public_ips,
+                            }
+                        )
+
+                    resources.append(formatted_vm)
+
+                except Exception as e:
+                    self.logger.warning(f"Error getting detailed VM info for {vm_name}: {e}")
+                    # Fallback to basic VM info without IP addresses
+                    vm_dict = vars(vm)
+                    formatted_vm = format_azure_resource(vm_dict, "vm", region)
+                    resources.append(formatted_vm)
+
+        except Exception as e:
+            self.logger.warning(f"Error discovering VMs in {rg_name}: {e}")
+        return resources
+
+    def _discover_vnets(self, rg_name: str) -> List[Dict]:
+        """Discover Virtual Networks in a resource group."""
+        resources = []
+        try:
+            for vnet in self.network_client.virtual_networks.list(rg_name):
+                region = getattr(vnet, "location", "unknown")
+                vnet_name = getattr(vnet, "name", None)
+                if not vnet_name:
+                    self.logger.warning(f"VNet with no name in {rg_name}, skipping subnets.")
+                    continue
+
+                vnet_dict = vars(vnet)
+                formatted_vnet = format_azure_resource(vnet_dict, "vnet", region)
+                resources.append(formatted_vnet)
+
+                # Subnets for this VNet
+                try:
+                    for subnet in self.network_client.subnets.list(rg_name, vnet_name):
+                        subnet_dict = vars(subnet)
+                        formatted_subnet = format_azure_resource(subnet_dict, "subnet", region)
+                        resources.append(formatted_subnet)
+                except Exception as e:
+                    self.logger.warning(f"Error discovering subnets in VNet {vnet_name} in {rg_name}: {e}")
+        except Exception as e:
+            self.logger.warning(f"Error discovering VNets in {rg_name}: {e}")
+        return resources
+
+    def _discover_load_balancers(self, rg_name: str) -> List[Dict]:
+        """Discover Load Balancers in a resource group."""
+        resources = []
+        try:
+            for lb in self.network_client.load_balancers.list(rg_name):
+                region = getattr(lb, "location", "unknown")
+                lb_dict = vars(lb)
+                formatted_lb = format_azure_resource(lb_dict, "load_balancer", region)
+                resources.append(formatted_lb)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Load Balancers in {rg_name}: {e}")
+        return resources
+
+    def _discover_vpn_gateways(self, rg_name: str) -> List[Dict]:
+        """Discover VPN Gateways in a resource group."""
+        resources = []
+        try:
+            for vpngw in self.network_client.virtual_network_gateways.list(rg_name):
+                region = getattr(vpngw, "location", "unknown")
+                vpngw_dict = vars(vpngw)
+                formatted_vpngw = format_azure_resource(vpngw_dict, "gateway", region)
+                resources.append(formatted_vpngw)
+        except Exception as e:
+            self.logger.warning(f"Error discovering VPN Gateways in {rg_name}: {e}")
+        return resources
+
+    def _discover_application_gateways(self, rg_name: str) -> List[Dict]:
+        """Discover Application Gateways in a resource group."""
+        resources = []
+        try:
+            for appgw in self.network_client.application_gateways.list(rg_name):
+                region = getattr(appgw, "location", "unknown")
+                appgw_dict = vars(appgw)
+                formatted_appgw = format_azure_resource(appgw_dict, "gateway", region)
+                resources.append(formatted_appgw)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Application Gateways in {rg_name}: {e}")
+        return resources
+
+    def _discover_azure_firewalls(self, rg_name: str) -> List[Dict]:
+        """Discover Azure Firewalls in a resource group."""
+        resources = []
+        try:
+            for fw in self.network_client.azure_firewalls.list(rg_name):
+                region = getattr(fw, "location", "unknown")
+                fw_dict = vars(fw)
+                formatted_fw = format_azure_resource(fw_dict, "firewall", region)
+                resources.append(formatted_fw)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Azure Firewalls in {rg_name}: {e}")
+        return resources
+
+    def _discover_private_endpoints(self, rg_name: str) -> List[Dict]:
+        """Discover Private Endpoints in a resource group."""
+        resources = []
+        try:
+            for pe in self.network_client.private_endpoints.list(rg_name):
+                region = getattr(pe, "location", "unknown")
+                pe_dict = vars(pe)
+                formatted_pe = format_azure_resource(pe_dict, "endpoint", region)
+                resources.append(formatted_pe)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Private Endpoints in {rg_name}: {e}")
+        return resources
+
+    def _discover_nat_gateways(self, rg_name: str) -> List[Dict]:
+        """Discover NAT Gateways in a resource group."""
+        resources = []
+        try:
+            for natgw in self.network_client.nat_gateways.list(rg_name):
+                region = getattr(natgw, "location", "unknown")
+                natgw_dict = vars(natgw)
+                formatted_natgw = format_azure_resource(natgw_dict, "gateway", region)
+                resources.append(formatted_natgw)
+        except Exception as e:
+            self.logger.warning(f"Error discovering NAT Gateways in {rg_name}: {e}")
+        return resources
+
+    def _discover_route_tables(self, rg_name: str) -> List[Dict]:
+        """Discover Route Tables in a resource group."""
+        resources = []
+        try:
+            for rt in self.network_client.route_tables.list(rg_name):
+                region = getattr(rt, "location", "unknown")
+                rt_dict = vars(rt)
+                formatted_rt = format_azure_resource(rt_dict, "router", region)
+                resources.append(formatted_rt)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Route Tables in {rg_name}: {e}")
+        return resources
+
+    def _discover_public_ip_addresses(self, rg_name: str) -> List[Dict]:
+        """Discover Public IP Addresses in a resource group."""
+        resources = []
+        try:
+            for pip in self.network_client.public_ip_addresses.list(rg_name):
+                region = getattr(pip, "location", "unknown")
+                pip_dict = vars(pip)
+                formatted_pip = format_azure_resource(pip_dict, "endpoint", region)
+                resources.append(formatted_pip)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Public IP Addresses in {rg_name}: {e}")
+        return resources
+
+    def _discover_network_security_groups(self, rg_name: str) -> List[Dict]:
+        """Discover Network Security Groups in a resource group."""
+        resources = []
+        try:
+            for nsg in self.network_client.network_security_groups.list(rg_name):
+                region = getattr(nsg, "location", "unknown")
+                nsg_dict = vars(nsg)
+                formatted_nsg = format_azure_resource(nsg_dict, "switch", region)
+                resources.append(formatted_nsg)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Network Security Groups in {rg_name}: {e}")
+        return resources
+
+    def _discover_express_route_circuits(self, rg_name: str) -> List[Dict]:
+        """Discover ExpressRoute Circuits in a resource group."""
+        resources = []
+        try:
+            for erc in self.network_client.express_route_circuits.list(rg_name):
+                region = getattr(erc, "location", "unknown")
+                erc_dict = vars(erc)
+                formatted_erc = format_azure_resource(erc_dict, "switch", region)
+                resources.append(formatted_erc)
+        except Exception as e:
+            self.logger.warning(f"Error discovering ExpressRoute Circuits in {rg_name}: {e}")
+        return resources
+
+    def _discover_dedicated_hosts(self, rg_name: str) -> List[Dict]:
+        """Discover Dedicated Hosts in a resource group."""
+        resources = []
+        try:
+            for host_group in self.compute_client.dedicated_host_groups.list_by_resource_group(rg_name):
+                region = getattr(host_group, "location", "unknown")
+                host_group_name = getattr(host_group, "name", None)
+                if not host_group_name:
+                    continue
+                for host in self.compute_client.dedicated_hosts.list_by_host_group(rg_name, host_group_name):
+                    host_dict = vars(host)
+                    formatted_host = format_azure_resource(host_dict, "server", region)
+                    resources.append(formatted_host)
+        except Exception as e:
+            self.logger.warning(f"Error discovering Dedicated Hosts in {rg_name}: {e}")
         return resources
 
     def _discover_azure_dns_zones_and_records(self) -> List[Dict]:
