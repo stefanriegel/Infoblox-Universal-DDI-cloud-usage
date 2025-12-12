@@ -1,0 +1,104 @@
+name: Sign PowerShell Script
+
+on:
+  push:
+    branches: [main, dev]
+    paths: ['setup_venv.ps1']
+  release:
+    types: [published]
+
+jobs:
+  sign-script:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create self-signed certificate
+      shell: powershell
+      run: |
+        Write-Host "Creating self-signed code signing certificate..."
+        $cert = New-SelfSignedCertificate -Subject "CN=Infoblox Universal DDI Setup" `
+          -Type CodeSigningCert -CertStoreLocation Cert:\CurrentUser\My `
+          -NotAfter (Get-Date).AddYears(1)
+        Write-Host "Certificate created with thumbprint: $($cert.Thumbprint)"
+
+        # Export certificate for potential manual import
+        $cert | Export-Certificate -FilePath cert.cer -Type CERT
+        Write-Host "Certificate exported to cert.cer"
+
+        # Store thumbprint for next step
+        $cert.Thumbprint | Out-File -FilePath cert_thumbprint.txt
+        Write-Host "Thumbprint saved to cert_thumbprint.txt"
+
+        # Import certificate to trusted root to allow signing
+        Write-Host "Importing certificate to trusted root store..."
+        Import-Certificate -FilePath cert.cer -CertStoreLocation Cert:\LocalMachine\Root
+        Write-Host "Certificate imported to trusted root"
+
+    - name: Sign PowerShell script
+      shell: powershell
+      run: |
+        Write-Host "Signing setup_venv.ps1..."
+        $thumbprint = Get-Content cert_thumbprint.txt
+        Write-Host "Using certificate thumbprint: $thumbprint"
+
+        $cert = Get-ChildItem Cert:\CurrentUser\My\$thumbprint
+        if (-not $cert) {
+          Write-Host "Certificate not found. Available certificates:"
+          Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.HasPrivateKey } | Format-Table Subject, Thumbprint
+          throw "Code signing certificate not found"
+        }
+
+        Write-Host "Using certificate: $($cert.Subject)"
+        $result = Set-AuthenticodeSignature -FilePath "setup_venv.ps1" -Certificate $cert
+        Write-Host "Signature result: $($result.Status)"
+        if ($result.Status -ne "Valid") {
+          throw "Failed to sign script: $($result.StatusMessage)"
+        }
+        Write-Host "Script signed successfully"
+
+    - name: Verify signature
+      shell: powershell
+      run: |
+        Write-Host "Verifying script signature..."
+        $signature = Get-AuthenticodeSignature -FilePath "setup_venv.ps1"
+        Write-Host "Signature status: $($signature.Status)"
+
+        if ($signature.Status -ne "Valid") {
+          Write-Host "Signature details: $($signature | Format-List | Out-String)"
+          throw "Script signature is not valid"
+        }
+
+        Write-Host "Signature verification successful"
+
+    - name: Commit signed script
+      if: github.event_name == 'push'
+      run: |
+        Write-Host "Checking for changes to commit..."
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add setup_venv.ps1 cert.cer
+        git status
+
+        # Only commit if there are changes
+        if (git diff --staged --quiet) {
+          Write-Host "No changes to commit"
+        } else {
+          git commit -m "Sign PowerShell script with self-signed certificate [skip ci]"
+          Write-Host "Changes committed, pushing..."
+          git push
+          Write-Host "Signed script committed and pushed"
+        }
+
+    - name: Upload signed script and certificate
+      if: github.event_name == 'release'
+      uses: actions/upload-artifact@v4
+      with:
+        name: signed-setup-venv-${{ github.event.release.tag_name }}
+        path: |
+          setup_venv.ps1
+          cert.cer

@@ -63,6 +63,10 @@ center_echo "Installing Dependencies"
 echo "########################################"
 echo
 
+# Install common dependencies first
+echo "  - Installing common dependencies..."
+pip install tqdm pandas
+
 case $choice in
   1)
     echo "  - Installing AWS dependencies..."
