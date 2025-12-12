@@ -118,7 +118,9 @@ def get_all_azure_regions() -> List[str]:
 
         from azure.mgmt.subscription import SubscriptionClient
         subscription_client = SubscriptionClient(credential)
-        locations = subscription_client.subscriptions.list_locations(subscription_id)
+        locations = subscription_client.subscriptions.list_locations(
+            subscription_id
+        )
         regions = [loc.name for loc in locations if loc.name]
         return regions if regions else get_major_azure_regions()
 
@@ -170,7 +172,7 @@ def get_azure_credential():
             tenant_id=tenant_id
         )
     else:
-        # Fall back to DefaultAzureCredential (for Azure CLI, managed identity, etc.)
+        # Fall back to DefaultAzureCredential
         return DefaultAzureCredential()
 
 
