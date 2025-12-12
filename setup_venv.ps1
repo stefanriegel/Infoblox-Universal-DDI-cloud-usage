@@ -54,6 +54,10 @@ Write-Host " Installing Dependencies" -ForegroundColor Cyan
 Write-Host "================================" -ForegroundColor Cyan
 Write-Host
 
+# Install common dependencies
+Write-Host "  - Installing common dependencies..."
+python -m pip install tqdm pandas
+
 switch ($choice) {
     "1" {
         Write-Host "  - Installing AWS dependencies..."
