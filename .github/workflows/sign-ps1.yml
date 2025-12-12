@@ -34,6 +34,11 @@ jobs:
         $cert.Thumbprint | Out-File -FilePath cert_thumbprint.txt
         Write-Host "Thumbprint saved to cert_thumbprint.txt"
 
+        # Import certificate to trusted root to allow signing
+        Write-Host "Importing certificate to trusted root store..."
+        Import-Certificate -FilePath cert.cer -CertStoreLocation Cert:\LocalMachine\Root
+        Write-Host "Certificate imported to trusted root"
+
     - name: Sign PowerShell script
       shell: powershell
       run: |
