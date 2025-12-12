@@ -92,16 +92,35 @@ def get_all_azure_regions() -> List[str]:
         List of all available Azure region names
     """
     try:
-        # Use default Azure credential
-        DefaultAzureCredential()
+        credential = get_azure_credential()
         subscription_id = os.getenv("AZURE_SUBSCRIPTION_ID")
 
         if not subscription_id:
-            return get_major_azure_regions()
+            # Try to get from az CLI
+            try:
+                result = subprocess.run(
+                    [
+                        "az",
+                        "account",
+                        "show",
+                        "--query",
+                        "id",
+                        "-o",
+                        "tsv",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                subscription_id = result.stdout.strip()
+            except Exception:
+                return get_major_azure_regions()
 
-        # For now, return major regions to avoid dependency issues
-        # TODO: Implement full region discovery
-        return get_major_azure_regions()
+        from azure.mgmt.subscription import SubscriptionClient
+        subscription_client = SubscriptionClient(credential)
+        locations = subscription_client.subscriptions.list_locations(subscription_id)
+        regions = [loc.name for loc in locations if loc.name]
+        return regions if regions else get_major_azure_regions()
 
     except Exception:
         return get_major_azure_regions()
