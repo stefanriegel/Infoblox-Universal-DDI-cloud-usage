@@ -131,20 +131,25 @@ def get_all_azure_regions() -> List[str]:
 def get_all_subscription_ids() -> List[str]:
     """
     Get all enabled Azure subscription IDs accessible to current credentials.
+    If AZURE_SUBSCRIPTION_ID is set, returns only that subscription.
 
     Returns:
         List of subscription IDs
     """
+    # If specific subscription is set, use only that one
+    specific_sub = os.getenv("AZURE_SUBSCRIPTION_ID")
+    if specific_sub:
+        return [specific_sub]
+
     try:
         credential = get_azure_credential()
         from azure.mgmt.subscription import SubscriptionClient
         subscription_client = SubscriptionClient(credential)
         subscriptions = list(subscription_client.subscriptions.list())
-        enabled_subs = [
+        return [
             sub.subscription_id for sub in subscriptions
             if sub.state == 'Enabled'
         ]
-        return enabled_subs
     except Exception as e:
         print(f"Error getting subscriptions: {e}")
         return []
