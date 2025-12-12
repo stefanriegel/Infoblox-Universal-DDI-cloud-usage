@@ -1,5 +1,5 @@
 # Setup Python virtual environment and install dependencies for AWS, Azure, and GCP discovery
-# This script will be automatically signed by GitHub Actions
+# This script is automatically signed by GitHub Actions
 
 # Check for non-interactive mode (CI) - accept parameter
 param(
