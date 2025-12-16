@@ -7,14 +7,13 @@ import os
 from datetime import datetime
 from typing import Any, Dict, List
 
-import pandas as pd
 
 
 def print_discovery_summary(
     native_objects: List[Dict],
     count_results: Dict,
     provider: str,
-    extra_info: dict = {},
+    extra_info: dict | None = None,
 ):
     """
     Print discovery summary to console.
@@ -26,6 +25,8 @@ def print_discovery_summary(
         extra_info: Dict with keys like 'accounts', 'subscriptions', 'projects'
     """
     from datetime import datetime
+
+    extra_info = extra_info or {}
 
     print(f"\n===== {provider.upper()} Resource Count =====")
     print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
@@ -50,15 +51,24 @@ def print_discovery_summary(
             print(f"  {t}: {count}")
     print()
 
-    # Active IPs Breakdown
+    # Legacy: resource counts by type that have at least one IP field
     ip_sources = {k: v for k, v in (count_results.get("ip_sources", {}) or {}).items() if k and k != "unknown"}
-    print("--- Active IPs Breakdown ---")
+    print("--- Resources With IP Fields (by type) ---")
     if not ip_sources:
         print("  (none)")
     else:
         for t, count in sorted(ip_sources.items()):
             print(f"  {t}: {count}")
     print()
+
+    # Actual Active IPs (unique addresses) breakdown
+    active_ip_breakdown = count_results.get("active_ip_breakdown", {}) or {}
+    if active_ip_breakdown:
+        print("--- Active IP Addresses (unique) ---")
+        for src, count in sorted(active_ip_breakdown.items()):
+            print(f"  {src}: {count}")
+        print("  (note: source counts can overlap; total is de-duplicated by IP Space)")
+        print()
 
     # Ressourcen-Übersicht
     print(f"Discovered {len(native_objects)} resources:")
@@ -87,7 +97,7 @@ def save_discovery_results(
     output_format: str,
     timestamp: str,
     provider: str,
-    extra_info: dict = {},
+    extra_info: dict | None = None,
 ) -> Dict[str, str]:
     """
     Save discovery results in the specified format.
@@ -102,6 +112,8 @@ def save_discovery_results(
     Returns:
         Dictionary mapping file types to file paths
     """
+    extra_info = extra_info or {}
+
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
 
@@ -117,6 +129,8 @@ def save_discovery_results(
                 output.update(extra_info)
             json.dump(output, f, indent=2, default=str)
     elif output_format == "csv":
+        import pandas as pd
+
         if not data:
             # Create empty DataFrame with expected columns
             df = pd.DataFrame(
@@ -218,8 +232,10 @@ def save_resource_count_results(
     output_format: str,
     timestamp: str,
     provider: str,
-    extra_info: dict = {},
+    extra_info: dict | None = None,
 ) -> Dict[str, str]:
+    extra_info = extra_info or {}
+
     os.makedirs(output_dir, exist_ok=True)
 
     saved_files = {}
@@ -234,9 +250,17 @@ def save_resource_count_results(
                 output.update(extra_info)
             json.dump(output, f, indent=2, default=str)
     elif output_format == "csv":
+        import pandas as pd
+
+        aip = count_results.get("active_ip_breakdown", {}) or {}
         flat_data = {
             "ddi_objects": count_results.get("ddi_objects", 0),
             "active_ips": count_results.get("active_ips", 0),
+            "active_ips_discovered": aip.get("discovered", 0),
+            "active_ips_allocated": aip.get("allocated", 0),
+            "active_ips_subnet_reservation": aip.get("subnet_reservation", 0),
+            "active_ips_fixed": aip.get("fixed", 0),
+            "active_ips_dhcp_lease": aip.get("dhcp_lease", 0),
             "timestamp": count_results.get("timestamp", ""),
         }
         df = pd.DataFrame([flat_data])
@@ -270,15 +294,23 @@ def save_resource_count_results(
                     f.write(f"  {resource_type}: {count}\n")
             f.write("\n")
 
-            # Active IPs Breakdown
+            # Legacy: resource counts by type that have at least one IP field
             ip_sources = count_results.get("ip_sources", {})
-            f.write("--- Active IPs Breakdown ---\n")
+            f.write("--- Resources With IP Fields (by type) ---\n")
             if not ip_sources:
                 f.write("  (none)\n")
             else:
                 for resource_type, count in ip_sources.items():
                     f.write(f"  {resource_type}: {count}\n")
             f.write("\n")
+
+            # Actual Active IPs (unique addresses) breakdown
+            active_ip_breakdown = count_results.get("active_ip_breakdown", {}) or {}
+            if active_ip_breakdown:
+                f.write("--- Active IP Addresses (unique) ---\n")
+                for src, count in sorted(active_ip_breakdown.items()):
+                    f.write(f"  {src}: {count}\n")
+                f.write("  (note: source counts can overlap; total is de-duplicated by IP Space)\n\n")
 
             # Ressourcen-Übersicht (optional, falls gewünscht)
             if "native_objects" in count_results:

@@ -125,7 +125,18 @@ ASSET_RESOURCE_TYPES = {
 }
 
 # IP address detail keys for extraction
-IP_DETAIL_KEYS = ["ip", "private_ip", "public_ip", "private_ips", "public_ips"]
+IP_DETAIL_KEYS = [
+    "ip",
+    "private_ip",
+    "public_ip",
+    "private_ips",
+    "public_ips",
+    "ipv6_ip",
+    "ipv6_ips",
+    "ip_address",  # common for allocated/static IP resources
+    "elastic_ip",
+    "elastic_ips",
+]
 
 # Managed service indicators for different providers
 MANAGED_SERVICE_INDICATORS = {
