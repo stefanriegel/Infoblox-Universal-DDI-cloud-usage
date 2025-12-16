@@ -24,6 +24,8 @@ class UniversalDDILicensingCalculator:
         """Initialize the licensing calculator."""
         self.results = {}
         self.current_provider: str | None = None
+        self.active_ip_breakdown: dict[str, int] | None = None
+        self.active_ip_breakdown_by_space: dict[str, int] | None = None
 
     def calculate_from_discovery_results(self, native_objects: List[Dict], provider: str | None = None) -> Dict[str, Any]:
         """
@@ -66,6 +68,8 @@ class UniversalDDILicensingCalculator:
             "counts": {
                 "ddi_objects": ddi_objects,
                 "active_ip_addresses": active_ips,
+                "active_ip_breakdown": self.active_ip_breakdown or {},
+                "active_ip_breakdown_by_space": self.active_ip_breakdown_by_space or {},
                 "managed_assets": managed_assets,
                 "total_objects": len(native_objects),
             },
@@ -125,51 +129,20 @@ class UniversalDDILicensingCalculator:
 
     def _count_active_ips(self, resources: List[Dict]) -> int:
         """Count Active IP Addresses.
-        Definition: An IP address "seen" on the network and IP addresses reserved or used for DNS and DHCP.
-        This includes discovered/attached IPs, DHCP lease IPs, fixed/reserved addresses, and DNS-used IPs.
+
+        Rules (per Infoblox definition for sizing):
+          - Include: discovered/attached IPs, DHCP lease IPs, fixed addresses, reservations.
+          - Exclude: DNS-derived IP evidence (DNS record/query sources).
+          - De-duplicate by inferred IP Space (VPC/VNet/VPC network), not globally.
         """
-        ip_set = set()
+        from shared.resource_counter import ResourceCounter
 
-        # Helper to add IP(s) from value if str or list[str]
-        def _add_ips(val):
-            if not val:
-                return
-            if isinstance(val, str):
-                ip_set.add(val)
-            elif isinstance(val, list):
-                for v in val:
-                    if v:
-                        ip_set.add(v)
-
-        for resource in resources:
-            details = resource.get("details", {})
-
-            # Extract IPs from common fields (attached/seen on the network)
-            for ip_field in ["ip", "private_ip", "public_ip"]:
-                _add_ips(details.get(ip_field))
-
-            # Extract IPs from common list fields (multiple interfaces/addresses)
-            for ip_list_field in ["private_ips", "public_ips"]:
-                _add_ips(details.get(ip_list_field))
-
-            # Include reserved/lease/fixed IPs when present (DNS/DHCP usage)
-            for key in [
-                "reserved_ips",
-                "reservation_ips",
-                "fixed_ips",
-                "fixed_addresses",
-                "dhcp_lease_ips",
-                "lease_ips",
-                "leases",
-                "elastic_ip",
-                "elastic_ips",  # AWS reserved/static addresses
-                "dns_record_ips",
-                "a_record_ips",
-                "aaaa_record_ips",  # DNS-used IPs if provided
-            ]:
-                _add_ips(details.get(key))
-
-        return len(ip_set)
+        provider = self.current_provider or "multicloud"
+        counter = ResourceCounter(provider)
+        total, breakdown, by_space = counter.count_active_ip_metrics(resources)
+        self.active_ip_breakdown = breakdown
+        self.active_ip_breakdown_by_space = by_space
+        return total
 
     def _count_managed_assets(self, resources: List[Dict]) -> int:
         """Count Managed Assets (compute/network resources with IPs)."""
@@ -405,6 +378,14 @@ class UniversalDDILicensingCalculator:
             )
             writer.writerow([])
 
+            aip = self.results["counts"].get("active_ip_breakdown", {}) or {}
+            if aip:
+                writer.writerow(["ACTIVE IP BREAKDOWN (unique, non-additive)"])
+                writer.writerow(["Source", "Count"])
+                for src in sorted(aip):
+                    writer.writerow([src, aip[src]])
+                writer.writerow([])
+
             # Provider breakdown (only active provider)
             writer.writerow(["PROVIDER BREAKDOWN"])
             writer.writerow(
@@ -455,6 +436,16 @@ class UniversalDDILicensingCalculator:
                 f"Active IP Addresses: {self.results['counts']['active_ip_addresses']:,} "
                 f"({self.results['token_requirements']['active_ips_tokens']} tokens required)\n"
             )
+
+            aip = self.results["counts"].get("active_ip_breakdown", {}) or {}
+            if aip:
+                subnet_reserved = aip.get("subnet_reservation", 0)
+                if subnet_reserved:
+                    f.write(f"  Includes subnet reserved addresses: {subnet_reserved:,}\n")
+                f.write("  Active IP breakdown (unique, non-additive):\n")
+                for src in sorted(aip):
+                    f.write(f"    - {src}: {aip[src]:,}\n")
+                f.write("\n")
             f.write(
                 f"Managed Assets: {self.results['counts']['managed_assets']:,} "
                 f"({self.results['token_requirements']['managed_assets_tokens']} tokens required)\n"
@@ -555,6 +546,9 @@ class UniversalDDILicensingCalculator:
                     "public_ip",
                     "private_ips",
                     "public_ips",
+                    "ipv6_ip",
+                    "ipv6_ips",
+                    "ip_address",
                     "reserved_ips",
                     "reservation_ips",
                     "fixed_ips",
@@ -577,7 +571,14 @@ class UniversalDDILicensingCalculator:
                 "ip_evidence": ip_fields,
             }
 
-        projected = [project(r) for r in native_objects]
+        projected = sorted(
+            (project(r) for r in native_objects),
+            key=lambda x: (
+                x.get("resource_id") or "",
+                x.get("resource_type") or "",
+                x.get("name") or "",
+            ),
+        )
         canonical = _json.dumps(projected, sort_keys=True, separators=(",", ":"))
         resources_sha256 = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
