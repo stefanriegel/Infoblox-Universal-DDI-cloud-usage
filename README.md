@@ -64,9 +64,6 @@ source venv/bin/activate  # macOS/Linux
 python main.py aws
 python main.py azure --subscription-workers 8  # For large Azure environments
 python main.py gcp
-
-# Optional: include legacy resource_count files
-python main.py aws --include-counts
 ```
 
 ## Installation
@@ -200,8 +197,7 @@ python main.py azure --subscription-workers 8 --retry-attempts 5
 # Resume interrupted discovery
 python main.py azure --resume
 
-# Include legacy count file
-python main.py azure --include-counts
+
 ```
 
 
@@ -216,7 +212,6 @@ Generated in the `output/` directory:
 - `{provider}_universal_ddi_licensing_{timestamp}.txt` - Human-readable summary
 - `{provider}_universal_ddi_proof_{timestamp}.json` - Audit manifest (scope, regions, hashes)
 - `{provider}_unknown_resources_{timestamp}.json` - Only when unknown types exist
-- Optional legacy: `*_resource_count_*.{format}` via `--include-counts`
 
 ### Output Structure
 

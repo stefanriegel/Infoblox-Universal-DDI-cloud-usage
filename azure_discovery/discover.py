@@ -186,11 +186,7 @@ def main(args=None):
             action="store_true",
             help=("Generate Infoblox Universal DDI licensing calculations " "for Sales Engineers"),
         )
-        parser.add_argument(
-            "--include-counts",
-            action="store_true",
-            help=("Also write legacy resource_count files alongside " "licensing outputs"),
-        )
+
         args = parser.parse_args()
 
     print("Azure Cloud Discovery for Management Token Calculation")
@@ -399,24 +395,7 @@ def main(args=None):
             print("Results saved to:")
             for file_type, filepath in saved_files.items():
                 print(f"  {file_type}: {filepath}")
-        else:
-            # Save only legacy count file if requested
-            if args.include_counts:
-                output_dir = config.output_directory
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                from shared.output_utils import save_resource_count_results
 
-                summary_files = save_resource_count_results(
-                    count_results,
-                    output_dir,
-                    args.format,
-                    timestamp,
-                    "azure",
-                    extra_info={"subscriptions": scanned_subs},
-                )
-                print(f"Summary saved to: {summary_files['resource_count']}")
-            else:
-                print("Skipping legacy resource_count output (use --include-counts)")
 
         print("\nDiscovery completed successfully!")
 

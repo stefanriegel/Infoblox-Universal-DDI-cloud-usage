@@ -223,11 +223,7 @@ def main():
         action="store_true",
         help="Save/export full resource/object data (default: only summary and token calculation)",
     )
-    parser.add_argument(
-        "--include-counts",
-        action="store_true",
-        help="Also write legacy resource_count files alongside licensing outputs",
-    )
+
     parser.add_argument(
         "--check-auth",
         action="store_true",
@@ -248,7 +244,6 @@ def main():
             aws_args.format = args.format
             aws_args.workers = args.workers
             aws_args.full = args.full
-            aws_args.include_counts = args.include_counts
 
             aws_main(aws_args)
         elif args.provider == "azure":
@@ -259,7 +254,6 @@ def main():
             azure_args.workers = args.workers
             azure_args.subscription_workers = args.subscription_workers
             azure_args.full = args.full
-            azure_args.include_counts = args.include_counts
             azure_args.no_checkpoint = args.no_checkpoint
             azure_args.resume = args.resume
             azure_args.checkpoint_file = args.checkpoint_file
@@ -273,7 +267,6 @@ def main():
             gcp_args.format = args.format
             gcp_args.workers = args.workers
             gcp_args.full = args.full
-            gcp_args.include_counts = args.include_counts
             gcp_main(gcp_args)
         else:
             print(f"Unsupported provider: {args.provider}")
