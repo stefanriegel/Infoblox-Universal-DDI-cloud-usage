@@ -140,6 +140,10 @@ class AWSDiscovery(BaseDiscovery):
             load_balancers = self._discover_load_balancers(region)
             region_resources.extend(load_balancers)
 
+            # Discover allocated Elastic IPs (including unattached)
+            elastic_ips = self._discover_elastic_ips(region)
+            region_resources.extend(elastic_ips)
+
         except Exception as e:
             self.logger.error(f"Error discovering region {region}: {e}")
 
@@ -168,6 +172,14 @@ class AWSDiscovery(BaseDiscovery):
                         private_ip = instance.get("PrivateIpAddress")
                         public_ip = instance.get("PublicIpAddress")
 
+                        # IPv6 addresses live on the network interfaces
+                        ipv6_ips = []
+                        for nic in instance.get("NetworkInterfaces", []) or []:
+                            for entry in nic.get("Ipv6Addresses", []) or []:
+                                ipv6 = entry.get("Ipv6Address")
+                                if ipv6:
+                                    ipv6_ips.append(ipv6)
+
                         # Get tags
                         tags = get_resource_tags(instance.get("Tags", []))
 
@@ -182,6 +194,7 @@ class AWSDiscovery(BaseDiscovery):
                             "state": instance_state,
                             "private_ip": private_ip,
                             "public_ip": public_ip,
+                            "ipv6_ips": ipv6_ips,
                             "vpc_id": instance.get("VpcId"),
                             "subnet_id": instance.get("SubnetId"),
                             "launch_time": instance.get("LaunchTime"),
@@ -288,6 +301,7 @@ class AWSDiscovery(BaseDiscovery):
                     details = {
                         "subnet_id": subnet_id,
                         "cidr_block": cidr_block,
+                        "Ipv6CidrBlockAssociationSet": subnet.get("Ipv6CidrBlockAssociationSet", []),
                         "state": state,
                         "vpc_id": vpc_id,
                         "availability_zone": availability_zone,
@@ -381,55 +395,102 @@ class AWSDiscovery(BaseDiscovery):
         try:
             elb = self.clients[region]["elb"]
 
-            response = elb.describe_load_balancers()
-            for lb in response.get("LoadBalancerDescriptions", []):
-                lb_name = lb.get("LoadBalancerName")
-                if not lb_name:
-                    continue
+            paginator = elb.get_paginator("describe_load_balancers")
+            for response in paginator.paginate():
+                for lb in response.get("LoadBalancerDescriptions", []):
+                    lb_name = lb.get("LoadBalancerName")
+                    if not lb_name:
+                        continue
 
-                # Get load balancer details
-                dns_name = lb.get("DNSName")
-                state = "active" if dns_name else "inactive"
+                    # Get load balancer details
+                    dns_name = lb.get("DNSName")
+                    state = "active" if dns_name else "inactive"
 
-                # Get tags
-                try:
-                    tags_response = elb.describe_tags(LoadBalancerNames=[lb_name])
-                    lb_tags = {}
-                    if tags_response.get("TagDescriptions"):
-                        lb_tags = get_resource_tags(tags_response["TagDescriptions"][0].get("Tags", []))
-                except Exception as e:
-                    self.logger.warning(f"Could not describe tags for {lb_name}: {e}")
-                    lb_tags = {}
+                    # Get tags
+                    try:
+                        tags_response = elb.describe_tags(LoadBalancerNames=[lb_name])
+                        lb_tags = {}
+                        if tags_response.get("TagDescriptions"):
+                            lb_tags = get_resource_tags(tags_response["TagDescriptions"][0].get("Tags", []))
+                    except Exception as e:
+                        self.logger.warning(f"Could not describe tags for {lb_name}: {e}")
+                        lb_tags = {}
 
-                # Determine if Management Token is required
-                is_managed = self._is_managed_service(lb_tags)
-                requires_token = not is_managed
+                    # Determine if Management Token is required
+                    is_managed = self._is_managed_service(lb_tags)
+                    requires_token = not is_managed
 
-                # Create resource details
-                details = {
-                    "load_balancer_name": lb_name,
-                    "dns_name": dns_name,
-                    "state": state,
-                    "vpc_id": lb.get("VPCId"),
-                    "availability_zones": lb.get("AvailabilityZones", []),
-                    "security_groups": lb.get("SecurityGroups", []),
-                }
+                    # Create resource details
+                    details = {
+                        "load_balancer_name": lb_name,
+                        "dns_name": dns_name,
+                        "state": state,
+                        "vpc_id": lb.get("VPCId"),
+                        "availability_zones": lb.get("AvailabilityZones", []),
+                        "security_groups": lb.get("SecurityGroups", []),
+                    }
 
-                # Format resource
-                formatted_resource = self._format_resource(
-                    resource_data=details,
-                    resource_type="classic-load-balancer",
-                    region=region,
-                    name=lb_name,
-                    requires_management_token=requires_token,
-                    state=state,
-                    tags=lb_tags,
-                )
+                    # Format resource
+                    formatted_resource = self._format_resource(
+                        resource_data=details,
+                        resource_type="classic-load-balancer",
+                        region=region,
+                        name=lb_name,
+                        requires_management_token=requires_token,
+                        state=state,
+                        tags=lb_tags,
+                    )
 
-                resources.append(formatted_resource)
+                    resources.append(formatted_resource)
 
         except Exception as e:
             self.logger.warning(f"Error discovering Classic LB in {region}: {e}")
+
+        return resources
+
+    def _discover_elastic_ips(self, region: str) -> List[Dict]:
+        """Discover allocated Elastic IPs (including unattached) in a region."""
+        resources: List[Dict] = []
+        try:
+            ec2 = self.clients[region]["ec2"]
+            resp = ec2.describe_addresses()
+            for addr in resp.get("Addresses", []):
+                public_ip = addr.get("PublicIp")
+                allocation_id = addr.get("AllocationId") or public_ip
+                if not allocation_id:
+                    continue
+
+                tags = get_resource_tags(addr.get("Tags", []))
+
+                # Elastic IPs are allocations. We record them under the allocated key
+                # so they show up clearly in active IP breakdowns.
+                details = {
+                    "allocation_id": addr.get("AllocationId"),
+                    "association_id": addr.get("AssociationId"),
+                    "domain": addr.get("Domain"),
+                    "instance_id": addr.get("InstanceId"),
+                    "network_interface_id": addr.get("NetworkInterfaceId"),
+                    "private_ip": addr.get("PrivateIpAddress"),
+                    "elastic_ip": public_ip,
+                    "public_ipv4_pool": addr.get("PublicIpv4Pool"),
+                }
+
+                state = "associated" if addr.get("AssociationId") or addr.get("InstanceId") else "unassociated"
+
+                resources.append(
+                    self._format_resource(
+                        resource_data=details,
+                        resource_type="elastic-ip",
+                        region=region,
+                        name=str(allocation_id),
+                        requires_management_token=True,
+                        state=state,
+                        tags=tags,
+                    )
+                )
+
+        except Exception as e:
+            self.logger.warning(f"Error discovering Elastic IPs in {region}: {e}")
 
         return resources
 
@@ -438,53 +499,55 @@ class AWSDiscovery(BaseDiscovery):
         resources = []
         try:
             route53 = get_aws_client("route53", "us-east-1", self.aws_config)
-            zones_resp = route53.list_hosted_zones()
-            for zone in zones_resp.get("HostedZones", []):
-                zone_id = zone["Id"].split("/")[-1]
-                zone_name = zone["Name"].rstrip(".")
-                is_private = zone.get("Config", {}).get("PrivateZone", False)
 
-                # Add the zone as a resource
-                zone_resource = self._format_resource(
-                    resource_data={
-                        "zone_id": zone_id,
-                        "zone_name": zone_name,
-                        "private": is_private,
-                        "record_set_count": zone.get("ResourceRecordSetCount", 0),
-                    },
-                    resource_type="route53-zone",
-                    region="global",
-                    name=zone_name,
-                    requires_management_token=True,
-                    state="private" if is_private else "public",
-                    tags={},
-                )
-                resources.append(zone_resource)
+            zones_paginator = route53.get_paginator("list_hosted_zones")
+            for zones_resp in zones_paginator.paginate():
+                for zone in zones_resp.get("HostedZones", []):
+                    zone_id = zone["Id"].split("/")[-1]
+                    zone_name = zone["Name"].rstrip(".")
+                    is_private = zone.get("Config", {}).get("PrivateZone", False)
 
-                # List all records in the zone
-                paginator = route53.get_paginator("list_resource_record_sets")
-                for page in paginator.paginate(HostedZoneId=zone["Id"]):
-                    for record in page.get("ResourceRecordSets", []):
-                        record_type = record.get("Type")
-                        record_name = record.get("Name", "").rstrip(".")
+                    # Add the zone as a resource
+                    zone_resource = self._format_resource(
+                        resource_data={
+                            "zone_id": zone_id,
+                            "zone_name": zone_name,
+                            "private": is_private,
+                            "record_set_count": zone.get("ResourceRecordSetCount", 0),
+                        },
+                        resource_type="route53-zone",
+                        region="global",
+                        name=zone_name,
+                        requires_management_token=True,
+                        state="private" if is_private else "public",
+                        tags={},
+                    )
+                    resources.append(zone_resource)
 
-                        record_resource = self._format_resource(
-                            resource_data={
-                                "zone_id": zone_id,
-                                "zone_name": zone_name,
-                                "record_type": record_type,
-                                "record_name": record_name,
-                                "ttl": record.get("TTL"),
-                                "resource_records": record.get("ResourceRecords", []),
-                            },
-                            resource_type="route53-record",
-                            region="global",
-                            name=record_name,
-                            requires_management_token=True,
-                            state=record_type,
-                            tags={},
-                        )
-                        resources.append(record_resource)
+                    # List all records in the zone
+                    paginator = route53.get_paginator("list_resource_record_sets")
+                    for page in paginator.paginate(HostedZoneId=zone["Id"]):
+                        for record in page.get("ResourceRecordSets", []):
+                            record_type = record.get("Type")
+                            record_name = record.get("Name", "").rstrip(".")
+
+                            record_resource = self._format_resource(
+                                resource_data={
+                                    "zone_id": zone_id,
+                                    "zone_name": zone_name,
+                                    "record_type": record_type,
+                                    "record_name": record_name,
+                                    "ttl": record.get("TTL"),
+                                    "resource_records": record.get("ResourceRecords", []),
+                                },
+                                resource_type="route53-record",
+                                region="global",
+                                name=record_name,
+                                requires_management_token=True,
+                                state=record_type,
+                                tags={},
+                            )
+                            resources.append(record_resource)
 
         except Exception as e:
             self.logger.error(f"Error discovering Route 53 zones/records: {e}")

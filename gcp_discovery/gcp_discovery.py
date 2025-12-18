@@ -68,12 +68,39 @@ class GCPDiscovery(BaseDiscovery):
 
             # Initialize clients
             self.compute_client = compute_v1.InstancesClient(credentials=credentials)
+            self.zones_client = compute_v1.ZonesClient(credentials=credentials)
             self.networks_client = compute_v1.NetworksClient(credentials=credentials)
             self.subnetworks_client = compute_v1.SubnetworksClient(credentials=credentials)
+            self.addresses_client = compute_v1.AddressesClient(credentials=credentials)
+            self.global_addresses_client = compute_v1.GlobalAddressesClient(credentials=credentials)
             self.dns_client = dns.Client(project=self.project_id, credentials=credentials)
+
+            # Cache zone names so we don't guess region-a/b/c.
+            self._zones_by_region = self._build_zones_by_region()
 
         except Exception as e:
             raise Exception(f"Failed to initialize GCP clients: {e}")
+
+    def _build_zones_by_region(self) -> Dict[str, List[str]]:
+        """Build a {region: [zones]} map once.
+
+        This avoids missing zones by guessing region-a/b/c.
+        """
+        zones_by_region: Dict[str, List[str]] = {}
+        try:
+            for zone in self.zones_client.list(project=self.project_id):
+                name = getattr(zone, "name", None)
+                if not name:
+                    continue
+                region = name.rsplit("-", 1)[0] if "-" in name else "unknown"
+                zones_by_region.setdefault(region, []).append(name)
+        except Exception as e:
+            self.logger.warning(f"Could not list GCP zones: {e}")
+
+        for region, zones in zones_by_region.items():
+            zones.sort()
+
+        return zones_by_region
 
     def discover_native_objects(self, max_workers: int = 8) -> List[Dict]:
         """
@@ -148,71 +175,89 @@ class GCPDiscovery(BaseDiscovery):
             subnets = self._discover_subnets(region)
             region_resources.extend(subnets)
 
+            # Discover reserved/static addresses (allocated even if unattached)
+            reserved_ips = self._discover_reserved_ip_addresses(region)
+            region_resources.extend(reserved_ips)
+
         except Exception as e:
             self.logger.error(f"Error discovering region {region}: {e}")
 
         return region_resources
 
     def _discover_compute_instances(self, region: str) -> List[Dict]:
-        """Discover Compute Engine instances in a region."""
-        resources = []
-        try:
-            # List instances in the region
-            request = {
-                "project": self.project_id,
-                "zone": f"{region}-a",  # GCP zones are region + letter (a, b, c)
-            }
+        """Discover Compute Engine instances in a region.
 
-            # Try multiple zones in the region
-            for zone_letter in ["a", "b", "c"]:
-                try:
-                    zone = f"{region}-{zone_letter}"
-                    request["zone"] = zone
+        Uses a cached zone list instead of guessing region-a/b/c.
+        """
+        resources: List[Dict] = []
+        zones = (getattr(self, "_zones_by_region", {}) or {}).get(region, [])
+        if not zones:
+            return resources
 
-                    page_result = self.compute_client.list(request=request)
-                    for instance in page_result:
-                        # Extract instance details
-                        instance_name = instance.name
-                        instance_id = instance.id
-                        machine_type = instance.machine_type.split("/")[-1]
-                        status = instance.status
+        for zone in zones:
+            try:
+                request = {
+                    "project": self.project_id,
+                    "zone": zone,
+                }
 
-                        # Extract IP addresses
-                        private_ip = None
-                        public_ip = None
+                for instance in self.compute_client.list(request=request):
+                    instance_name = instance.name
+                    instance_id = instance.id
+                    machine_type = instance.machine_type.split("/")[-1]
+                    status = instance.status
 
-                        for interface in instance.network_interfaces:
-                            if interface.network_i_p:
-                                private_ip = interface.network_i_p
-                            for access_config in interface.access_configs:
-                                if access_config.nat_i_p:
-                                    public_ip = access_config.nat_i_p
+                    private_ips: List[str] = []
+                    public_ips: List[str] = []
+                    ipv6_ips: List[str] = []
+                    network_name = None
 
-                        # Get labels (tags)
-                        try:
-                            labels = dict(instance.labels) if instance.labels else {}
-                        except AttributeError:
-                            labels = {}
+                    for interface in getattr(instance, "network_interfaces", []) or []:
+                        if getattr(interface, "network_i_p", None):
+                            private_ips.append(interface.network_i_p)
 
-                        # Determine if Management Token is required
-                        is_managed = self._is_managed_service(labels)
-                        requires_token = bool(private_ip or public_ip) and not is_managed
+                        iface_network = getattr(interface, "network", None)
+                        if isinstance(iface_network, str) and iface_network and not network_name:
+                            network_name = iface_network.split("/")[-1]
 
-                        # Create resource details
-                        details = {
-                            "instance_id": instance_id,
-                            "instance_name": instance_name,
-                            "machine_type": machine_type,
-                            "status": status,
-                            "private_ip": private_ip,
-                            "public_ip": public_ip,
-                            "zone": zone,
-                            "creation_timestamp": getattr(instance, "creation_timestamp", None),
-                            "cpu_platform": getattr(instance, "cpu_platform", None),
-                        }
+                        for access_config in getattr(interface, "access_configs", []) or []:
+                            if getattr(access_config, "nat_i_p", None):
+                                public_ips.append(access_config.nat_i_p)
 
-                        # Format resource
-                        formatted_resource = self._format_resource(
+                        # Best-effort IPv6 extraction (field names vary by API versions).
+                        for ipv6_cfg in getattr(interface, "ipv6_access_configs", []) or []:
+                            for attr in ("external_ipv6", "external_ipv6_address"):
+                                val = getattr(ipv6_cfg, attr, None)
+                                if val:
+                                    ipv6_ips.append(val)
+
+                    # Get labels (tags)
+                    try:
+                        labels = dict(instance.labels) if instance.labels else {}
+                    except AttributeError:
+                        labels = {}
+
+                    is_managed = self._is_managed_service(labels)
+                    requires_token = bool(private_ips or public_ips or ipv6_ips) and not is_managed
+
+                    details = {
+                        "instance_id": instance_id,
+                        "instance_name": instance_name,
+                        "machine_type": machine_type,
+                        "status": status,
+                        "private_ip": (private_ips[0] if private_ips else None),
+                        "public_ip": (public_ips[0] if public_ips else None),
+                        "private_ips": private_ips,
+                        "public_ips": public_ips,
+                        "ipv6_ips": ipv6_ips,
+                        "network": network_name,
+                        "zone": zone,
+                        "creation_timestamp": getattr(instance, "creation_timestamp", None),
+                        "cpu_platform": getattr(instance, "cpu_platform", None),
+                    }
+
+                    resources.append(
+                        self._format_resource(
                             details,
                             "compute-instance",
                             region,
@@ -221,21 +266,11 @@ class GCPDiscovery(BaseDiscovery):
                             "active",
                             labels,
                         )
+                    )
 
-                        resources.append(formatted_resource)
-
-                except Exception as e:
-                    self.logger.debug(f"Zone {zone} not available or no instances: {e}")
-                    continue
-
-        except Exception as e:
-            error_msg = str(e)
-            if "Unknown region" in error_msg or "Invalid value for field 'region'" in error_msg:
-                # Skip invalid regions silently
-                self.logger.debug(f"Region {region} not available for compute instances: {error_msg}")
-            else:
-                # Log other errors
-                self.logger.error(f"Error discovering instances in region {region}: {e}")
+            except Exception as e:
+                self.logger.debug(f"Zone {zone} not available or no instances: {e}")
+                continue
 
         return resources
 
@@ -317,6 +352,8 @@ class GCPDiscovery(BaseDiscovery):
                     "network": network,
                     "ip_cidr_range": getattr(subnet, "ip_cidr_range", None),
                     "gateway_address": getattr(subnet, "gateway_address", None),
+                    "ipv6_cidr_range": getattr(subnet, "ipv6_cidr_range", None),
+                    "stack_type": str(getattr(subnet, "stack_type", "")) or None,
                     "creation_timestamp": getattr(subnet, "creation_timestamp", None),
                 }
 
@@ -341,6 +378,101 @@ class GCPDiscovery(BaseDiscovery):
             else:
                 # Log other errors
                 self.logger.error(f"Error discovering subnets in region {region}: {e}")
+
+        return resources
+
+    def _discover_reserved_ip_addresses(self, region: str) -> List[Dict]:
+        """Discover reserved/static IP addresses (allocated even if unattached)."""
+        resources: List[Dict] = []
+
+        # Regional reserved addresses
+        try:
+            request = {"project": self.project_id, "region": region}
+            for addr in self.addresses_client.list(request=request):
+                ip_address = getattr(addr, "address", None)
+                name = getattr(addr, "name", None) or ip_address
+                if not ip_address or not name:
+                    continue
+
+                # Normalize network context for IP-space de-duplication
+                network = getattr(addr, "network", None)
+                subnetwork = getattr(addr, "subnetwork", None)
+
+                # Get labels (tags)
+                try:
+                    labels = dict(addr.labels) if getattr(addr, "labels", None) else {}
+                except Exception:
+                    labels = {}
+
+                details = {
+                    "ip_address": ip_address,
+                    "address_type": str(getattr(addr, "address_type", "")) or None,
+                    "status": str(getattr(addr, "status", "")) or None,
+                    "purpose": str(getattr(addr, "purpose", "")) or None,
+                    "region": region,
+                    "network": (network.split("/")[-1] if isinstance(network, str) and network else None),
+                    "subnetwork": (subnetwork.split("/")[-1] if isinstance(subnetwork, str) and subnetwork else None),
+                }
+
+                resources.append(
+                    self._format_resource(
+                        details,
+                        "reserved-ip",
+                        region,
+                        name,
+                        True,
+                        (details.get("status") or "reserved").lower(),
+                        labels,
+                    )
+                )
+
+        except Exception as e:
+            self.logger.warning(f"Error discovering reserved IP addresses in {region}: {e}")
+
+        # Global reserved addresses (discover once)
+        if self.config.regions and region == self.config.regions[0]:
+            resources.extend(self._discover_global_reserved_ip_addresses())
+
+        return resources
+
+    def _discover_global_reserved_ip_addresses(self) -> List[Dict]:
+        resources: List[Dict] = []
+        try:
+            request = {"project": self.project_id}
+            for addr in self.global_addresses_client.list(request=request):
+                ip_address = getattr(addr, "address", None)
+                name = getattr(addr, "name", None) or ip_address
+                if not ip_address or not name:
+                    continue
+
+                network = getattr(addr, "network", None)
+                try:
+                    labels = dict(addr.labels) if getattr(addr, "labels", None) else {}
+                except Exception:
+                    labels = {}
+
+                details = {
+                    "ip_address": ip_address,
+                    "address_type": str(getattr(addr, "address_type", "")) or None,
+                    "status": str(getattr(addr, "status", "")) or None,
+                    "purpose": str(getattr(addr, "purpose", "")) or None,
+                    "network": (network.split("/")[-1] if isinstance(network, str) and network else None),
+                }
+
+                resources.append(
+                    self._format_resource(
+                        details,
+                        "reserved-ip",
+                        "global",
+                        name,
+                        True,
+                        (details.get("status") or "reserved").lower(),
+                        labels,
+                    )
+                )
+
+        except Exception as e:
+            self.logger.warning(f"Error discovering global reserved IP addresses: {e}")
 
         return resources
 

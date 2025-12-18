@@ -56,12 +56,18 @@ class BaseDiscovery(ABC):
             "ddi_objects": count.ddi_objects,
             "ddi_breakdown": count.ddi_breakdown,
             "active_ips": count.active_ips,
+            "active_ip_breakdown": count.active_ip_breakdown or {},
+            "active_ip_breakdown_by_space": count.active_ip_breakdown_by_space or {},
             "ip_sources": count.ip_sources,
             "breakdown_by_region": count.breakdown_by_region,
             "timestamp": count.timestamp,
         }
 
-    def save_discovery_results(self, output_dir: Optional[str] = None, extra_info: Dict[str, Any] = {}) -> Dict[str, str]:
+    def save_discovery_results(
+        self,
+        output_dir: Optional[str] = None,
+        extra_info: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, str]:
         """
         Save discovery results to files.
 
@@ -72,6 +78,8 @@ class BaseDiscovery(ABC):
         Returns:
             Dictionary mapping file types to file paths
         """
+        extra_info = extra_info or {}
+
         # Get discovered resources (will use cached results if available)
         resources = self.discover_native_objects()
 
