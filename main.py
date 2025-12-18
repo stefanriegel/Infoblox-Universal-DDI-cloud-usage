@@ -24,7 +24,7 @@ def _check_aws_auth() -> int:
 
     # Optional: AWS CLI helps with SSO login for non-experienced users.
     try:
-        proc = subprocess.run(["aws", "--version"], capture_output=True, text=True)
+        proc = subprocess.run(["aws", "--version"], capture_output=True, text=True, encoding='utf-8')
         output = (proc.stdout or "") + (proc.stderr or "")
         m = re.search(r"aws-cli/(\d+)\.(\d+)\.(\d+)", output)
         if m:
@@ -75,12 +75,26 @@ def _check_azure_auth() -> int:
 
     # Optional: Azure CLI is the simplest login path (az login).
     try:
-        proc = subprocess.run(["az", "version"], capture_output=True, text=True)
+        # Try to find az command in common locations on Windows
+        az_cmd = ["az"]
+        if os.name == 'nt':  # Windows
+            import platform
+            if platform.system() == "Windows":
+                common_paths = [
+                    r"C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd",
+                    r"C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin\az.cmd",
+                ]
+                for path in common_paths:
+                    if os.path.exists(path):
+                        az_cmd = [path]
+                        break
+
+        proc = subprocess.run(az_cmd + ["version"], capture_output=True, text=True, encoding='utf-8')
         if proc.returncode == 0:
             _print_kv("az CLI", "installed")
         else:
             _print_kv("az CLI", "installed (version check failed)")
-    except FileNotFoundError:
+    except (FileNotFoundError, OSError):
         _print_kv("az CLI", "not found (optional, but recommended for az login)")
 
     if os.getenv("AZURE_SUBSCRIPTION_ID"):
@@ -112,7 +126,7 @@ def _check_gcp_auth() -> int:
 
     # Optional: gcloud makes application-default login easy.
     try:
-        proc = subprocess.run(["gcloud", "--version"], capture_output=True, text=True)
+        proc = subprocess.run(["gcloud", "--version"], capture_output=True, text=True, encoding='utf-8')
         if proc.returncode == 0:
             _print_kv("gcloud", "installed")
         else:

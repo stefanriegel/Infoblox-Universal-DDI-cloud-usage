@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 def check_gcloud_version():
     """Check if gcloud CLI is installed and has the correct version."""
     try:
-        result = subprocess.run(["gcloud", "--version"], capture_output=True, text=True)
+        result = subprocess.run(["gcloud", "--version"], capture_output=True, text=True, encoding='utf-8')
         version_match = re.search(
             r"Google Cloud SDK (\d+)\.(\d+)\.(\d+)",
             result.stdout + result.stderr,
@@ -55,6 +55,7 @@ def check_gcp_credentials():
             ],
             capture_output=True,
             text=True,
+            encoding='utf-8',
             check=True,
         )
         if not result.stdout.strip():

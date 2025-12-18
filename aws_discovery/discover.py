@@ -23,7 +23,7 @@ def check_awscli_version():
     import sys
 
     try:
-        result = subprocess.run(["aws", "--version"], capture_output=True, text=True)
+        result = subprocess.run(["aws", "--version"], capture_output=True, text=True, encoding='utf-8')
         version_match = re.search(r"aws-cli/(\d+)\.(\d+)\.(\d+)", result.stdout + result.stderr)
         if not version_match:
             print("ERROR: Unable to determine AWS CLI version. Please ensure AWS CLI v2 is installed.")

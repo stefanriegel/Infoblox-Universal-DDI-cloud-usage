@@ -40,6 +40,7 @@ class GCPConfig(BaseConfig):
                 ["gcloud", "config", "get-value", "project"],
                 capture_output=True,
                 text=True,
+                encoding='utf-8',
                 check=True,
             )
             project_id = result.stdout.strip()
