@@ -3,6 +3,7 @@ Azure Configuration Module for Cloud Discovery
 Handles Azure-specific configuration and region management.
 """
 
+import logging
 import os
 import subprocess
 from dataclasses import dataclass
@@ -11,6 +12,44 @@ from typing import List, Optional
 from azure.identity import DefaultAzureCredential, ClientSecretCredential
 
 from shared.config import BaseConfig
+
+logger = logging.getLogger(__name__)
+
+
+def _find_az_command():
+    """Find the Azure CLI command, checking common installation paths on Windows."""
+    # Try standard PATH first
+    if _check_az_available():
+        return ["az"]
+
+    # Common Windows installation paths
+    import platform
+    if platform.system() == "Windows":
+        common_paths = [
+            r"C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd",
+            r"C:\Program Files (x86)\Microsoft SDKs\Azure\CLI2\wbin\az.cmd",
+            r"C:\Users\{}\AppData\Local\Microsoft\WindowsApps\az.cmd".format(os.getenv("USERNAME", "")),
+        ]
+        for path in common_paths:
+            if os.path.exists(path):
+                return [path]
+
+    return ["az"]
+
+
+def _check_az_available():
+    """Check if az command is available in PATH."""
+    try:
+        subprocess.run(
+            ["az", "--version"],
+            capture_output=True,
+            text=True,
+            encoding='utf-8',
+            check=True,
+        )
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
 
 
 @dataclass
@@ -29,8 +68,7 @@ class AzureConfig(BaseConfig):
             if not self.subscription_id:
                 try:
                     result = subprocess.run(
-                        [
-                            "az",
+                        _find_az_command() + [
                             "account",
                             "show",
                             "--query",
@@ -40,12 +78,14 @@ class AzureConfig(BaseConfig):
                         ],
                         capture_output=True,
                         text=True,
+                        encoding='utf-8',
                         check=True,
                     )
                     sub_id = result.stdout.strip()
                     if sub_id:
                         self.subscription_id = sub_id
-                except Exception:
+                except (subprocess.CalledProcessError, FileNotFoundError, UnicodeDecodeError) as e:
+                    logger.warning(f"Azure CLI not available or failed: {e}")
                     pass
 
 
@@ -99,8 +139,7 @@ def get_all_azure_regions() -> List[str]:
             # Try to get from az CLI
             try:
                 result = subprocess.run(
-                    [
-                        "az",
+                    _find_az_command() + [
                         "account",
                         "show",
                         "--query",
@@ -110,10 +149,12 @@ def get_all_azure_regions() -> List[str]:
                     ],
                     capture_output=True,
                     text=True,
+                    encoding='utf-8',
                     check=True,
                 )
                 subscription_id = result.stdout.strip()
-            except Exception:
+            except (subprocess.CalledProcessError, FileNotFoundError, UnicodeDecodeError) as e:
+                logger.warning(f"Azure CLI not available for region detection: {e}")
                 return get_major_azure_regions()
 
         from azure.mgmt.subscription import SubscriptionClient
@@ -123,7 +164,8 @@ def get_all_azure_regions() -> List[str]:
         regions = [loc.name for loc in locations if loc.name]
         return regions if regions else get_major_azure_regions()
 
-    except Exception:
+    except Exception as e:
+        logger.warning(f"Error getting Azure regions: {e}")
         return get_major_azure_regions()
 
 
@@ -148,8 +190,22 @@ def get_all_subscription_ids() -> List[str]:
         subscriptions = list(subscription_client.subscriptions.list())
         return [sub.subscription_id for sub in subscriptions if sub.state == "Enabled"]
     except Exception as e:
-        print(f"Error getting subscriptions: {e}")
-        return []
+        logger.warning(f"Error getting subscriptions via API: {e}")
+
+        # Fallback: try to get from az CLI
+        try:
+            result = subprocess.run(
+                _find_az_command() + ["account", "list", "--query", "[?state=='Enabled'].id", "-o", "tsv"],
+                capture_output=True,
+                text=True,
+                encoding='utf-8',
+                check=True,
+            )
+            subs = result.stdout.strip().split('\n')
+            return [sub for sub in subs if sub.strip()]
+        except Exception as e2:
+            logger.warning(f"Error getting subscriptions via CLI: {e2}")
+            return []
 
 
 def get_azure_credential():

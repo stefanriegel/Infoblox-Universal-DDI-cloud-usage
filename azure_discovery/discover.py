@@ -317,6 +317,19 @@ def main(args=None):
 
     print(f"\nTotal Native Objects found across all subscriptions: " f"{len(all_native_objects)}")
 
+    # Log failed subscriptions to a separate file
+    if errors:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        error_file = f"output/azure_failed_subscriptions_{timestamp}.txt"
+        try:
+            os.makedirs("output", exist_ok=True)
+            with open(error_file, 'w') as f:
+                for error in errors:
+                    f.write(error + '\n')
+            print(f"Failed subscriptions logged to: {error_file}")
+        except Exception as e:
+            print(f"Warning: Failed to write error log: {e}")
+
     # Create a dummy discovery for counting and saving
     config = AzureConfig(
         regions=all_regions,
