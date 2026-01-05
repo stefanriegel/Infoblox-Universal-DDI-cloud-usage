@@ -13,6 +13,9 @@ from pathlib import Path
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Set UTF-8 encoding for subprocess calls (fixes Windows encoding issues)
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+
 
 def _print_kv(key: str, value: str) -> None:
     print(f"  {key}: {value}")
