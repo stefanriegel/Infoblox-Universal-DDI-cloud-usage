@@ -17,6 +17,11 @@ from azure.identity import (
     SharedTokenCacheCredential,
     ChainedTokenCredential,
 )
+import threading
+
+# Global cached credential (thread-safe singleton)
+_credential_cache = None
+_credential_lock = threading.Lock()
 
 from shared.config import BaseConfig
 
@@ -218,54 +223,56 @@ def get_all_subscription_ids() -> List[str]:
 def get_azure_credential():
     """
     Get Azure credential for authentication.
+    Returns a cached singleton credential for thread-safety.
 
-    Tries service principal first, then AzureCliCredential, then DefaultAzureCredential.
+    Tries service principal first, then SharedTokenCache, then interactive browser.
 
     Returns:
         Azure credential object
     """
-    # Check for service principal credentials in environment
-    client_id = os.getenv("AZURE_CLIENT_ID")
-    client_secret = os.getenv("AZURE_CLIENT_SECRET")
-    tenant_id = os.getenv("AZURE_TENANT_ID")
+    global _credential_cache
 
-    if client_id and client_secret and tenant_id:
-        # Use service principal credentials if available
-        return ClientSecretCredential(client_id=client_id, client_secret=client_secret, tenant_id=tenant_id)
+    # Return cached credential if available (thread-safe)
+    if _credential_cache is not None:
+        return _credential_cache
 
-    # Try SharedTokenCacheCredential first - picks up tokens from 'az login' SSO session
-    try:
-        credential = SharedTokenCacheCredential()
+    with _credential_lock:
+        # Double-check after acquiring lock
+        if _credential_cache is not None:
+            return _credential_cache
+
+        # Check for service principal credentials in environment
+        client_id = os.getenv("AZURE_CLIENT_ID")
+        client_secret = os.getenv("AZURE_CLIENT_SECRET")
+        tenant_id = os.getenv("AZURE_TENANT_ID")
+
+        if client_id and client_secret and tenant_id:
+            print("[Auth] Using service principal credentials")
+            _credential_cache = ClientSecretCredential(
+                client_id=client_id, client_secret=client_secret, tenant_id=tenant_id
+            )
+            return _credential_cache
+
+        # Try SharedTokenCacheCredential first - picks up tokens from 'az login' SSO session
+        # This reads directly from cache file, no CLI subprocess needed
+        try:
+            credential = SharedTokenCacheCredential()
+            credential.get_token("https://management.azure.com/.default")
+            print("[Auth] Using SharedTokenCacheCredential (from az login cache)")
+            _credential_cache = credential
+            return _credential_cache
+        except Exception as e:
+            print(f"[Auth] SharedTokenCacheCredential failed: {e}")
+
+        # Skip AzureCliCredential entirely on Windows - it has subprocess issues
+        # Go straight to interactive browser which supports SSO
+        print("[Auth] Opening browser for SSO authentication...")
+        credential = InteractiveBrowserCredential()
+        # Test it works
         credential.get_token("https://management.azure.com/.default")
-        logger.debug("Using SharedTokenCacheCredential (from az login cache)")
-        return credential
-    except Exception as e:
-        logger.debug(f"SharedTokenCacheCredential failed: {e}")
-
-    # Try AzureCliCredential
-    try:
-        credential = AzureCliCredential()
-        credential.get_token("https://management.azure.com/.default")
-        logger.debug("Using AzureCliCredential")
-        return credential
-    except Exception as e:
-        logger.debug(f"AzureCliCredential failed: {e}")
-
-    # Fall back to DefaultAzureCredential (tries multiple methods)
-    try:
-        credential = DefaultAzureCredential(
-            exclude_cli_credential=True,
-            exclude_shared_token_cache_credential=True,
-        )
-        credential.get_token("https://management.azure.com/.default")
-        logger.debug("Using DefaultAzureCredential")
-        return credential
-    except Exception as e:
-        logger.warning(f"DefaultAzureCredential failed: {e}")
-
-    # Last resort: interactive browser login (supports SSO)
-    logger.info("Opening browser for SSO authentication...")
-    return InteractiveBrowserCredential()
+        print("[Auth] Browser authentication successful")
+        _credential_cache = credential
+        return _credential_cache
 
 
 def validate_azure_config(config: AzureConfig) -> bool:
