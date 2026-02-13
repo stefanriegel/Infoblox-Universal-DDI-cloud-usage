@@ -9,7 +9,14 @@ import subprocess
 from dataclasses import dataclass
 from typing import List, Optional
 
-from azure.identity import DefaultAzureCredential, ClientSecretCredential
+from azure.identity import (
+    DefaultAzureCredential,
+    ClientSecretCredential,
+    AzureCliCredential,
+    InteractiveBrowserCredential,
+    SharedTokenCacheCredential,
+    ChainedTokenCredential,
+)
 
 from shared.config import BaseConfig
 
@@ -212,7 +219,7 @@ def get_azure_credential():
     """
     Get Azure credential for authentication.
 
-    Tries service principal first, then DefaultAzureCredential.
+    Tries service principal first, then AzureCliCredential, then DefaultAzureCredential.
 
     Returns:
         Azure credential object
@@ -225,9 +232,40 @@ def get_azure_credential():
     if client_id and client_secret and tenant_id:
         # Use service principal credentials if available
         return ClientSecretCredential(client_id=client_id, client_secret=client_secret, tenant_id=tenant_id)
-    else:
-        # Fall back to DefaultAzureCredential
-        return DefaultAzureCredential()
+
+    # Try SharedTokenCacheCredential first - picks up tokens from 'az login' SSO session
+    try:
+        credential = SharedTokenCacheCredential()
+        credential.get_token("https://management.azure.com/.default")
+        logger.debug("Using SharedTokenCacheCredential (from az login cache)")
+        return credential
+    except Exception as e:
+        logger.debug(f"SharedTokenCacheCredential failed: {e}")
+
+    # Try AzureCliCredential
+    try:
+        credential = AzureCliCredential()
+        credential.get_token("https://management.azure.com/.default")
+        logger.debug("Using AzureCliCredential")
+        return credential
+    except Exception as e:
+        logger.debug(f"AzureCliCredential failed: {e}")
+
+    # Fall back to DefaultAzureCredential (tries multiple methods)
+    try:
+        credential = DefaultAzureCredential(
+            exclude_cli_credential=True,
+            exclude_shared_token_cache_credential=True,
+        )
+        credential.get_token("https://management.azure.com/.default")
+        logger.debug("Using DefaultAzureCredential")
+        return credential
+    except Exception as e:
+        logger.warning(f"DefaultAzureCredential failed: {e}")
+
+    # Last resort: interactive browser login (supports SSO)
+    logger.info("Opening browser for SSO authentication...")
+    return InteractiveBrowserCredential()
 
 
 def validate_azure_config(config: AzureConfig) -> bool:
