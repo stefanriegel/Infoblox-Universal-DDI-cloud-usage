@@ -1,0 +1,173 @@
+name: CI
+
+on:
+  push:
+    branches: [ dev ]
+  pull_request:
+    branches: [ dev ]
+
+jobs:
+  # Step 1: Test setup scripts work on all platforms
+  setup-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Test setup script (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        echo "4" | bash setup_venv.sh
+        source venv/bin/activate
+        python -c "import sys; print(f'Python {sys.version}'); print('Virtual environment created successfully')"
+    - name: Test setup script (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        & .\setup_venv.ps1 -ProviderChoice "4"
+        & venv\Scripts\Activate.ps1
+        python -c "import sys; print(f'Python {sys.version}'); print('Virtual environment created successfully')"
+
+  # Step 2: Lint and format check (only on Ubuntu to save time)
+  lint:
+    runs-on: ubuntu-latest
+    needs: setup-test
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install linting tools
+      run: pip install flake8==7.3.0 black==25.1.0
+    - name: Lint with flake8
+      run: |
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=venv
+        flake8 . --count --exit-zero --max-line-length=127 --statistics --exclude=venv
+
+  # Step 3: Unit tests with pytest
+  unit-test:
+    runs-on: ${{ matrix.os }}
+    needs: lint
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    - name: Install dependencies (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        echo "4" | bash setup_venv.sh
+        source venv/bin/activate
+        pip install pytest
+    - name: Install dependencies (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        & .\setup_venv.ps1 -ProviderChoice "4"
+        & venv\Scripts\Activate.ps1
+        pip install pytest
+    - name: Run unit tests (Linux/macOS)
+      if: runner.os != 'Windows'
+      run: |
+        source venv/bin/activate
+        pytest -v
+    - name: Run unit tests (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        & venv\Scripts\Activate.ps1
+        pytest -v
+
+  # Step 4: Integration tests with real cloud credentials
+  integration-test:
+    runs-on: ubuntu-latest
+    needs: unit-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    timeout-minutes: 30
+    
+    strategy:
+      matrix:
+        provider: [aws, azure, gcp]
+
+    # Set environment variables at the job level for all steps
+    env:
+      # AWS credentials
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      # Azure credentials
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      # GCP credentials (project will be set in the step)
+      GOOGLE_CLOUD_PROJECT: ${{ secrets.GOOGLE_CLOUD_PROJECT }}
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        echo "4" | bash setup_venv.sh
+        source venv/bin/activate
+
+    - name: Create GCP credentials file
+      if: matrix.provider == 'gcp' && env.GCP_SA_KEY != ''
+      env:
+        GCP_SA_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+      run: |
+        echo "$GCP_SA_KEY" > gcp-key.json
+        echo "GOOGLE_APPLICATION_CREDENTIALS=$PWD/gcp-key.json" >> $GITHUB_ENV
+        echo "GCP service account key created"
+
+    - name: Test AWS discovery
+      if: matrix.provider == 'aws' && env.AWS_ACCESS_KEY_ID != ''
+      run: |
+        source venv/bin/activate
+        echo "Testing AWS discovery..."
+        python main.py aws --format txt
+
+    - name: Test Azure discovery
+      if: matrix.provider == 'azure' && env.AZURE_CLIENT_ID != ''
+      run: |
+        source venv/bin/activate
+        echo "Testing Azure discovery..."
+        python main.py azure --format txt
+
+    - name: Test GCP discovery
+      if: matrix.provider == 'gcp' && env.GCP_SA_KEY != ''
+      run: |
+        source venv/bin/activate
+        echo "Testing GCP discovery..."
+        python main.py gcp --format txt
+
+    - name: Check output files
+      if: |
+        (matrix.provider == 'aws' && env.AWS_ACCESS_KEY_ID != '') ||
+        (matrix.provider == 'azure' && env.AZURE_CLIENT_ID != '') ||
+        (matrix.provider == 'gcp' && env.GCP_SA_KEY != '')
+      run: |
+        ls -la output/
+        echo "Output files generated successfully"
+
+    - name: Skip test (no credentials)
+      if: |
+        (matrix.provider == 'aws' && env.AWS_ACCESS_KEY_ID == '') ||
+        (matrix.provider == 'azure' && env.AZURE_CLIENT_ID == '') ||
+        (matrix.provider == 'gcp' && env.GCP_SA_KEY == '')
+      run: |
+        echo "Skipping ${{ matrix.provider }} test - no credentials configured"
+        echo "To enable: Add ${{ matrix.provider }} credentials to repository secrets"
