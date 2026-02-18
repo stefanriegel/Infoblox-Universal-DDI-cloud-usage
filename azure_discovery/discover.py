@@ -48,7 +48,7 @@ def validate_azure_credentials():
         print("Check your credentials and try again.")
         return False
     except Exception as e:
-        logger.error(f"Unexpected error during credential validation: {e}")
+        print(f"ERROR: Unexpected error during credential validation: {e}")
         raise
 
 
@@ -171,12 +171,6 @@ def main(args=None):
             help="Path to checkpoint file (default: output/azure_discovery_checkpoint.json)",
         )
         parser.add_argument(
-            "--checkpoint-interval",
-            type=int,
-            default=50,
-            help="Save checkpoint every N subscriptions (default: 50)",
-        )
-        parser.add_argument(
             "--retry-attempts",
             type=int,
             default=3,
@@ -201,7 +195,7 @@ def main(args=None):
     print(f"Parallel workers: {args.workers}")
     print(f"Subscription workers: {args.subscription_workers}")
     if not args.no_checkpoint:
-        print(f"Checkpointing enabled: {args.checkpoint_file} (every {args.checkpoint_interval} subs or 15 mins)")
+        print(f"Checkpointing enabled: {args.checkpoint_file} (after each subscription)")
     print()
 
     # Validate credentials before attempting discovery
