@@ -28,25 +28,28 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 def validate_azure_credentials():
-    """Validate that Azure credentials are configured and working."""
+    """Validate that Azure credentials are configured and working.
+    Uses ClientSecretCredential or InteractiveBrowserCredential/DeviceCodeCredential."""
     from azure.identity import CredentialUnavailableError
+    from azure.core.exceptions import ClientAuthenticationError
     from .config import get_azure_credential
 
     try:
         credential = get_azure_credential()
-        # Try to get a token to verify credentials work
+        # Try to get a token to verify credentials work (defense-in-depth;
+        # get_azure_credential already warms the credential internally)
         credential.get_token("https://management.azure.com/.default")
         return True
     except CredentialUnavailableError as e:
         print(f"ERROR: Azure credentials not available: {e}")
-        print("Please configure one of:")
-        print("  - Service principal: Set AZURE_CLIENT_ID," " AZURE_CLIENT_SECRET, AZURE_TENANT_ID")
-        print("  - Azure CLI: Run 'az login'")
-        print("  - Managed identity: Ensure running in Azure with " "managed identity enabled")
+        return False
+    except ClientAuthenticationError as e:
+        print(f"ERROR: Azure authentication failed: {e}")
+        print("Check your credentials and try again.")
         return False
     except Exception as e:
-        print(f"ERROR: Failed to authenticate with Azure: {e}")
-        return False
+        logger.error(f"Unexpected error during credential validation: {e}")
+        raise
 
 
 def save_checkpoint(checkpoint_file, args, all_subs, scanned_subs, all_native_objects, errors=None):
