@@ -82,11 +82,14 @@ def load_checkpoint(checkpoint_file):
             data = json.load(f)
         timestamp = datetime.fromisoformat(data["timestamp"])
         if datetime.now() - timestamp > timedelta(hours=48):
-            print("Checkpoint is older than 48 hours, starting fresh.")
+            print("Checkpoint expired (48h TTL). Starting fresh scan.")
             return None
         return data
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        print(f"Warning: Checkpoint file is corrupted or incompatible ({e}). Starting fresh scan.")
+        return None
     except Exception as e:
-        print(f"Warning: Failed to load checkpoint: {e}")
+        print(f"Warning: Failed to load checkpoint ({e}). Starting fresh scan.")
         return None
 
 
@@ -223,9 +226,12 @@ def main(args=None):
                 # Restore state
                 scanned_subs = checkpoint_data["completed_subs"]
                 all_native_objects = checkpoint_data["all_native_objects"]
+                # Verbose resume: print count and list of skipped subscription IDs
+                print(f"Skipping {len(scanned_subs)} previously completed subscriptions, scanning {len(all_subs) - len(scanned_subs)} remaining:")
+                for sub_id in scanned_subs:
+                    print(f"  - {sub_id}")
                 # Filter all_subs to exclude completed ones
                 all_subs = [sub for sub in all_subs if sub not in scanned_subs]
-                print(f"Skipped {len(scanned_subs)} completed subscriptions.")
             else:
                 print("Starting fresh...")
                 checkpoint_data = None
@@ -250,7 +256,6 @@ def main(args=None):
     # Discover across all subscriptions in parallel
 
     lock = threading.Lock()
-    last_checkpoint_time = time.time()
     errors = checkpoint_data.get("errors", []) if checkpoint_data else []
 
     def discover_subscription(sub_id):
@@ -260,9 +265,6 @@ def main(args=None):
         native_objects = discovery.discover_native_objects(max_workers=args.workers)
         print(f"Found {len(native_objects)} Native Objects in this subscription")
         return sub_id, native_objects
-
-    def should_save_checkpoint():
-        return (len(scanned_subs) % args.checkpoint_interval == 0) or (time.time() - last_checkpoint_time > 900)  # 15 mins
 
     with ThreadPoolExecutor(max_workers=args.subscription_workers) as executor:
         future_to_sub = {executor.submit(discover_subscription, sub_id): sub_id for sub_id in all_subs}
@@ -274,14 +276,17 @@ def main(args=None):
                 with lock:
                     all_native_objects.extend(native_objects)
                     scanned_subs.append(result_sub_id)
-                    if not args.no_checkpoint and should_save_checkpoint():
+                    if not args.no_checkpoint:
                         save_checkpoint(args.checkpoint_file, args, all_subs_total, scanned_subs, all_native_objects, errors)
-                        last_checkpoint_time = time.time()
             except Exception as e:
-                print(f"Error discovering subscription {sub_id}: {e}")
+                print(f"ERROR scanning subscription {sub_id}: {e}")
                 with lock:
                     errors.append(f"{sub_id}: {str(e)}")
-                # Continue with other subscriptions
+
+    if errors:
+        print(f"\n{len(errors)} subscription(s) failed:")
+        for error in errors:
+            print(f"  - {error}")
 
     print(f"\nTotal Native Objects found across all subscriptions: " f"{len(all_native_objects)}")
 
