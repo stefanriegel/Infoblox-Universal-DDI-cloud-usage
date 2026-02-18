@@ -224,12 +224,6 @@ def main():
         help="Path to checkpoint file (default: output/azure_discovery_checkpoint.json)",
     )
     parser.add_argument(
-        "--checkpoint-interval",
-        type=int,
-        default=50,
-        help="Save checkpoint every N subscriptions (default: 50)",
-    )
-    parser.add_argument(
         "--retry-attempts",
         type=int,
         default=3,
@@ -245,6 +239,18 @@ def main():
         "--check-auth",
         action="store_true",
         help="Validate cloud credentials and print setup guidance, then exit",
+    )
+    parser.add_argument(
+        "--checkpoint-ttl-hours",
+        type=int,
+        default=48,
+        help="Checkpoint expiry in hours (default: 48). Use 0 to never expire.",
+    )
+    parser.add_argument(
+        "--warn-sub-threshold",
+        type=int,
+        default=200,
+        help="Print a warning when subscription count exceeds this value and --subscription-workers >2 (default: 200).",
     )
 
     # Remove extra_args, use parse_known_args instead
@@ -274,8 +280,9 @@ def main():
             azure_args.no_checkpoint = args.no_checkpoint
             azure_args.resume = args.resume
             azure_args.checkpoint_file = args.checkpoint_file
-            azure_args.checkpoint_interval = args.checkpoint_interval
             azure_args.retry_attempts = args.retry_attempts
+            azure_args.checkpoint_ttl_hours = args.checkpoint_ttl_hours
+            azure_args.warn_sub_threshold = args.warn_sub_threshold
             azure_main(azure_args)
         elif args.provider == "gcp":
             from gcp_discovery.discover import main as gcp_main

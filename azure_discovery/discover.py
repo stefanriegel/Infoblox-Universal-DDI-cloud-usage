@@ -78,7 +78,7 @@ def save_checkpoint(checkpoint_file, args, all_subs, scanned_subs, all_native_ob
         print(f"Warning: Failed to save checkpoint: {e}")
 
 
-def load_checkpoint(checkpoint_file):
+def load_checkpoint(checkpoint_file, ttl_hours=48):
     """Load checkpoint data if valid and recent."""
     if not os.path.exists(checkpoint_file):
         return None
@@ -86,8 +86,8 @@ def load_checkpoint(checkpoint_file):
         with open(checkpoint_file, "r") as f:
             data = json.load(f)
         timestamp = datetime.fromisoformat(data["timestamp"])
-        if datetime.now() - timestamp > timedelta(hours=48):
-            print("Checkpoint expired (48h TTL). Starting fresh scan.")
+        if ttl_hours > 0 and datetime.now() - timestamp > timedelta(hours=ttl_hours):
+            print(f"Checkpoint expired ({ttl_hours}h TTL). Starting fresh scan.")
             return None
         return data
     except (json.JSONDecodeError, KeyError, ValueError) as e:
@@ -171,6 +171,18 @@ def main(args=None):
             action="store_true",
             help=("Generate Infoblox Universal DDI licensing calculations " "for Sales Engineers"),
         )
+        parser.add_argument(
+            "--checkpoint-ttl-hours",
+            type=int,
+            default=48,
+            help="Checkpoint expiry in hours (default: 48). Use 0 to never expire.",
+        )
+        parser.add_argument(
+            "--warn-sub-threshold",
+            type=int,
+            default=200,
+            help="Print a warning when subscription count exceeds this value and --subscription-workers >2 (default: 200).",
+        )
 
         args = parser.parse_args()
 
@@ -195,10 +207,19 @@ def main(args=None):
     print(f"Found {len(all_subs)} enabled subscriptions")
     all_subs_total = list(all_subs)  # Capture full list before checkpoint filtering
 
+    # Warn for large-tenant + high-worker combination (OBSV-02)
+    if len(all_subs_total) > args.warn_sub_threshold and args.subscription_workers > 2:
+        print(
+            f"[Warning] {len(all_subs_total)} subscriptions detected with "
+            f"--subscription-workers {args.subscription_workers}. "
+            f"This combination may trigger ARM rate limiting (429 throttling). "
+            f"Consider reducing to --subscription-workers 2 for large tenants."
+        )
+
     # Check for checkpoint and resume
     checkpoint_data = None
     if not args.no_checkpoint:
-        checkpoint_data = load_checkpoint(args.checkpoint_file)
+        checkpoint_data = load_checkpoint(args.checkpoint_file, args.checkpoint_ttl_hours)
         if checkpoint_data:
             if args.resume or prompt_resume(checkpoint_data):
                 print("Resuming from checkpoint...")
