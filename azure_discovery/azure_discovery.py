@@ -5,10 +5,11 @@ Discovers Azure Native Objects and calculates Management Token requirements.
 """
 
 import logging
-import time
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List
 
+from azure.core.pipeline.policies import RetryPolicy
 from azure.mgmt.compute import ComputeManagementClient
 from azure.mgmt.dns import DnsManagementClient
 from azure.mgmt.network import NetworkManagementClient
@@ -31,16 +32,76 @@ logging.getLogger("azure.core").setLevel(logging.ERROR)
 logging.getLogger("azure.mgmt").setLevel(logging.ERROR)
 
 
+class VisibleRetryPolicy(RetryPolicy):
+    """RetryPolicy subclass that prints throttle events before sleeping.
+
+    Honors Retry-After header from ARM 429 responses. Falls back to
+    exponential backoff (2s, 4s, 8s) when the header is absent.
+    Max 3 retries per API call.
+    """
+
+    def __init__(self, sub_name: str, print_lock: threading.Lock, **kwargs):
+        super().__init__(**kwargs)
+        self._sub_name = sub_name
+        self._lock = print_lock
+
+    def sleep(self, settings, transport, response=None):
+        if response is not None:
+            retry_after = self.get_retry_after(response)
+            wait_secs = retry_after if retry_after is not None else self.get_backoff_time(settings)
+            if wait_secs is not None:
+                with self._lock:
+                    print(f"  {self._sub_name}: throttled, retrying in {wait_secs:.0f}s")
+        super().sleep(settings, transport, response)
+
+
+def make_retry_policy(sub_name: str, print_lock: threading.Lock) -> VisibleRetryPolicy:
+    """Build a VisibleRetryPolicy configured for ARM API scanning.
+
+    Args:
+        sub_name: Display name for this subscription (used in retry messages).
+        print_lock: Threading lock for safe console output.
+    """
+    return VisibleRetryPolicy(
+        sub_name=sub_name,
+        print_lock=print_lock,
+        retry_total=3,
+        retry_connect=3,
+        retry_read=3,
+        retry_status=3,
+        retry_backoff_factor=2.0,      # fallback: 2s, 4s, 8s when no Retry-After
+        retry_backoff_max=60,          # cap fallback at 60s
+        retry_on_status_codes=[429, 500, 502, 503, 504],
+    )
+
+
 class AzureDiscovery(BaseDiscovery):
     """Azure Cloud Discovery implementation."""
 
-    def __init__(self, config: AzureConfig, retry_attempts: int = 3):
+    def __init__(
+        self,
+        config: AzureConfig,
+        retry_attempts: int = 3,  # Deprecated: no longer used; SDK RetryPolicy handles retries
+        compute_client=None,
+        network_client=None,
+        resource_client=None,
+        dns_client=None,
+        privatedns_client=None,
+    ):
         """
         Initialize Azure discovery.
 
         Args:
             config: Azure configuration
-            retry_attempts: Number of retry attempts for API calls
+            retry_attempts: Deprecated. No longer used — SDK RetryPolicy handles retries.
+                Retained for backward compatibility.
+            compute_client: Optional pre-built ComputeManagementClient. When all five
+                client kwargs are provided, _init_azure_clients() is skipped so the
+                caller controls client lifecycle (create, scan, close).
+            network_client: Optional pre-built NetworkManagementClient.
+            resource_client: Optional pre-built ResourceManagementClient.
+            dns_client: Optional pre-built DnsManagementClient.
+            privatedns_client: Optional pre-built PrivateDnsManagementClient.
         """
         # Convert AzureConfig to DiscoveryConfig
         discovery_config = DiscoveryConfig(
@@ -53,10 +114,27 @@ class AzureDiscovery(BaseDiscovery):
 
         # Store original Azure config for Azure-specific functionality
         self.azure_config = config
-        self.retry_attempts = retry_attempts
+        self.retry_attempts = retry_attempts  # Deprecated; kept for backward compat
 
-        # Initialize Azure clients
-        self._init_azure_clients()
+        # When all five clients are provided, use them directly and skip internal init.
+        # This enables external lifecycle management (create → scan → close per subscription).
+        if (
+            compute_client is not None
+            and network_client is not None
+            and resource_client is not None
+            and dns_client is not None
+            and privatedns_client is not None
+        ):
+            self.compute_client = compute_client
+            self.network_client = network_client
+            self.resource_client = resource_client
+            self.dns_client = dns_client
+            self.privatedns_client = privatedns_client
+            self.credential = None
+            self.subscription_id = config.subscription_id or ""
+        else:
+            # Initialize Azure clients internally (backward-compatible path)
+            self._init_azure_clients()
 
     def _init_azure_clients(self):
         """Initialize Azure clients for different services."""
@@ -71,20 +149,6 @@ class AzureDiscovery(BaseDiscovery):
         self.resource_client = ResourceManagementClient(self.credential, self.subscription_id)
         self.dns_client = DnsManagementClient(self.credential, self.subscription_id)
         self.privatedns_client = PrivateDnsManagementClient(self.credential, self.subscription_id)
-
-    def _retry_api_call(self, func, *args, **kwargs):
-        """Retry API call with exponential backoff."""
-        attempts = 0
-        while attempts < self.retry_attempts:
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                attempts += 1
-                if attempts >= self.retry_attempts:
-                    raise
-                delay = 1 * (2 ** (attempts - 1))  # Exponential backoff
-                self.logger.warning(f"API call failed (attempt {attempts}/{self.retry_attempts}): {e}. Retrying in {delay}s...")
-                time.sleep(delay)
 
     def discover_native_objects(self, max_workers: int = 8) -> List[Dict]:
         """
@@ -104,7 +168,7 @@ class AzureDiscovery(BaseDiscovery):
         all_resources = []
 
         # Get all resource groups
-        resource_groups = list(self._retry_api_call(self.resource_client.resource_groups.list))
+        resource_groups = list(self.resource_client.resource_groups.list())
 
         # Discover resources in resource groups in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -289,7 +353,7 @@ class AzureDiscovery(BaseDiscovery):
         """Discover Virtual Networks in a resource group."""
         resources = []
         try:
-            vnets = list(self._retry_api_call(self.network_client.virtual_networks.list, rg_name))
+            vnets = list(self.network_client.virtual_networks.list(rg_name))
             for vnet in vnets:
                 region = getattr(vnet, "location", "unknown")
                 vnet_name = getattr(vnet, "name", None)
@@ -303,7 +367,7 @@ class AzureDiscovery(BaseDiscovery):
 
                 # Subnets for this VNet
                 try:
-                    subnets = list(self._retry_api_call(self.network_client.subnets.list, rg_name, vnet_name))
+                    subnets = list(self.network_client.subnets.list(rg_name, vnet_name))
                     for subnet in subnets:
                         subnet_dict = vars(subnet)
                         formatted_subnet = format_azure_resource(subnet_dict, "subnet", region)
