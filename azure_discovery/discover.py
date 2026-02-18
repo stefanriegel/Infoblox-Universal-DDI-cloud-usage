@@ -211,6 +211,7 @@ def main(args=None):
         print("No subscriptions found. Check your Azure credentials and permissions.")
         return 1
     print(f"Found {len(all_subs)} enabled subscriptions")
+    all_subs_total = list(all_subs)  # Capture full list before checkpoint filtering
 
     # Check for checkpoint and resume
     checkpoint_data = None
@@ -244,45 +245,9 @@ def main(args=None):
     all_regions = get_all_azure_regions()
     print(f"Found {len(all_regions)} available regions")
 
-    # Get all subscriptions
-    all_subs = get_all_subscription_ids()
-    if not all_subs:
-        print("No subscriptions found. Check your Azure credentials and permissions.")
-        return 1
-    print(f"Found {len(all_subs)} enabled subscriptions")
-
-    # Check for checkpoint and resume
-    checkpoint_data = None
-    if not args.no_checkpoint:
-        checkpoint_data = load_checkpoint(args.checkpoint_file)
-        if checkpoint_data:
-            if args.resume or prompt_resume(checkpoint_data):
-                print("Resuming from checkpoint...")
-                # Restore state
-                scanned_subs = checkpoint_data["completed_subs"]
-                all_native_objects = checkpoint_data["all_native_objects"]
-                # Filter all_subs to exclude completed ones
-                all_subs = [sub for sub in all_subs if sub not in scanned_subs]
-                print(f"Skipped {len(scanned_subs)} completed subscriptions.")
-            else:
-                print("Starting fresh...")
-                checkpoint_data = None
-                scanned_subs = []
-                all_native_objects = []
-        else:
-            scanned_subs = []
-            all_native_objects = []
-    else:
-        scanned_subs = []
-        all_native_objects = []
-
     print()
 
     # Discover across all subscriptions in parallel
-    if 'all_native_objects' not in locals():
-        all_native_objects = []
-    if 'scanned_subs' not in locals():
-        scanned_subs = []
 
     lock = threading.Lock()
     last_checkpoint_time = time.time()
@@ -310,7 +275,7 @@ def main(args=None):
                     all_native_objects.extend(native_objects)
                     scanned_subs.append(result_sub_id)
                     if not args.no_checkpoint and should_save_checkpoint():
-                        save_checkpoint(args.checkpoint_file, args, get_all_subscription_ids(), scanned_subs, all_native_objects, errors)
+                        save_checkpoint(args.checkpoint_file, args, all_subs_total, scanned_subs, all_native_objects, errors)
                         last_checkpoint_time = time.time()
             except Exception as e:
                 print(f"Error discovering subscription {sub_id}: {e}")
