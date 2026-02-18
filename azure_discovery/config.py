@@ -125,6 +125,7 @@ def _build_credential():
         )
 
     if _has_display():
+        print("[Auth] Using InteractiveBrowserCredential")
         print("Opening browser for authentication... waiting")
         try:
             cred = InteractiveBrowserCredential(
@@ -154,6 +155,7 @@ def _build_credential():
                 name="infoblox-ddi-scanner",
                 allow_unencrypted_storage=True,
             )
+        print("[Auth] Using DeviceCodeCredential")
         cred = DeviceCodeCredential(
             cache_persistence_options=cache_opts_headless,
             timeout=120,
