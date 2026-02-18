@@ -30,9 +30,9 @@ Requirements for the bug fix release. Each maps to roadmap phases.
 
 ### Observability
 
-- [ ] **OBSV-01**: Credential type selected at startup is logged (e.g., "Using ClientSecretCredential" or "Using InteractiveBrowserCredential")
-- [ ] **OBSV-02**: Warning printed when subscription count >200 and `--subscription-workers` >2
-- [ ] **OBSV-03**: Checkpoint TTL is configurable via `--checkpoint-ttl-hours` (default 48h)
+- [x] **OBSV-01**: Credential type selected at startup is logged (e.g., "Using ClientSecretCredential" or "Using InteractiveBrowserCredential")
+- [x] **OBSV-02**: Warning printed when subscription count >200 and `--subscription-workers` >2
+- [x] **OBSV-03**: Checkpoint TTL is configurable via `--checkpoint-ttl-hours` (default 48h)
 
 ## v2 Requirements
 
@@ -82,9 +82,9 @@ Which phases cover which requirements. Confirmed during roadmap creation 2026-02
 | CONC-01 | Phase 2 | Complete |
 | CONC-02 | Phase 2 | Complete |
 | CONC-03 | Phase 2 | Complete |
-| OBSV-01 | Phase 3 | Pending |
-| OBSV-02 | Phase 3 | Pending |
-| OBSV-03 | Phase 3 | Pending |
+| OBSV-01 | Phase 3 | Complete |
+| OBSV-02 | Phase 3 | Complete |
+| OBSV-03 | Phase 3 | Complete |
 
 **Coverage:**
 - v1 requirements: 15 total

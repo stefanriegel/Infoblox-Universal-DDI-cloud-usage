@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [ ] **Phase 1: Credential Chain and Code Correctness** - Replace subprocess-based credentials with MSAL-caching classes and fix two silent correctness bugs in discover.py
 - [x] **Phase 2: Concurrent Execution Hardening** - Add Retry-After-aware backoff and management client lifecycle management to sustain 500+ subscription scans without throttle crashes or socket exhaustion
-- [ ] **Phase 3: Observability and UX Polish** - Log credential selection, warn on high worker counts, and expose checkpoint TTL as a CLI flag
+- [x] **Phase 3: Observability and UX Polish** - Log credential selection, warn on high worker counts, and expose checkpoint TTL as a CLI flag (completed 2026-02-18)
 
 ## Phase Details
 
@@ -53,7 +53,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   1. Tool prints which credential class was selected (e.g., "Using ClientSecretCredential") before any subscription work begins
   2. Running with >200 subscriptions and --subscription-workers >2 prints a visible warning before scanning starts
   3. User can pass --checkpoint-ttl-hours to override the default 48-hour checkpoint expiry
-**Plans**: TBD
+**Plans:** 1/1 plans complete
+- [ ] 03-01-PLAN.md -- Add [Auth] Using messages, --checkpoint-ttl-hours flag, --warn-sub-threshold flag, and large-tenant warning
 
 ## Progress
 
@@ -64,4 +65,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Credential Chain and Code Correctness | 2/3 | Gap closure | 2026-02-18 |
 | 2. Concurrent Execution Hardening | 2/2 | Complete | 2026-02-18 |
-| 3. Observability and UX Polish | 0/TBD | Not started | - |
+| 3. Observability and UX Polish | 1/1 | Complete   | 2026-02-18 |

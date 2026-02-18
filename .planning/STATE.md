@@ -9,21 +9,21 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 
 ## Current Position
 
-**Current Phase:** 02
-**Current Phase Name:** Concurrent Execution Hardening
+**Current Phase:** 03
+**Current Phase Name:** Observability and UX Polish
 **Total Phases:** 3
-**Current Plan:** 2
-**Total Plans in Phase:** 2
-**Status:** Milestone complete
+**Current Plan:** 1
+**Total Plans in Phase:** 1
+**Status:** In progress
 **Progress:** [██████████] 100%
 **Last Activity:** 2026-02-18
-**Last Activity Description:** Phase 02 complete — per-subscription client lifecycle and resilient scan loop
+**Last Activity Description:** Phase 03 Plan 01 complete — credential path logging, checkpoint TTL, and large-tenant warning
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 6 min
+- Total plans completed: 3
+- Average duration: 4.3 min
 - Total execution time: 0.2 hours
 
 **By Phase:**
@@ -32,9 +32,10 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 |-------|-------|-------|----------|
 | 01-credential-chain-and-code-correctness | 1/2 | 4 min | 4 min |
 | 02-concurrent-execution-hardening | 2/2 | 13 min | 6.5 min |
+| 03-observability-and-ux-polish | 1/1 | 1 min | 1 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (4 min), 02-01 (12 min), 02-02 (1 min)
+- Last 5 plans: 01-01 (4 min), 02-01 (12 min), 02-02 (1 min), 03-01 (1 min)
 - Trend: -
 
 *Updated after each plan completion*
@@ -43,6 +44,7 @@ See: .planning/PROJECT.md (updated 2026-02-18)
 | Phase 01 P03 | 1 | 1 tasks | 1 files |
 | Phase 02-concurrent-execution-hardening P01 | 12 | 1 tasks | 1 files |
 | Phase 02-concurrent-execution-hardening P02 | 1 | 1 tasks | 1 files |
+| Phase 03-observability-and-ux-polish P01 | 1 | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -72,6 +74,11 @@ Recent decisions affecting current work:
 - [02-02]: Credential singleton obtained once before ThreadPoolExecutor block — InteractiveBrowserCredential must not be called from worker threads
 - [02-02]: errors list uses dict format {sub_id, error}; both dict and legacy string formats handled in summary/file output for checkpoint backward compat
 - [02-02]: Dummy AzureDiscovery at end of main() uses all_subs_total[0] not all_subs[0] — all_subs may be empty when all subscriptions were resumed from checkpoint
+- [03-01]: [Auth] Using InteractiveBrowserCredential prints before browser popup; [Auth] Using DeviceCodeCredential prints before device code prompt — immediate feedback before blocking
+- [03-01]: ttl_hours > 0 short-circuit in load_checkpoint() means 0 = never expire (no time comparison at all)
+- [03-01]: Warning uses all_subs_total (full pre-checkpoint list) to reflect true tenant scale, not remaining subs after resume
+- [03-01]: Warning is non-blocking (print and continue) — no user prompt, no sleep
+- [03-01]: Removed stale --checkpoint-interval flag and azure_args.checkpoint_interval forwarding from main.py (dead code since Phase 01)
 
 ### Pending Todos
 
@@ -85,6 +92,6 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-18T21:29:08Z
-**Paused At:** Completed Phase 02-concurrent-execution-hardening Plan 02 (02-02-PLAN.md)
-Resume file: .planning/phases/02-concurrent-execution-hardening/02-02-SUMMARY.md
+**Last session:** 2026-02-18T22:05:07Z
+**Paused At:** Completed Phase 03-observability-and-ux-polish Plan 01 (03-01-PLAN.md)
+Resume file: .planning/phases/03-observability-and-ux-polish/03-01-SUMMARY.md
