@@ -26,8 +26,8 @@ Requirements for GCP Multi-Project Discovery milestone. Each maps to roadmap pha
 
 ### Concurrent Execution
 
-- [ ] **EXEC-01**: Per-project `dns.Client` lifecycle (created and closed per project worker)
-- [ ] **EXEC-02**: Shared compute clients reused across projects with `project=` per API call
+- [x] **EXEC-01**: Per-project `dns.Client` lifecycle (created and closed per project worker)
+- [x] **EXEC-02**: Shared compute clients reused across projects with `project=` per API call
 - [ ] **EXEC-03**: Progress output shows `[N/total] project-id` as each project completes
 - [ ] **EXEC-04**: Each discovered resource attributed with project_id in details
 - [ ] **EXEC-05**: `resource_id` format includes project_id to prevent multi-project collisions
@@ -90,8 +90,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ENUM-04 | Phase 5 | Complete |
 | ENUM-05 | Phase 5 | Complete |
 | ENUM-06 | Phase 5 | Complete |
-| EXEC-01 | Phase 6 | Pending |
-| EXEC-02 | Phase 6 | Pending |
+| EXEC-01 | Phase 6 | Complete |
+| EXEC-02 | Phase 6 | Complete |
 | EXEC-03 | Phase 6 | Pending |
 | EXEC-04 | Phase 6 | Pending |
 | EXEC-05 | Phase 6 | Pending |

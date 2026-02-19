@@ -67,7 +67,7 @@ Plans:
   3. As each project completes, the console prints `[N/total] project-id` progress output in order of completion
   4. Every discovered resource in the output includes a `project_id` field identifying which project it came from
   5. No two resources from different projects share the same `resource_id` — the ID format includes the project identifier to prevent collisions
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 06-01-PLAN.md — Shared compute client injection + per-project DNS lifecycle in GCPDiscovery
 - [ ] 06-02-PLAN.md — Concurrent multi-project worker loop in discover.py with progress output and failure handling
@@ -104,6 +104,6 @@ Plans:
 | 3. Observability and UX Polish | v1 | 1/1 | Complete | 2026-02-18 |
 | 4. GCP Credential Chain and Fail-Fast | v1.1 | 2/2 | Complete | 2026-02-19 |
 | 5. GCP Project Enumeration | 2/2 | Complete    | 2026-02-19 | — |
-| 6. Concurrent Multi-Project Execution | v1.1 | 0/2 | Planned | — |
+| 6. Concurrent Multi-Project Execution | 1/2 | In Progress|  | — |
 | 7. Retry and Observability | v1.1 | 0/? | Not started | — |
 | 8. Checkpoint and Resume | v1.1 | 0/? | Not started | — |
