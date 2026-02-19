@@ -5,74 +5,15 @@ Discovers GCP Native Objects and calculates Management Token requirements.
 """
 
 import argparse
-import re
-import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 
-from .config import GCPConfig, get_all_gcp_regions
+from .config import GCPConfig, get_all_gcp_regions, get_gcp_credential
 from .gcp_discovery import GCPDiscovery
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-
-def check_gcloud_version():
-    """Check if gcloud CLI is installed and has the correct version."""
-    try:
-        result = subprocess.run(["gcloud", "--version"], capture_output=True, text=True, encoding='utf-8')
-        version_match = re.search(
-            r"Google Cloud SDK (\d+)\.(\d+)\.(\d+)",
-            result.stdout + result.stderr,
-        )
-        if not version_match:
-            print("ERROR: Unable to determine gcloud version. Please ensure Google Cloud SDK is installed.")
-            sys.exit(1)
-        major, minor, patch = map(int, version_match.groups())
-        if (major, minor, patch) < (300, 0, 0):
-            print(
-                f"ERROR: Google Cloud SDK version 300.0.0 or higher is required. "
-                f"Detected version: {major}.{minor}.{patch}. "
-                "Please upgrade your Google Cloud SDK."
-            )
-            sys.exit(1)
-    except Exception as e:
-        print(f"ERROR: Unable to check gcloud version: {e}")
-        sys.exit(1)
-
-
-def check_gcp_credentials():
-    """Check if GCP credentials are available."""
-    try:
-        result = subprocess.run(
-            [
-                "gcloud",
-                "auth",
-                "list",
-                "--filter=status:ACTIVE",
-                "--format=value(account)",
-            ],
-            capture_output=True,
-            text=True,
-            encoding='utf-8',
-            check=True,
-        )
-        if not result.stdout.strip():
-            print(
-                "ERROR: No active GCP credentials found. Please run 'gcloud auth login' "
-                "or 'gcloud auth application-default login'. Exiting."
-            )
-            sys.exit(1)
-    except subprocess.CalledProcessError as e:
-        print(
-            f"ERROR: GCP credentials are invalid or expired: {e}\n"
-            "Please check your credentials or run 'gcloud auth login'. Exiting."
-        )
-        sys.exit(1)
-    except FileNotFoundError:
-        print("ERROR: gcloud CLI not found. Please install Google Cloud SDK. Exiting.")
-        sys.exit(1)
 
 
 def main(args=None):
@@ -105,16 +46,15 @@ def main(args=None):
 
         args = parser.parse_args()
 
+    # Credential validation first (fail-fast before banner): CRED-02, CRED-03
+    # Warms the singleton on the main thread before any workers are spawned.
+    credentials, project = get_gcp_credential()
+
     print("GCP Cloud Discovery for Management Token Calculation")
     print("=" * 55)
     print(f"Output format: {args.format.upper()}")
     print(f"Parallel workers: {args.workers}")
     print()
-
-    # Check gcloud version
-    check_gcloud_version()
-    # Pre-check GCP credentials before any discovery or region fetching
-    check_gcp_credentials()
 
     # Get all available regions
     print("Fetching available regions...")
@@ -123,7 +63,9 @@ def main(args=None):
     print()
 
     # Initialize discovery with all regions
+    # Pass the project from ADC so discovery works even when GOOGLE_CLOUD_PROJECT is not set.
     config = GCPConfig(
+        project_id=project,  # From credential singleton; may be overridden by env var inside GCPConfig
         regions=all_regions,
         output_directory="output",
         output_format=args.format,
