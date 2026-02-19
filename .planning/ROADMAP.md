@@ -19,7 +19,7 @@
 **v1.1 GCP Multi-Project Discovery**
 
 - [x] **Phase 4: GCP Credential Chain and Fail-Fast** — Replace broken gcloud-based credential check with validated singleton; exits immediately on invalid/expired tokens (completed 2026-02-19)
-- [ ] **Phase 5: GCP Project Enumeration** — Auto-discover all ACTIVE projects accessible to the credential; backward-compatible single-project path preserved
+- [x] **Phase 5: GCP Project Enumeration** — Auto-discover all ACTIVE projects accessible to the credential; backward-compatible single-project path preserved (completed 2026-02-19)
 - [ ] **Phase 6: Concurrent Multi-Project Execution** — Outer project worker pool with per-project DNS client lifecycle and shared compute clients; full multi-project discovery
 - [ ] **Phase 7: Retry and Observability** — GCP rate-limit retry with visible logging; failed-project summary; large-org warnings
 - [ ] **Phase 8: Checkpoint and Resume** — Per-project checkpoint with atomic writes and SIGINT handler; resume skips completed projects
@@ -52,7 +52,7 @@ Plans:
   4. Setting `GOOGLE_CLOUD_ORG_ID` causes enumeration to scope to that organization's projects
   5. Running with `--include-projects "prod-*"` or `--exclude-projects "test-*"` filters the project list before discovery begins
   6. A project where the Compute API is disabled is skipped with an INFO log — it is not treated as a permission error or auth failure
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 05-01-PLAN.md — Core enumeration logic in config.py (ProjectInfo, search_projects, filters, API pre-checks)
 - [ ] 05-02-PLAN.md — Wire CLI flags and enumerate_gcp_projects() into discover.py and main.py
@@ -100,7 +100,7 @@ Plans:
 | 2. Concurrent Execution Hardening | v1 | 2/2 | Complete | 2026-02-18 |
 | 3. Observability and UX Polish | v1 | 1/1 | Complete | 2026-02-18 |
 | 4. GCP Credential Chain and Fail-Fast | v1.1 | 2/2 | Complete | 2026-02-19 |
-| 5. GCP Project Enumeration | 1/2 | In Progress|  | — |
+| 5. GCP Project Enumeration | 2/2 | Complete   | 2026-02-19 | — |
 | 6. Concurrent Multi-Project Execution | v1.1 | 0/? | Not started | — |
 | 7. Retry and Observability | v1.1 | 0/? | Not started | — |
 | 8. Checkpoint and Resume | v1.1 | 0/? | Not started | — |

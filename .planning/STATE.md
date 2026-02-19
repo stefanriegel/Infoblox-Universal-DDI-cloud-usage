@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 5 — GCP Project Enumeration
-Plan: 1 of 2 complete
-Status: In progress
-Last activity: 2026-02-19 — Plan 05-01 complete (ProjectInfo dataclass + enumerate_gcp_projects())
+Plan: 2 of 2 complete
+Status: Phase complete
+Last activity: 2026-02-19 — Plan 05-02 complete (CLI flags + enumerate_gcp_projects() wiring into discover.py)
 
 ```
 v1.1 Progress: [██        ] 20% (1/5 phases)
@@ -44,6 +44,12 @@ All v1 decisions archived — see .planning/milestones/v1-ROADMAP.md for full hi
 - `_apply_project_filters()` uses `is not None` check — empty list `[]` means "include nothing", `None` means "no filter applied"
 - Count printed before pre-check loop; `[Skip]` lines appear beneath it — per locked decision
 
+**05-02 (GCP project enumeration — CLI wiring):**
+- `enumerate_gcp_projects()` called before banner in `discover.py:main()` — enumeration may sys.exit on zero projects (ENUM-02), so it must precede any output
+- `org_id` resolved in `discover.py` via `getattr(args, 'org_id', None) or os.getenv('GOOGLE_CLOUD_ORG_ID')` — env var fallback lives at the call site, not inside `config.py`
+- Phase 5 uses `projects[0].project_id` for backward-compatible single-project discovery — Phase 6 will iterate the full list
+- `scanned_projects = [p.project_id for p in projects]` ensures proof manifest reflects all enumerated projects even in Phase 5 single-scan mode
+
 ### Architecture Notes (from research)
 
 - `get_gcp_credential()` in `config.py` — singleton with threading.Lock, `credentials.refresh()` warm-up, fail-fast on `RefreshError` / `DefaultCredentialsError`
@@ -69,5 +75,5 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-19T11:47:43Z
-**Stopped at:** Completed 05-01-PLAN.md
+**Last session:** 2026-02-19T11:52:00Z
+**Stopped at:** Completed 05-02-PLAN.md
