@@ -5,11 +5,12 @@ Discovers GCP Native Objects and calculates Management Token requirements.
 """
 
 import argparse
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
-from .config import GCPConfig, get_all_gcp_regions, get_gcp_credential
+from .config import GCPConfig, get_all_gcp_regions, get_gcp_credential, enumerate_gcp_projects, ProjectInfo
 from .gcp_discovery import GCPDiscovery
 
 # Add parent directory to path for imports
@@ -43,6 +44,32 @@ def main(args=None):
             action="store_true",
             help="Generate Infoblox Universal DDI licensing calculations for Sales Engineers",
         )
+        parser.add_argument(
+            "--project",
+            default=None,
+            help="Scan a single GCP project (bypasses enumeration). "
+                 "Overrides GOOGLE_CLOUD_PROJECT env var.",
+        )
+        parser.add_argument(
+            "--org-id",
+            default=None,
+            help="Scope enumeration to this GCP organization ID. "
+                 "Overrides GOOGLE_CLOUD_ORG_ID env var.",
+        )
+        parser.add_argument(
+            "--include-projects",
+            nargs="+",
+            metavar="PATTERN",
+            default=None,
+            help="Only scan projects matching these glob patterns (e.g. 'prod-*').",
+        )
+        parser.add_argument(
+            "--exclude-projects",
+            nargs="+",
+            metavar="PATTERN",
+            default=None,
+            help="Skip projects matching these glob patterns (e.g. 'test-*').",
+        )
 
         args = parser.parse_args()
 
@@ -50,11 +77,27 @@ def main(args=None):
     # Warms the singleton on the main thread before any workers are spawned.
     credentials, project = get_gcp_credential()
 
+    # Enumerate projects (ENUM-01 through ENUM-06)
+    # Resolves org_id from flag or env var
+    org_id = getattr(args, "org_id", None) or os.getenv("GOOGLE_CLOUD_ORG_ID")
+    projects = enumerate_gcp_projects(
+        credentials=credentials,
+        adc_project=project,
+        project=getattr(args, "project", None),
+        org_id=org_id,
+        include_patterns=getattr(args, "include_projects", None),
+        exclude_patterns=getattr(args, "exclude_projects", None),
+    )
+
     print("GCP Cloud Discovery for Management Token Calculation")
     print("=" * 55)
     print(f"Output format: {args.format.upper()}")
     print(f"Parallel workers: {args.workers}")
     print()
+
+    # Phase 5: use first project for single-project discovery (Phase 6 adds multi-project)
+    # The project list is curated with API availability; use first project's ID
+    active_project = projects[0].project_id
 
     # Get all available regions
     print("Fetching available regions...")
@@ -62,16 +105,15 @@ def main(args=None):
     print(f"Found {len(all_regions)} available regions")
     print()
 
-    # Initialize discovery with all regions
-    # Pass the project from ADC so discovery works even when GOOGLE_CLOUD_PROJECT is not set.
+    # Initialize discovery with first project
     config = GCPConfig(
-        project_id=project,  # From credential singleton; may be overridden by env var inside GCPConfig
+        project_id=active_project,
         regions=all_regions,
         output_directory="output",
         output_format=args.format,
     )
     discovery = GCPDiscovery(config)
-    scanned_projects = discovery.get_scanned_project_ids()
+    scanned_projects = [p.project_id for p in projects]
 
     try:
         # Discover Native Objects
