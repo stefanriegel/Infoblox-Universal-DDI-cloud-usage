@@ -5,7 +5,7 @@ Shared output utilities for saving discovery results.
 import json
 import os
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 
@@ -13,7 +13,7 @@ def print_discovery_summary(
     native_objects: List[Dict],
     count_results: Dict,
     provider: str,
-    extra_info: dict | None = None,
+    extra_info: Optional[dict] = None,
 ):
     """
     Print discovery summary to console.
@@ -97,7 +97,7 @@ def save_discovery_results(
     output_format: str,
     timestamp: str,
     provider: str,
-    extra_info: dict | None = None,
+    extra_info: Optional[dict] = None,
 ) -> Dict[str, str]:
     """
     Save discovery results in the specified format.
@@ -232,7 +232,7 @@ def save_resource_count_results(
     output_format: str,
     timestamp: str,
     provider: str,
-    extra_info: dict | None = None,
+    extra_info: Optional[dict] = None,
 ) -> Dict[str, str]:
     extra_info = extra_info or {}
 

@@ -7,7 +7,7 @@ Uses official Infoblox Universal DDI licensing metrics from the documentation.
 """
 
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Any, Dict, List, Optional
 import csv
 from shared.constants import AWS_REGIONS, AZURE_REGIONS, GCP_REGIONS
 
@@ -23,11 +23,11 @@ class UniversalDDILicensingCalculator:
     def __init__(self):
         """Initialize the licensing calculator."""
         self.results = {}
-        self.current_provider: str | None = None
-        self.active_ip_breakdown: dict[str, int] | None = None
-        self.active_ip_breakdown_by_space: dict[str, int] | None = None
+        self.current_provider: Optional[str] = None
+        self.active_ip_breakdown: Optional[Dict[str, int]] = None
+        self.active_ip_breakdown_by_space: Optional[Dict[str, int]] = None
 
-    def calculate_from_discovery_results(self, native_objects: List[Dict], provider: str | None = None) -> Dict[str, Any]:
+    def calculate_from_discovery_results(self, native_objects: List[Dict], provider: Optional[str] = None) -> Dict[str, Any]:
         """
         Calculate licensing requirements from native discovery results.
 
@@ -327,7 +327,7 @@ class UniversalDDILicensingCalculator:
         ip_fields = ["ip", "private_ip", "public_ip", "private_ips", "public_ips"]
         return any(details.get(field) for field in ip_fields)
 
-    def export_csv(self, output_file: str, provider: str | None = None) -> str:
+    def export_csv(self, output_file: str, provider: Optional[str] = None) -> str:
         """Export licensing calculations to CSV format for Sales Engineers (active provider only)."""
         if not self.results:
             raise ValueError("No calculation results available. Run calculate_from_discovery_results first.")
@@ -413,7 +413,7 @@ class UniversalDDILicensingCalculator:
 
         return output_file
 
-    def export_text_summary(self, output_file: str, provider: str | None = None) -> str:
+    def export_text_summary(self, output_file: str, provider: Optional[str] = None) -> str:
         """Export a text summary for Sales Engineers (only for the active provider)."""
         if not self.results:
             raise ValueError("No calculation results available. Run calculate_from_discovery_results first.")

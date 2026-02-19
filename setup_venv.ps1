@@ -6,6 +6,47 @@ param(
     [string]$ProviderChoice = ""
 )
 
+# --- Section: Find Python 3.11+ ---
+$script:PythonCmd = $null
+$script:PythonVersion = $null
+
+# Try candidates: py launcher (Windows standard), then python3, then python
+$candidates = @("py", "python3", "python")
+foreach ($cmd in $candidates) {
+    try {
+        if ($cmd -eq "py") {
+            # Windows py launcher: try highest 3.x version
+            $ver = & py -3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+            if ($ver) {
+                $parts = $ver.Split('.')
+                if ([int]$parts[0] -ge 3 -and [int]$parts[1] -ge 11) {
+                    $script:PythonCmd = "py -3"
+                    $script:PythonVersion = $ver
+                    break
+                }
+            }
+        } else {
+            $ver = & $cmd -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+            if ($ver) {
+                $parts = $ver.Split('.')
+                if ([int]$parts[0] -ge 3 -and [int]$parts[1] -ge 11) {
+                    $script:PythonCmd = $cmd
+                    $script:PythonVersion = $ver
+                    break
+                }
+            }
+        }
+    } catch {}
+}
+
+if (-not $script:PythonCmd) {
+    Write-Host "[ERROR] No Python 3.11+ found. Searched: py launcher, python3, python" -ForegroundColor Red
+    Write-Host "  Download: https://www.python.org/downloads/" -ForegroundColor Yellow
+    exit 1
+}
+Write-Host "[OK] Using $($script:PythonCmd) (Python $($script:PythonVersion))" -ForegroundColor Green
+Write-Host
+
 # --- Section: Clean up old environment ---
 Write-Host "================================" -ForegroundColor Cyan
 Write-Host " Infoblox Universal DDI Setup Routine" -ForegroundColor Cyan
@@ -19,8 +60,12 @@ if (Test-Path "venv") {
 }
 
 # --- Section: Create new environment ---
-Write-Host "[INFO] Creating new Python virtual environment..." -ForegroundColor Green
-python -m venv venv
+Write-Host "[INFO] Creating new Python virtual environment using $($script:PythonCmd)..." -ForegroundColor Green
+if ($script:PythonCmd -eq "py -3") {
+    & py -3 -m venv venv
+} else {
+    & $script:PythonCmd -m venv venv
+}
 & venv\Scripts\Activate.ps1
 
 # --- Section: Upgrade pip ---

@@ -10,6 +10,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+if sys.version_info < (3, 11):
+    sys.exit(f"Error: Python 3.11+ required (found {sys.version_info.major}.{sys.version_info.minor}). "
+             f"Download: https://www.python.org/downloads/")
+
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
