@@ -18,7 +18,7 @@
 
 **v1.1 GCP Multi-Project Discovery**
 
-- [ ] **Phase 4: GCP Credential Chain and Fail-Fast** — Replace broken gcloud-based credential check with validated singleton; exits immediately on invalid/expired tokens
+- [x] **Phase 4: GCP Credential Chain and Fail-Fast** — Replace broken gcloud-based credential check with validated singleton; exits immediately on invalid/expired tokens (completed 2026-02-19)
 - [ ] **Phase 5: GCP Project Enumeration** — Auto-discover all ACTIVE projects accessible to the credential; backward-compatible single-project path preserved
 - [ ] **Phase 6: Concurrent Multi-Project Execution** — Outer project worker pool with per-project DNS client lifecycle and shared compute clients; full multi-project discovery
 - [ ] **Phase 7: Retry and Observability** — GCP rate-limit retry with visible logging; failed-project summary; large-org warnings
@@ -36,7 +36,7 @@
   3. Running the tool with valid Application Default Credentials authenticates and logs `[Auth] Using Application Default Credentials` at startup
   4. The credential object is created once on the main thread; worker threads receive the same validated credential instance without re-authenticating
   5. A credential chain failure raises a typed exception (RefreshError or DefaultCredentialsError) — bare `except Exception` blocks do not swallow auth errors
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 04-01-PLAN.md — Build credential singleton in config.py (validation, logging, permission pre-check)
 - [ ] 04-02-PLAN.md — Wire singleton into discover.py and fix bare exception catches in gcp_discovery.py
@@ -96,7 +96,7 @@ Plans:
 | 1. Credential Chain and Code Correctness | v1 | 3/3 | Complete | 2026-02-18 |
 | 2. Concurrent Execution Hardening | v1 | 2/2 | Complete | 2026-02-18 |
 | 3. Observability and UX Polish | v1 | 1/1 | Complete | 2026-02-18 |
-| 4. GCP Credential Chain and Fail-Fast | 1/2 | In Progress|  | — |
+| 4. GCP Credential Chain and Fail-Fast | 2/2 | Complete   | 2026-02-19 | — |
 | 5. GCP Project Enumeration | v1.1 | 0/? | Not started | — |
 | 6. Concurrent Multi-Project Execution | v1.1 | 0/? | Not started | — |
 | 7. Retry and Observability | v1.1 | 0/? | Not started | — |

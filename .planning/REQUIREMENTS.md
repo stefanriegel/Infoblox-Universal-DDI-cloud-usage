@@ -11,7 +11,7 @@ Requirements for GCP Multi-Project Discovery milestone. Each maps to roadmap pha
 
 - [x] **CRED-01**: Tool authenticates via Service Account key file or Application Default Credentials with actual token validation
 - [x] **CRED-02**: Tool exits immediately with actionable message on invalid/expired credentials (no silent 0-resource "success")
-- [ ] **CRED-03**: Credential singleton warmed on main thread before worker threads spawn
+- [x] **CRED-03**: Credential singleton warmed on main thread before worker threads spawn
 - [x] **CRED-04**: Credential type logged at startup (`[Auth] Using service account: ...` or `[Auth] Using Application Default Credentials`)
 - [x] **CRED-05**: Only typed exception catches in credential chain (RefreshError, DefaultCredentialsError)
 
@@ -81,7 +81,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | CRED-01 | Phase 4 | Complete |
 | CRED-02 | Phase 4 | Complete |
-| CRED-03 | Phase 4 | Pending |
+| CRED-03 | Phase 4 | Complete |
 | CRED-04 | Phase 4 | Complete |
 | CRED-05 | Phase 4 | Complete |
 | ENUM-01 | Phase 5 | Pending |

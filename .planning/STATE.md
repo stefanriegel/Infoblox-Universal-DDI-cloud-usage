@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 4 — GCP Credential Chain and Fail-Fast
-Plan: 1 of 3
+Plan: 2 of 3
 Status: In progress
-Last activity: 2026-02-19 — Completed 04-01 GCP credential singleton
+Last activity: 2026-02-19 — Completed 04-02 credential singleton wiring in discover.py and gcp_discovery.py
 
 ```
 v1.1 Progress: [          ] 0% (0/5 phases)
@@ -31,6 +31,11 @@ All v1 decisions archived — see .planning/milestones/v1-ROADMAP.md for full hi
 - `google.oauth2.credentials.Credentials` covers both ADC user creds and gcloud auth login (same Python class); logged as "Application Default Credentials"
 - `get_all_gcp_regions()` bare `except Exception` retained — it is a discovery fallback for API availability, not an auth error handler
 - compute_v1 and api_exceptions imports deferred inside `_check_gcp_compute_permission()` to avoid circular imports
+
+**04-02 (discover.py cleanup / singleton wiring):**
+- Credential validation before banner: `get_gcp_credential()` called as first statement in `main()` so auth failures never produce misleading discovery output
+- `GCPConfig(project_id=project)` receives ADC project — ensures discovery works without `GOOGLE_CLOUD_PROJECT` env var; `_get_default_project_id()` fallback handles `None`
+- `RuntimeError` with `from e` for client construction failures (not bare `Exception`) — preserves exception chain and is more specific
 
 ### Architecture Notes (from research)
 
@@ -57,6 +62,6 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-19T09:52:00Z
-**Stopped at:** Completed 04-01-PLAN.md
-**Status:** Phase 4 Plan 01 complete. GCP credential singleton built in config.py. Requirements CRED-01, CRED-02, CRED-04, CRED-05 fulfilled. Ready for Plan 02 (discover.py cleanup).
+**Last session:** 2026-02-19T09:59:00Z
+**Stopped at:** Completed 04-02-PLAN.md
+**Status:** Phase 4 Plan 02 complete. discover.py cleaned of gcloud subprocess calls; credential singleton warmed on main thread before workers; _init_gcp_clients() no longer wraps get_gcp_credential() in bare except. Requirements CRED-02, CRED-03, CRED-05 fulfilled. Ready for Plan 03.
