@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
-from .config import GCPConfig, get_all_gcp_regions, get_gcp_credential, enumerate_gcp_projects, ProjectInfo
+from .config import GCPConfig, get_all_gcp_regions, get_gcp_credential, enumerate_gcp_projects
 from .gcp_discovery import GCPDiscovery
 
 # Add parent directory to path for imports
@@ -50,14 +50,12 @@ def main(args=None):
         parser.add_argument(
             "--project",
             default=None,
-            help="Scan a single GCP project (bypasses enumeration). "
-                 "Overrides GOOGLE_CLOUD_PROJECT env var.",
+            help="Scan a single GCP project (bypasses enumeration). " "Overrides GOOGLE_CLOUD_PROJECT env var.",
         )
         parser.add_argument(
             "--org-id",
             default=None,
-            help="Scope enumeration to this GCP organization ID. "
-                 "Overrides GOOGLE_CLOUD_ORG_ID env var.",
+            help="Scope enumeration to this GCP organization ID. " "Overrides GOOGLE_CLOUD_ORG_ID env var.",
         )
         parser.add_argument(
             "--include-projects",
@@ -110,13 +108,15 @@ def main(args=None):
     # Build shared compute clients ONCE before the worker pool.
     # GCP compute clients are project-agnostic; project is passed per API call.
     from google.cloud import compute_v1
+
     shared_compute_clients = {
-        "instances":        compute_v1.InstancesClient(credentials=credentials),
-        "zones":            compute_v1.ZonesClient(credentials=credentials),
-        "networks":         compute_v1.NetworksClient(credentials=credentials),
-        "subnetworks":      compute_v1.SubnetworksClient(credentials=credentials),
-        "addresses":        compute_v1.AddressesClient(credentials=credentials),
+        "instances": compute_v1.InstancesClient(credentials=credentials),
+        "zones": compute_v1.ZonesClient(credentials=credentials),
+        "networks": compute_v1.NetworksClient(credentials=credentials),
+        "subnetworks": compute_v1.SubnetworksClient(credentials=credentials),
+        "addresses": compute_v1.AddressesClient(credentials=credentials),
         "global_addresses": compute_v1.GlobalAddressesClient(credentials=credentials),
+        "routers": compute_v1.RoutersClient(credentials=credentials),
     }
 
     # Initialize worker state
@@ -156,9 +156,7 @@ def main(args=None):
 
     # --- Concurrent executor loop ---
     with ThreadPoolExecutor(max_workers=effective_workers) as executor:
-        future_to_project = {
-            executor.submit(discover_project, pi): pi for pi in projects
-        }
+        future_to_project = {executor.submit(discover_project, pi): pi for pi in projects}
         for future in as_completed(future_to_project):
             pi = future_to_project[future]
             project_id = pi.project_id
@@ -171,22 +169,38 @@ def main(args=None):
                     # EXEC-03: [N/total] project-id — resource breakdown
                     breakdown_parts = []
                     # Ordered resource types for consistent output
-                    for rtype in ("compute-instance", "vpc-network", "subnet",
-                                  "reserved-ip", "dns-zone", "dns-record"):
+                    for rtype in (
+                        "compute-instance",
+                        "vpc-network",
+                        "subnet",
+                        "reserved-ip",
+                        "cloud-nat",
+                        "gke-cluster",
+                        "dns-zone",
+                        "dns-record",
+                    ):
                         if rtype in type_counts:
                             breakdown_parts.append(f"{type_counts[rtype]} {rtype}")
                     # Append any remaining types not in the ordered list
                     for rtype, count in sorted(type_counts.items()):
-                        if rtype not in ("compute-instance", "vpc-network", "subnet",
-                                         "reserved-ip", "dns-zone", "dns-record"):
+                        if rtype not in (
+                            "compute-instance",
+                            "vpc-network",
+                            "subnet",
+                            "reserved-ip",
+                            "cloud-nat",
+                            "gke-cluster",
+                            "dns-zone",
+                            "dns-record",
+                        ):
                             breakdown_parts.append(f"{count} {rtype}")
-                    suffix = " \u2014 " + ", ".join(breakdown_parts) if breakdown_parts else ""
+                    suffix = " -- " + ", ".join(breakdown_parts) if breakdown_parts else ""
                     print(f"[{completed_count}/{total}] {result_pid}{suffix}")
             except Exception as e:
                 with lock:
                     completed_count += 1
                     errors.append({"project_id": project_id, "error": str(e)})
-                    print(f"[{completed_count}/{total}] {project_id}: FAILED \u2014 {e}")
+                    print(f"[{completed_count}/{total}] {project_id}: FAILED -- {e}")
 
     elapsed = time.monotonic() - scan_start
 
@@ -204,9 +218,12 @@ def main(args=None):
     # --- Post-scan processing ---
     try:
         # Count DDI objects and active IPs using aggregated resource list
+        from dataclasses import asdict
+
         from shared.resource_counter import ResourceCounter
+
         resource_counter = ResourceCounter("gcp")
-        count_results = resource_counter.count_resources(all_native_objects)
+        count_results = asdict(resource_counter.count_resources(all_native_objects))
 
         # Persist unknown resources for debugging (JSON)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -239,22 +256,22 @@ def main(args=None):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Export CSV for Sales Engineers
-        csv_file = f"output/gcp_universal_ddi_licensing_{timestamp}.csv"
+        csv_file = os.path.join("output", f"gcp_universal_ddi_licensing_{timestamp}.csv")
         calculator.export_csv(csv_file, provider="gcp")
         print(f"Licensing CSV exported: {csv_file}")
 
         # Export text summary
-        txt_file = f"output/gcp_universal_ddi_licensing_{timestamp}.txt"
+        txt_file = os.path.join("output", f"gcp_universal_ddi_licensing_{timestamp}.txt")
         calculator.export_text_summary(txt_file, provider="gcp")
         print(f"Licensing summary exported: {txt_file}")
 
         # Export estimator-only CSV
-        estimator_csv = f"output/gcp_universal_ddi_estimator_{timestamp}.csv"
+        estimator_csv = os.path.join("output", f"gcp_universal_ddi_estimator_{timestamp}.csv")
         calculator.export_estimator_csv(estimator_csv)
         print(f"Estimator CSV exported: {estimator_csv}")
 
         # Export auditable proof manifest (scope + hashes)
-        proof_file = f"output/gcp_universal_ddi_proof_{timestamp}.json"
+        proof_file = os.path.join("output", f"gcp_universal_ddi_proof_{timestamp}.json")
         calculator.export_proof_manifest(
             proof_file,
             provider="gcp",
@@ -267,6 +284,7 @@ def main(args=None):
         # Save results
         if args.full:
             from shared.output_utils import save_discovery_results
+
             print(f"Saving full resource/object data in {args.format.upper()} format...")
             saved_files = save_discovery_results(
                 all_native_objects,

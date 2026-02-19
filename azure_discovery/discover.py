@@ -15,6 +15,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from azure.mgmt.compute import ComputeManagementClient
+from azure.mgmt.containerservice import ContainerServiceClient
 from azure.mgmt.dns import DnsManagementClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.privatedns import PrivateDnsManagementClient
@@ -70,9 +71,9 @@ def save_checkpoint(checkpoint_file, args, all_subs, scanned_subs, all_native_ob
     try:
         os.makedirs(os.path.dirname(checkpoint_file), exist_ok=True)
         temp_file = checkpoint_file + ".tmp"
-        with open(temp_file, "w") as f:
+        with open(temp_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-        os.rename(temp_file, checkpoint_file)
+        os.replace(temp_file, checkpoint_file)
         print(f"Checkpoint saved: {len(scanned_subs)}/{len(all_subs)} subscriptions completed.")
     except Exception as e:
         print(f"Warning: Failed to save checkpoint: {e}")
@@ -83,7 +84,7 @@ def load_checkpoint(checkpoint_file, ttl_hours=48):
     if not os.path.exists(checkpoint_file):
         return None
     try:
-        with open(checkpoint_file, "r") as f:
+        with open(checkpoint_file, "r", encoding="utf-8") as f:
             data = json.load(f)
         timestamp = datetime.fromisoformat(data["timestamp"])
         if ttl_hours > 0 and datetime.now() - timestamp > timedelta(hours=ttl_hours):
@@ -114,10 +115,12 @@ def signal_handler(signum, frame):
     # Note: This is a simple handler; in real usage, we'd pass args and state, but for now, just exit
     sys.exit(1)
 
+
 def main(args=None):
     """Main discovery function."""
     signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, signal_handler)
 
     if args is None:
         # If called directly, parse arguments from command line
@@ -152,7 +155,7 @@ def main(args=None):
         )
         parser.add_argument(
             "--checkpoint-file",
-            default="output/azure_discovery_checkpoint.json",
+            default=os.path.join("output", "azure_discovery_checkpoint.json"),
             help="Path to checkpoint file (default: output/azure_discovery_checkpoint.json)",
         )
         parser.add_argument(
@@ -227,7 +230,8 @@ def main(args=None):
                 scanned_subs = checkpoint_data["completed_subs"]
                 all_native_objects = checkpoint_data["all_native_objects"]
                 # Verbose resume: print count and list of skipped subscription IDs
-                print(f"Skipping {len(scanned_subs)} previously completed subscriptions, scanning {len(all_subs) - len(scanned_subs)} remaining:")
+                remaining = len(all_subs) - len(scanned_subs)
+                print(f"Skipping {len(scanned_subs)} previously completed subscriptions," f" scanning {remaining} remaining:")
                 for sub_id in scanned_subs:
                     print(f"  - {sub_id}")
                 # Filter all_subs to exclude completed ones
@@ -266,11 +270,17 @@ def main(args=None):
     def discover_subscription(sub_id):
         retry_policy = make_retry_policy(sub_id, print_lock)
 
-        with ComputeManagementClient(credential, sub_id, retry_policy=retry_policy) as compute_client, \
-             NetworkManagementClient(credential, sub_id, retry_policy=retry_policy) as network_client, \
-             ResourceManagementClient(credential, sub_id, retry_policy=retry_policy) as resource_client, \
-             DnsManagementClient(credential, sub_id, retry_policy=retry_policy) as dns_client, \
-             PrivateDnsManagementClient(credential, sub_id, retry_policy=retry_policy) as privatedns_client:
+        with ComputeManagementClient(credential, sub_id, retry_policy=retry_policy) as compute_client, NetworkManagementClient(
+            credential, sub_id, retry_policy=retry_policy
+        ) as network_client, ResourceManagementClient(
+            credential, sub_id, retry_policy=retry_policy
+        ) as resource_client, DnsManagementClient(
+            credential, sub_id, retry_policy=retry_policy
+        ) as dns_client, PrivateDnsManagementClient(
+            credential, sub_id, retry_policy=retry_policy
+        ) as privatedns_client, ContainerServiceClient(
+            credential, sub_id, retry_policy=retry_policy
+        ) as container_client:
 
             config = AzureConfig(
                 regions=all_regions,
@@ -285,10 +295,17 @@ def main(args=None):
                 resource_client=resource_client,
                 dns_client=dns_client,
                 privatedns_client=privatedns_client,
+                container_client=container_client,
             )
             native_objects = discovery.discover_native_objects(max_workers=args.workers)
+
+            # Annotate every resource with subscription_id and prefix resource_id for uniqueness
+            for r in native_objects:
+                r["subscription_id"] = sub_id
+                r["resource_id"] = f"{sub_id}:{r['resource_id']}"
+
             return sub_id, native_objects
-        # All five clients are closed here -- sockets released
+        # All six clients are closed here -- sockets released
 
     completed_count = len(scanned_subs)  # account for resumed subs
     total = len(all_subs_total)
@@ -313,7 +330,6 @@ def main(args=None):
                     print(f"[{completed_count}/{total}] {sub_id}: FAILED -- {e}")
 
     succeeded = len(scanned_subs)
-    failed = len(errors)
     print(f"\nScan complete: {succeeded}/{total} subscriptions succeeded")
 
     if errors:
@@ -329,15 +345,15 @@ def main(args=None):
     # Log failed subscriptions to a separate file
     if errors:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        error_file = f"output/azure_failed_subscriptions_{timestamp}.txt"
+        error_file = os.path.join("output", f"azure_failed_subscriptions_{timestamp}.txt")
         try:
             os.makedirs("output", exist_ok=True)
-            with open(error_file, 'w') as f:
+            with open(error_file, "w", encoding="utf-8") as f:
                 for err in errors:
                     if isinstance(err, dict):
                         f.write(f"{err['sub_id']}: {err['error']}\n")
                     else:
-                        f.write(err + '\n')  # backward compat with checkpoint string format
+                        f.write(err + "\n")  # backward compat with checkpoint string format
             print(f"Failed subscriptions logged to: {error_file}")
         except Exception as e:
             print(f"Warning: Failed to write error log: {e}")
@@ -392,22 +408,22 @@ def main(args=None):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Export CSV for Sales Engineers
-        csv_file = f"output/azure_universal_ddi_licensing_{timestamp}.csv"
+        csv_file = os.path.join("output", f"azure_universal_ddi_licensing_{timestamp}.csv")
         calculator.export_csv(csv_file, provider="azure")
         print(f"Licensing CSV exported: {csv_file}")
 
         # Export text summary
-        txt_file = f"output/azure_universal_ddi_licensing_{timestamp}.txt"
+        txt_file = os.path.join("output", f"azure_universal_ddi_licensing_{timestamp}.txt")
         calculator.export_text_summary(txt_file, provider="azure")
         print(f"Licensing summary exported: {txt_file}")
 
         # Export estimator-only CSV
-        estimator_csv = f"output/azure_universal_ddi_estimator_{timestamp}.csv"
+        estimator_csv = os.path.join("output", f"azure_universal_ddi_estimator_{timestamp}.csv")
         calculator.export_estimator_csv(estimator_csv)
         print(f"Estimator CSV exported: {estimator_csv}")
 
         # Export auditable proof manifest (scope + hashes)
-        proof_file = f"output/azure_universal_ddi_proof_{timestamp}.json"
+        proof_file = os.path.join("output", f"azure_universal_ddi_proof_{timestamp}.json")
         calculator.export_proof_manifest(
             proof_file,
             provider="azure",
@@ -424,7 +440,6 @@ def main(args=None):
             print("Results saved to:")
             for file_type, filepath in saved_files.items():
                 print(f"  {file_type}: {filepath}")
-
 
         print("\nDiscovery completed successfully!")
 

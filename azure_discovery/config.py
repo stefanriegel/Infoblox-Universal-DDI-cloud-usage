@@ -37,6 +37,7 @@ def _find_az_command():
 
     # Common Windows installation paths
     import platform
+
     if platform.system() == "Windows":
         common_paths = [
             r"C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd",
@@ -57,7 +58,7 @@ def _check_az_available():
             ["az", "--version"],
             capture_output=True,
             text=True,
-            encoding='utf-8',
+            encoding="utf-8",
             check=True,
         )
         return True
@@ -141,6 +142,7 @@ def _build_credential():
             raise SystemExit("Authentication timed out. Run again to retry.") from e
         except CredentialUnavailableError as e:
             attempts.append(f"InteractiveBrowserCredential: {e}")
+
             # Fall through to device code
     # Headless path (or if browser credential failed with CredentialUnavailableError)
     def _device_code_callback(verification_uri, user_code, expires_on):
@@ -169,9 +171,7 @@ def _build_credential():
 
     # All paths exhausted — build summary and raise
     summary = "\n".join(f"  - {a}" for a in attempts)
-    raise CredentialUnavailableError(
-        message=f"All authentication methods failed:\n{summary}"
-    )
+    raise CredentialUnavailableError(message=f"All authentication methods failed:\n{summary}")
 
 
 def get_azure_credential():
@@ -211,7 +211,8 @@ class AzureConfig(BaseConfig):
             if not self.subscription_id:
                 try:
                     result = subprocess.run(
-                        _find_az_command() + [
+                        _find_az_command()
+                        + [
                             "account",
                             "show",
                             "--query",
@@ -221,7 +222,7 @@ class AzureConfig(BaseConfig):
                         ],
                         capture_output=True,
                         text=True,
-                        encoding='utf-8',
+                        encoding="utf-8",
                         check=True,
                     )
                     sub_id = result.stdout.strip()
@@ -282,7 +283,8 @@ def get_all_azure_regions() -> List[str]:
             # Try to get from az CLI
             try:
                 result = subprocess.run(
-                    _find_az_command() + [
+                    _find_az_command()
+                    + [
                         "account",
                         "show",
                         "--query",
@@ -292,7 +294,7 @@ def get_all_azure_regions() -> List[str]:
                     ],
                     capture_output=True,
                     text=True,
-                    encoding='utf-8',
+                    encoding="utf-8",
                     check=True,
                 )
                 subscription_id = result.stdout.strip()
@@ -341,10 +343,10 @@ def get_all_subscription_ids() -> List[str]:
                 _find_az_command() + ["account", "list", "--query", "[?state=='Enabled'].id", "-o", "tsv"],
                 capture_output=True,
                 text=True,
-                encoding='utf-8',
+                encoding="utf-8",
                 check=True,
             )
-            subs = result.stdout.strip().split('\n')
+            subs = result.stdout.strip().split("\n")
             return [sub for sub in subs if sub.strip()]
         except Exception as e2:
             logger.warning(f"Error getting subscriptions via CLI: {e2}")

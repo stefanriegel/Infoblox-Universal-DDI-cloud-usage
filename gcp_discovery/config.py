@@ -18,7 +18,6 @@ import google.auth.compute_engine
 
 from shared.config import BaseConfig
 
-
 # Module-level credential singleton (thread-safe)
 _gcp_credential_cache = None  # Tuple of (credentials, project)
 _gcp_credential_lock = threading.Lock()
@@ -113,12 +112,12 @@ def _check_gcp_compute_permission(credentials, project):
         next(iter(client.list(project=project)), None)
     except api_exceptions.PermissionDenied as e:
         print(f"ERROR: GCP credential lacks compute.regions.list permission on project '{project}': {e}")
-        print(f"Ensure your service account or user has at minimum the Viewer role, or:")
-        print(f"  roles/compute.viewer")
+        print("Ensure your service account or user has at minimum the Viewer role, or:")
+        print("  roles/compute.viewer")
         sys.exit(1)
     except api_exceptions.Forbidden as e:
         print(f"ERROR: GCP API access forbidden for project '{project}': {e}")
-        print(f"Check that the Compute Engine API is enabled:")
+        print("Check that the Compute Engine API is enabled:")
         print(f"  gcloud services enable compute.googleapis.com --project={project}")
         sys.exit(1)
     except Exception:
@@ -131,10 +130,10 @@ def _fail_gcp_auth(message: str, include_both_paths: bool = False) -> None:
     print(f"ERROR: {message}")
     print()
     if include_both_paths:
-        print("Option 1 — Application Default Credentials (ADC):")
+        print("Option 1 -- Application Default Credentials (ADC):")
         print("  gcloud auth application-default login")
         print()
-        print("Option 2 — Service Account key file:")
+        print("Option 2 -- Service Account key file:")
         print("  export GOOGLE_APPLICATION_CREDENTIALS=/path/to/key.json")
     else:
         print("To refresh Application Default Credentials:")
@@ -189,15 +188,9 @@ def _apply_project_filters(
 ) -> List[str]:
     """Filter project list by include/exclude glob patterns."""
     if include_patterns is not None:
-        project_ids = [
-            p for p in project_ids
-            if any(fnmatch.fnmatch(p, pat) for pat in include_patterns)
-        ]
+        project_ids = [p for p in project_ids if any(fnmatch.fnmatch(p, pat) for pat in include_patterns)]
     if exclude_patterns is not None:
-        project_ids = [
-            p for p in project_ids
-            if not any(fnmatch.fnmatch(p, pat) for pat in exclude_patterns)
-        ]
+        project_ids = [p for p in project_ids if not any(fnmatch.fnmatch(p, pat) for pat in exclude_patterns)]
     return project_ids
 
 
@@ -226,7 +219,7 @@ def _check_apis_enabled(client, project_id: str) -> Tuple[bool, bool]:
         compute_enabled = False
         dns_enabled = False
         for svc in response.services:
-            enabled = (svc.state == service_usage_v1.types.Service.State.ENABLED)
+            enabled = svc.state == service_usage_v1.types.Service.State.ENABLED
             if "compute.googleapis.com" in svc.name:
                 compute_enabled = enabled
             elif "dns.googleapis.com" in svc.name:
@@ -287,11 +280,13 @@ def enumerate_gcp_projects(
         # ENUM-03: bypass enumeration — single-project backward-compat path
         compute_ok, dns_ok = _check_apis_enabled(usage_client, explicit_project)
         _log_api_status(explicit_project, compute_ok, dns_ok)
-        return [ProjectInfo(
-            project_id=explicit_project,
-            compute_enabled=compute_ok,
-            dns_enabled=dns_ok,
-        )]
+        return [
+            ProjectInfo(
+                project_id=explicit_project,
+                compute_enabled=compute_ok,
+                dns_enabled=dns_ok,
+            )
+        ]
 
     # Multi-project enumeration path
     # org_id arg takes priority over env var (same flag-overrides-env convention)
@@ -303,10 +298,7 @@ def enumerate_gcp_projects(
 
     # ENUM-02: zero-project case — print actionable hint and exit
     if not project_ids:
-        print(
-            "ERROR: No ACTIVE GCP projects found."
-            " Ensure the credential has resourcemanager.projects.get permission."
-        )
+        print("ERROR: No ACTIVE GCP projects found." " Ensure the credential has resourcemanager.projects.get permission.")
         sys.exit(1)
 
     # ENUM-01: print count before pre-checks so count appears above [Skip] lines
@@ -317,11 +309,13 @@ def enumerate_gcp_projects(
     for pid in project_ids:
         compute_ok, dns_ok = _check_apis_enabled(usage_client, pid)
         _log_api_status(pid, compute_ok, dns_ok)
-        results.append(ProjectInfo(
-            project_id=pid,
-            compute_enabled=compute_ok,
-            dns_enabled=dns_ok,
-        ))
+        results.append(
+            ProjectInfo(
+                project_id=pid,
+                compute_enabled=compute_ok,
+                dns_enabled=dns_ok,
+            )
+        )
 
     return results
 

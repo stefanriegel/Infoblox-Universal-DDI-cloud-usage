@@ -65,6 +65,7 @@ class AWSDiscovery(BaseDiscovery):
                 "ec2": get_aws_client("ec2", region, self.aws_config),
                 "elbv2": get_aws_client("elbv2", region, self.aws_config),
                 "elb": get_aws_client("elb", region, self.aws_config),
+                "eks": get_aws_client("eks", region, self.aws_config),
             }
 
     def discover_native_objects(self, max_workers: int = 8) -> List[Dict]:
@@ -144,6 +145,18 @@ class AWSDiscovery(BaseDiscovery):
             elastic_ips = self._discover_elastic_ips(region)
             region_resources.extend(elastic_ips)
 
+            # Discover standalone ENIs (not attached to EC2 instances)
+            enis = self._discover_enis(region)
+            region_resources.extend(enis)
+
+            # Discover DHCP Option Sets (DDI objects)
+            dhcp_opts = self._discover_dhcp_option_sets(region)
+            region_resources.extend(dhcp_opts)
+
+            # Discover EKS clusters (DDI objects — pod/service CIDRs)
+            eks_clusters = self._discover_eks_clusters(region)
+            region_resources.extend(eks_clusters)
+
         except Exception as e:
             self.logger.error(f"Error discovering region {region}: {e}")
 
@@ -180,6 +193,15 @@ class AWSDiscovery(BaseDiscovery):
                                 if ipv6:
                                     ipv6_ips.append(ipv6)
 
+                        # Secondary private IPv4 addresses from all NICs
+                        secondary_private_ips = []
+                        for nic in instance.get("NetworkInterfaces", []) or []:
+                            for entry in nic.get("PrivateIpAddresses", []) or []:
+                                if not entry.get("Primary", False):
+                                    ip = entry.get("PrivateIpAddress")
+                                    if ip:
+                                        secondary_private_ips.append(ip)
+
                         # Get tags
                         tags = get_resource_tags(instance.get("Tags", []))
 
@@ -194,6 +216,7 @@ class AWSDiscovery(BaseDiscovery):
                             "state": instance_state,
                             "private_ip": private_ip,
                             "public_ip": public_ip,
+                            "private_ips": secondary_private_ips,
                             "ipv6_ips": ipv6_ips,
                             "vpc_id": instance.get("VpcId"),
                             "subnet_id": instance.get("SubnetId"),
@@ -494,6 +517,181 @@ class AWSDiscovery(BaseDiscovery):
 
         return resources
 
+    def _discover_enis(self, region: str) -> List[Dict]:
+        """Discover standalone ENIs (not attached to EC2 instances) in a region."""
+        resources: List[Dict] = []
+        try:
+            ec2 = self.clients[region]["ec2"]
+
+            paginator = ec2.get_paginator("describe_network_interfaces")
+            for page in paginator.paginate():
+                for eni in page.get("NetworkInterfaces", []):
+                    eni_id = eni.get("NetworkInterfaceId")
+                    if not eni_id:
+                        continue
+
+                    # Skip ENIs attached to EC2 instances (already captured via _discover_ec2_instances)
+                    attachment = eni.get("Attachment") or {}
+                    attached_instance = attachment.get("InstanceId")
+                    if attached_instance:
+                        continue
+
+                    # Extract all private IPs
+                    primary_private_ip = eni.get("PrivateIpAddress")
+                    private_ips = []
+                    for entry in eni.get("PrivateIpAddresses", []) or []:
+                        ip = entry.get("PrivateIpAddress")
+                        if ip:
+                            private_ips.append(ip)
+
+                    # Extract public IP from primary IP association
+                    public_ip = None
+                    association = eni.get("Association") or {}
+                    public_ip = association.get("PublicIp")
+
+                    tags = get_resource_tags(eni.get("Tags", []))
+                    requires_token = bool(private_ips or public_ip)
+
+                    details = {
+                        "eni_id": eni_id,
+                        "description": eni.get("Description"),
+                        "vpc_id": eni.get("VpcId"),
+                        "subnet_id": eni.get("SubnetId"),
+                        "private_ip": primary_private_ip,
+                        "private_ips": private_ips,
+                        "public_ip": public_ip,
+                        "status": eni.get("Status"),
+                        "interface_type": eni.get("InterfaceType"),
+                    }
+
+                    resources.append(
+                        self._format_resource(
+                            resource_data=details,
+                            resource_type="eni",
+                            region=region,
+                            name=eni_id,
+                            requires_management_token=requires_token,
+                            state=eni.get("Status", "available"),
+                            tags=tags,
+                        )
+                    )
+
+        except Exception as e:
+            self.logger.warning(f"Error discovering ENIs in {region}: {e}")
+
+        return resources
+
+    def _discover_dhcp_option_sets(self, region: str) -> List[Dict]:
+        """Discover DHCP option sets in a region (DDI objects)."""
+        resources: List[Dict] = []
+        try:
+            ec2 = self.clients[region]["ec2"]
+
+            resp = ec2.describe_dhcp_options()
+            for dhcp_option in resp.get("DhcpOptions", []):
+                dhcp_id = dhcp_option.get("DhcpOptionsId")
+                if not dhcp_id:
+                    continue
+
+                # Parse DHCP configurations into a readable dict
+                config_dict = {}
+                for cfg in dhcp_option.get("DhcpConfigurations", []):
+                    key = cfg.get("Key")
+                    values = cfg.get("Values", [])
+                    if key and values:
+                        config_dict[key] = [v.get("Value") for v in values]
+
+                tags = get_resource_tags(dhcp_option.get("Tags", []))
+
+                details = {
+                    "dhcp_options_id": dhcp_id,
+                    "configurations": config_dict,
+                    "owner_id": dhcp_option.get("OwnerId"),
+                }
+
+                resources.append(
+                    self._format_resource(
+                        resource_data=details,
+                        resource_type="dhcp-option-set",
+                        region=region,
+                        name=dhcp_id,
+                        requires_management_token=True,
+                        state="available",
+                        tags=tags,
+                    )
+                )
+
+        except Exception as e:
+            self.logger.warning(f"Error discovering DHCP option sets in {region}: {e}")
+
+        return resources
+
+    def _discover_eks_clusters(self, region: str) -> List[Dict]:
+        """Discover EKS clusters and their pod/service CIDR ranges (DDI objects)."""
+        resources: List[Dict] = []
+        try:
+            eks = self.clients[region]["eks"]
+
+            cluster_names = []
+            paginator = eks.get_paginator("list_clusters")
+            for page in paginator.paginate():
+                cluster_names.extend(page.get("clusters", []))
+
+            for cluster_name in cluster_names:
+                try:
+                    resp = eks.describe_cluster(name=cluster_name)
+                    cluster = resp.get("cluster", {})
+
+                    k8s_net = cluster.get("kubernetesNetworkConfig", {}) or {}
+                    service_cidr = k8s_net.get("serviceIpv4Cidr")
+                    pod_cidr = None
+                    # EKS pod CIDR comes from VPC CNI or custom networking; not always in API.
+                    # Check for IP family info.
+                    ip_family = k8s_net.get("ipFamily")
+
+                    resources_vpc = cluster.get("resourcesVpcConfig", {}) or {}
+                    vpc_id = resources_vpc.get("vpcId")
+                    subnet_ids = resources_vpc.get("subnetIds", [])
+
+                    status = (cluster.get("status") or "unknown").lower()
+                    version = cluster.get("version")
+                    tags = cluster.get("tags", {}) or {}
+
+                    details = {
+                        "cluster_name": cluster_name,
+                        "service_ipv4_cidr": service_cidr,
+                        "pod_cidr": pod_cidr,
+                        "ip_family": ip_family,
+                        "vpc_id": vpc_id,
+                        "subnet_ids": subnet_ids,
+                        "kubernetes_version": version,
+                        "platform_version": cluster.get("platformVersion"),
+                    }
+
+                    resources.append(
+                        self._format_resource(
+                            resource_data=details,
+                            resource_type="eks-cluster",
+                            region=region,
+                            name=cluster_name,
+                            requires_management_token=True,
+                            state=status,
+                            tags=tags,
+                        )
+                    )
+
+                except Exception as e:
+                    self.logger.warning(f"Error describing EKS cluster {cluster_name} in {region}: {e}")
+
+        except Exception as e:
+            error_msg = str(e)
+            if "AccessDeniedException" in error_msg or "is not authorized" in error_msg:
+                self.logger.debug(f"EKS API not authorized in {region}: {error_msg}")
+            else:
+                self.logger.warning(f"Error discovering EKS clusters in {region}: {e}")
+
+        return resources
+
     def _discover_route53_zones_and_records(self) -> List[Dict]:
         """Discover Route 53 hosted zones and DNS records (global)."""
         resources = []
@@ -555,18 +753,36 @@ class AWSDiscovery(BaseDiscovery):
         return resources
 
     def _is_managed_service(self, tags: Dict[str, str]) -> bool:
-        """Check if a resource is a managed service (Management Token-free)."""
+        """Check if a resource is a managed service (Management Token-free).
+
+        Detects resources created/managed by AWS platform services (ECS tasks,
+        Lambda ENIs, EKS system pods, etc.). Avoids false positives from generic
+        aws:cloudformation:* or aws:autoscaling:* auto-tags.
+        """
         if not tags:
             return False
+
+        # Specific tag key prefixes that indicate AWS-managed resources
+        managed_key_prefixes = (
+            "aws:ecs:",
+            "aws:eks:",
+            "eks.amazonaws.com/",
+            "lambda:",
+            "aws:lambda:",
+            "elasticmapreduce:",
+            "aws:elasticmapreduce:",
+        )
+        managed_key_exact = {"managed-by", "managed_by", "aws-managed"}
 
         for key, value in tags.items():
             key_lower = key.lower()
             value_lower = value.lower()
 
-            # Common managed service indicators
-            if any(indicator in key_lower for indicator in ["managed", "service", "aws"]):
+            if key_lower in managed_key_exact:
                 return True
-            if any(indicator in value_lower for indicator in ["managed", "service", "aws"]):
+            if any(key_lower.startswith(prefix) for prefix in managed_key_prefixes):
+                return True
+            if value_lower in ("aws-managed", "ecs", "lambda", "eks"):
                 return True
 
         return False

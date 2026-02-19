@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from azure_discovery.discover import save_checkpoint, load_checkpoint
 
+
 def test_checkpoint():
     """Test saving and loading checkpoint."""
     checkpoint_file = "test_checkpoint.json"
@@ -49,6 +50,7 @@ def test_checkpoint():
     # Cleanup
     if os.path.exists(checkpoint_file):
         os.remove(checkpoint_file)
+
 
 if __name__ == "__main__":
     test_checkpoint()

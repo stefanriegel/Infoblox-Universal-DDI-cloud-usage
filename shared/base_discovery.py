@@ -151,16 +151,14 @@ class BaseDiscovery(ABC):
         }
 
     def _is_managed_service(self, tags: Dict[str, str]) -> bool:
+        """Base managed-service check. Provider subclasses override with specific indicators."""
         if not tags:
             return False
 
+        managed_key_exact = {"managed-by", "managed_by"}
         for key, value in tags.items():
             key_lower = key.lower()
-            value_lower = value.lower()
-
-            if any(indicator in key_lower for indicator in ["managed", "service", "aws"]):
-                return True
-            if any(indicator in value_lower for indicator in ["managed", "service", "aws"]):
+            if key_lower in managed_key_exact:
                 return True
 
         return False

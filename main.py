@@ -11,14 +11,16 @@ import sys
 from pathlib import Path
 
 if sys.version_info < (3, 11):
-    sys.exit(f"Error: Python 3.11+ required (found {sys.version_info.major}.{sys.version_info.minor}). "
-             f"Download: https://www.python.org/downloads/")
+    sys.exit(
+        f"Error: Python 3.11+ required (found {sys.version_info.major}.{sys.version_info.minor}). "
+        f"Download: https://www.python.org/downloads/"
+    )
 
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
 # Set UTF-8 encoding for subprocess calls (fixes Windows encoding issues)
-os.environ['PYTHONIOENCODING'] = 'utf-8'
+os.environ["PYTHONIOENCODING"] = "utf-8"
 
 
 def _print_kv(key: str, value: str) -> None:
@@ -31,7 +33,7 @@ def _check_aws_auth() -> int:
 
     # Optional: AWS CLI helps with SSO login for non-experienced users.
     try:
-        proc = subprocess.run(["aws", "--version"], capture_output=True, text=True, encoding='utf-8')
+        proc = subprocess.run(["aws", "--version"], capture_output=True, text=True, encoding="utf-8")
         output = (proc.stdout or "") + (proc.stderr or "")
         m = re.search(r"aws-cli/(\d+)\.(\d+)\.(\d+)", output)
         if m:
@@ -84,8 +86,9 @@ def _check_azure_auth() -> int:
     try:
         # Try to find az command in common locations on Windows
         az_cmd = ["az"]
-        if os.name == 'nt':  # Windows
+        if os.name == "nt":  # Windows
             import platform
+
             if platform.system() == "Windows":
                 common_paths = [
                     r"C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd",
@@ -96,7 +99,7 @@ def _check_azure_auth() -> int:
                         az_cmd = [path]
                         break
 
-        proc = subprocess.run(az_cmd + ["version"], capture_output=True, text=True, encoding='utf-8')
+        proc = subprocess.run(az_cmd + ["version"], capture_output=True, text=True, encoding="utf-8")
         if proc.returncode == 0:
             _print_kv("az CLI", "installed")
         else:
@@ -132,8 +135,12 @@ def _check_gcp_auth() -> int:
     print("=" * 28)
 
     # Optional: gcloud makes application-default login easy.
+    # On Windows, gcloud is often installed as gcloud.cmd
+    gcloud_cmd = "gcloud"
+    if sys.platform == "win32":
+        gcloud_cmd = "gcloud.cmd"
     try:
-        proc = subprocess.run(["gcloud", "--version"], capture_output=True, text=True, encoding='utf-8')
+        proc = subprocess.run([gcloud_cmd, "--version"], capture_output=True, text=True, encoding="utf-8")
         if proc.returncode == 0:
             _print_kv("gcloud", "installed")
         else:
@@ -224,7 +231,7 @@ def main():
     )
     parser.add_argument(
         "--checkpoint-file",
-        default="output/azure_discovery_checkpoint.json",
+        default=os.path.join("output", "azure_discovery_checkpoint.json"),
         help="Path to checkpoint file (default: output/azure_discovery_checkpoint.json)",
     )
     parser.add_argument(

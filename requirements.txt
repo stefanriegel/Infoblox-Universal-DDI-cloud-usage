@@ -6,6 +6,7 @@ boto3>=1.26.0
 
 # Azure Dependencies
 azure-mgmt-compute>=30.0.0
+azure-mgmt-containerservice>=28.0.0
 azure-mgmt-dns>=8.0.0
 azure-mgmt-network>=28.0.0
 azure-mgmt-privatedns>=1.0.0  # For Azure Private DNS zone discovery
@@ -14,6 +15,7 @@ azure-identity>=1.12.0
 
 # GCP Dependencies
 google-cloud-compute>=1.12.0
+google-cloud-container>=2.0.0
 google-cloud-dns==0.35.1
 google-auth>=2.17.0
 google-cloud-resource-manager>=1.12.0

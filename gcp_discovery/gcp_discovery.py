@@ -41,12 +41,12 @@ class GCPDiscovery(BaseDiscovery):
             config: GCP configuration
             shared_compute_clients: Optional dict of pre-built, project-agnostic compute
                 clients to share across GCPDiscovery instances. When provided, the caller
-                supplies all six compute clients and a fresh dns.Client is created per
+                supplies compute clients and a fresh dns.Client is created per
                 instance (EXEC-01 / EXEC-02). When None, the existing _init_gcp_clients()
                 path runs unchanged (backward compatible).
 
                 Expected keys: "instances", "zones", "networks", "subnetworks",
-                "addresses", "global_addresses".
+                "addresses", "global_addresses", "routers".
         """
         # Convert GCPConfig to DiscoveryConfig
         discovery_config = DiscoveryConfig(
@@ -75,11 +75,23 @@ class GCPDiscovery(BaseDiscovery):
             self.subnetworks_client = shared_compute_clients["subnetworks"]
             self.addresses_client = shared_compute_clients["addresses"]
             self.global_addresses_client = shared_compute_clients["global_addresses"]
+            self.routers_client = shared_compute_clients.get("routers")
 
             # dns.Client requires per-project instantiation (stores project= at construction).
             # At v0.35.1 it has no close() method and uses HTTP REST transport — GC handles cleanup.
             from google.cloud import dns
+
             self.dns_client = dns.Client(project=self.project_id, credentials=credentials)
+
+            # GKE client is project-agnostic (project passed via parent string per call)
+            self.container_client = shared_compute_clients.get("container")
+            if self.container_client is None:
+                try:
+                    from google.cloud import container_v1
+
+                    self.container_client = container_v1.ClusterManagerClient(credentials=credentials)
+                except ImportError:
+                    self.container_client = None
 
             # Build the zones-by-region cache using the shared zones_client
             self._zones_by_region = self._build_zones_by_region()
@@ -107,9 +119,18 @@ class GCPDiscovery(BaseDiscovery):
             self.subnetworks_client = compute_v1.SubnetworksClient(credentials=credentials)
             self.addresses_client = compute_v1.AddressesClient(credentials=credentials)
             self.global_addresses_client = compute_v1.GlobalAddressesClient(credentials=credentials)
+            self.routers_client = compute_v1.RoutersClient(credentials=credentials)
 
             # DNS client requires per-project instantiation
             self.dns_client = dns.Client(project=self.project_id, credentials=credentials)
+
+            # GKE client (project-agnostic — project passed via parent string per call)
+            try:
+                from google.cloud import container_v1
+
+                self.container_client = container_v1.ClusterManagerClient(credentials=credentials)
+            except ImportError:
+                self.container_client = None
 
             # Cache zone names so we don't guess region-a/b/c.
             self._zones_by_region = self._build_zones_by_region()
@@ -213,6 +234,14 @@ class GCPDiscovery(BaseDiscovery):
             # Discover reserved/static addresses (allocated even if unattached)
             reserved_ips = self._discover_reserved_ip_addresses(region)
             region_resources.extend(reserved_ips)
+
+            # Discover Cloud NAT IPs from routers
+            nat_resources = self._discover_cloud_nat(region)
+            region_resources.extend(nat_resources)
+
+            # Discover GKE clusters and their CIDR ranges
+            gke_resources = self._discover_gke_clusters(region)
+            region_resources.extend(gke_resources)
 
         except Exception as e:
             self.logger.error(f"Error discovering region {region}: {e}")
@@ -511,6 +540,179 @@ class GCPDiscovery(BaseDiscovery):
 
         return resources
 
+    def _resolve_nat_ip_address(self, nat_ip_url: str, region: str) -> Optional[str]:
+        """Resolve a NAT IP resource URL to its actual IP address.
+
+        Args:
+            nat_ip_url: Full resource URL (projects/P/regions/R/addresses/NAME)
+            region: Fallback region if URL parsing fails
+        """
+        if not isinstance(nat_ip_url, str):
+            return None
+        parts = nat_ip_url.split("/")
+        addr_name = parts[-1] if parts else None
+        # Extract region from URL: .../regions/<region>/addresses/<name>
+        try:
+            addr_region = parts[parts.index("regions") + 1]
+        except (ValueError, IndexError):
+            addr_region = region
+        if not addr_name:
+            return None
+        try:
+            addr = self.addresses_client.get(
+                project=self.project_id,
+                region=addr_region,
+                address=addr_name,
+            )
+            return getattr(addr, "address", None)
+        except Exception as e:
+            self.logger.debug(f"Could not resolve NAT IP {addr_name}: {e}")
+            return None
+
+    def _get_auto_allocated_nat_ips(self, router_name: str, region: str) -> List[str]:
+        """Fetch auto-allocated NAT IPs from router status."""
+        ips: List[str] = []
+        try:
+            status_response = self.routers_client.get_router_status(
+                project=self.project_id,
+                region=region,
+                router=router_name,
+            )
+            result = getattr(status_response, "result", None) or status_response
+            for nat_status in getattr(result, "nat_status", []) or []:
+                for auto_ip_url in getattr(nat_status, "auto_allocated_nat_ips", []) or []:
+                    if isinstance(auto_ip_url, str):
+                        resolved = self._resolve_nat_ip_address(auto_ip_url, region)
+                        if resolved:
+                            ips.append(resolved)
+        except Exception as e:
+            self.logger.debug(f"Could not get auto-allocated NAT IPs for {router_name}: {e}")
+        return ips
+
+    def _discover_cloud_nat(self, region: str) -> List[Dict]:
+        """Discover Cloud NAT IPs from routers in a region."""
+        resources: List[Dict] = []
+        if not getattr(self, "routers_client", None):
+            return resources
+
+        try:
+            request = {"project": self.project_id, "region": region}
+            for router in self.routers_client.list(request=request):
+                router_name = getattr(router, "name", None)
+                if not router_name:
+                    continue
+
+                nats = getattr(router, "nats", None) or []
+                for nat_config in nats:
+                    nat_name = getattr(nat_config, "name", None) or f"{router_name}-nat"
+
+                    # Get network context from router
+                    network = getattr(router, "network", None)
+                    network_name = network.split("/")[-1] if isinstance(network, str) and network else None
+
+                    alloc_option = str(getattr(nat_config, "nat_ip_allocate_option", "")) or None
+                    source_range = str(getattr(nat_config, "source_subnetwork_ip_ranges_to_nat", "")) or None
+
+                    # Resolve manual NAT IP URLs to actual IP addresses
+                    resolved_ips: List[str] = []
+                    nat_ip_names: List[str] = []
+                    for nat_ip_url in getattr(nat_config, "nat_ips", []) or []:
+                        if isinstance(nat_ip_url, str):
+                            nat_ip_names.append(nat_ip_url.split("/")[-1])
+                            ip = self._resolve_nat_ip_address(nat_ip_url, region)
+                            if ip:
+                                resolved_ips.append(ip)
+
+                    # Fetch auto-allocated NAT IPs from router status
+                    if alloc_option and "AUTO" in str(alloc_option):
+                        resolved_ips.extend(self._get_auto_allocated_nat_ips(router_name, region))
+
+                    details = {
+                        "router_name": router_name,
+                        "nat_name": nat_name,
+                        "nat_ip_allocate_option": alloc_option,
+                        "source_subnetwork_ip_ranges_to_nat": source_range,
+                        "nat_ip_names": nat_ip_names,
+                        "network": network_name,
+                        "public_ips": resolved_ips,
+                    }
+
+                    resources.append(
+                        self._format_resource(
+                            details,
+                            "cloud-nat",
+                            region,
+                            nat_name,
+                            True,
+                            "active",
+                            {},
+                        )
+                    )
+
+        except Exception as e:
+            self.logger.warning(f"Error discovering Cloud NAT in {region}: {e}")
+
+        return resources
+
+    def _discover_gke_clusters(self, region: str) -> List[Dict]:
+        """Discover GKE clusters and their pod/service CIDR ranges."""
+        resources: List[Dict] = []
+        if not getattr(self, "container_client", None):
+            return resources
+
+        try:
+            parent = f"projects/{self.project_id}/locations/{region}"
+            response = self.container_client.list_clusters(parent=parent)
+
+            for cluster in response.clusters:
+                cluster_name = getattr(cluster, "name", None)
+                if not cluster_name:
+                    continue
+
+                pod_cidr = getattr(cluster, "cluster_ipv4_cidr", None)
+                services_cidr = getattr(cluster, "services_ipv4_cidr", None)
+                network = getattr(cluster, "network", None)
+                subnetwork = getattr(cluster, "subnetwork", None)
+                status = str(getattr(cluster, "status", "")).lower() or "unknown"
+
+                try:
+                    labels = dict(cluster.resource_labels) if getattr(cluster, "resource_labels", None) else {}
+                except (AttributeError, TypeError):
+                    labels = {}
+
+                details = {
+                    "cluster_name": cluster_name,
+                    "cluster_ipv4_cidr": pod_cidr,
+                    "services_ipv4_cidr": services_cidr,
+                    "network": network,
+                    "subnetwork": subnetwork,
+                    "location": getattr(cluster, "location", region),
+                    "current_node_count": getattr(cluster, "current_node_count", None),
+                    "initial_cluster_version": getattr(cluster, "initial_cluster_version", None),
+                }
+
+                resources.append(
+                    self._format_resource(
+                        details,
+                        "gke-cluster",
+                        region,
+                        cluster_name,
+                        True,
+                        status,
+                        labels,
+                    )
+                )
+
+        except Exception as e:
+            error_msg = str(e)
+            # Silently skip regions where Container API is not enabled or unavailable
+            if "PERMISSION_DENIED" in error_msg or "not enabled" in error_msg or "404" in error_msg:
+                self.logger.debug(f"GKE API not available in {region}: {error_msg}")
+            else:
+                self.logger.warning(f"Error discovering GKE clusters in {region}: {e}")
+
+        return resources
+
     def _discover_cloud_dns_zones_and_records(self) -> List[Dict]:
         """Discover Cloud DNS zones and records."""
         resources = []
@@ -562,10 +764,6 @@ class GCPDiscovery(BaseDiscovery):
                 record_name = record.name
                 record_type = record.record_type
 
-                # Skip SOA and NS records (they're part of the zone)
-                if record_type in ["SOA", "NS"]:
-                    continue
-
                 # DNS records always require tokens
                 requires_token = True
 
@@ -597,19 +795,33 @@ class GCPDiscovery(BaseDiscovery):
         return resources
 
     def _is_managed_service(self, labels: Dict[str, str]) -> bool:
-        """Check if a resource is a managed service (doesn't require tokens)."""
-        # Check for common managed service indicators in labels
-        managed_indicators = [
+        """Check if a resource is a managed service (Management Token-free).
+
+        Detects resources created/managed by GCP platform services (GKE system
+        pods, Cloud Run infra, Cloud Functions, etc.). Uses specific key prefixes
+        and exact value matches to avoid false positives.
+        """
+        if not labels:
+            return False
+
+        # Specific label key prefixes that indicate GCP-managed resources
+        managed_key_prefixes = (
             "goog-managed-by",
-            "managed-by",
-            "google-managed",
             "gke-managed",
             "cloud-run",
             "cloud-functions",
-        ]
+        )
+        managed_key_exact = {"managed-by", "managed_by", "google-managed"}
 
         for key, value in labels.items():
-            if any(indicator in key.lower() or indicator in value.lower() for indicator in managed_indicators):
+            key_lower = key.lower()
+            value_lower = value.lower()
+
+            if key_lower in managed_key_exact:
+                return True
+            if any(key_lower.startswith(prefix) for prefix in managed_key_prefixes):
+                return True
+            if value_lower in ("google-managed", "gke", "cloud-run", "cloud-functions"):
                 return True
 
         return False
