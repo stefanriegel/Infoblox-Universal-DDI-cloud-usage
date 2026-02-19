@@ -38,8 +38,8 @@
   5. A credential chain failure raises a typed exception (RefreshError or DefaultCredentialsError) — bare `except Exception` blocks do not swallow auth errors
 **Plans:** 2/2 plans complete
 Plans:
-- [ ] 04-01-PLAN.md — Build credential singleton in config.py (validation, logging, permission pre-check)
-- [ ] 04-02-PLAN.md — Wire singleton into discover.py and fix bare exception catches in gcp_discovery.py
+- [x] 04-01-PLAN.md — Build credential singleton in config.py (validation, logging, permission pre-check)
+- [x] 04-02-PLAN.md — Wire singleton into discover.py and fix bare exception catches in gcp_discovery.py
 
 ### Phase 5: GCP Project Enumeration
 **Goal**: The tool discovers all ACTIVE GCP projects accessible to the credential and handles edge cases cleanly before any per-project discovery work
@@ -52,7 +52,10 @@ Plans:
   4. Setting `GOOGLE_CLOUD_ORG_ID` causes enumeration to scope to that organization's projects
   5. Running with `--include-projects "prod-*"` or `--exclude-projects "test-*"` filters the project list before discovery begins
   6. A project where the Compute API is disabled is skipped with an INFO log — it is not treated as a permission error or auth failure
-**Plans**: TBD
+**Plans:** 2 plans
+Plans:
+- [ ] 05-01-PLAN.md — Core enumeration logic in config.py (ProjectInfo, search_projects, filters, API pre-checks)
+- [ ] 05-02-PLAN.md — Wire CLI flags and enumerate_gcp_projects() into discover.py and main.py
 
 ### Phase 6: Concurrent Multi-Project Execution
 **Goal**: The tool discovers resources across all enumerated GCP projects concurrently, with each resource attributed to its project and no socket exhaustion
@@ -96,8 +99,8 @@ Plans:
 | 1. Credential Chain and Code Correctness | v1 | 3/3 | Complete | 2026-02-18 |
 | 2. Concurrent Execution Hardening | v1 | 2/2 | Complete | 2026-02-18 |
 | 3. Observability and UX Polish | v1 | 1/1 | Complete | 2026-02-18 |
-| 4. GCP Credential Chain and Fail-Fast | 2/2 | Complete   | 2026-02-19 | — |
-| 5. GCP Project Enumeration | v1.1 | 0/? | Not started | — |
+| 4. GCP Credential Chain and Fail-Fast | v1.1 | 2/2 | Complete | 2026-02-19 |
+| 5. GCP Project Enumeration | v1.1 | 0/2 | Not started | — |
 | 6. Concurrent Multi-Project Execution | v1.1 | 0/? | Not started | — |
 | 7. Retry and Observability | v1.1 | 0/? | Not started | — |
 | 8. Checkpoint and Resume | v1.1 | 0/? | Not started | — |
