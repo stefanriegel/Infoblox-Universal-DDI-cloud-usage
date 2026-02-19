@@ -5,18 +5,18 @@
 See: .planning/PROJECT.md (updated 2026-02-19)
 
 **Core value:** Every cloud resource across all projects/subscriptions must be discovered reliably — no project or subscription should silently fail due to credential or concurrency issues.
-**Current focus:** v1.1 GCP Multi-Project Discovery — Phase 4: GCP Credential Chain and Fail-Fast
+**Current focus:** v1.1 GCP Multi-Project Discovery — Phase 5: GCP Project Enumeration
 
 ## Current Position
 
-Phase: 4 — GCP Credential Chain and Fail-Fast
-Plan: 2 of 3
+Phase: 5 — GCP Project Enumeration
+Plan: 1 of 2 complete
 Status: In progress
-Last activity: 2026-02-19 — Completed 04-02 credential singleton wiring in discover.py and gcp_discovery.py
+Last activity: 2026-02-19 — Plan 05-01 complete (ProjectInfo dataclass + enumerate_gcp_projects())
 
 ```
-v1.1 Progress: [          ] 0% (0/5 phases)
-Phase 4: [ ] Phase 5: [ ] Phase 6: [ ] Phase 7: [ ] Phase 8: [ ]
+v1.1 Progress: [██        ] 20% (1/5 phases)
+Phase 4: [x] Phase 5: [ ] Phase 6: [ ] Phase 7: [ ] Phase 8: [ ]
 ```
 
 ## Accumulated Context
@@ -36,6 +36,13 @@ All v1 decisions archived — see .planning/milestones/v1-ROADMAP.md for full hi
 - Credential validation before banner: `get_gcp_credential()` called as first statement in `main()` so auth failures never produce misleading discovery output
 - `GCPConfig(project_id=project)` receives ADC project — ensures discovery works without `GOOGLE_CLOUD_PROJECT` env var; `_get_default_project_id()` fallback handles `None`
 - `RuntimeError` with `from e` for client construction failures (not bare `Exception`) — preserves exception chain and is more specific
+
+**05-01 (GCP project enumeration — core logic):**
+- `enumerate_gcp_projects()` takes explicit keyword args (not args namespace) for testability — no argparse coupling in the core function
+- `ServiceUsageClient` created once in `enumerate_gcp_projects()` and passed to `_check_apis_enabled(client, project_id)` — avoids per-project client construction anti-pattern
+- `PermissionDenied` from `search_projects` itself (fatal) vs from `batch_get_services` per-project (non-fatal, returns `(False, False)`) — different handling for enumeration error vs API-not-enabled
+- `_apply_project_filters()` uses `is not None` check — empty list `[]` means "include nothing", `None` means "no filter applied"
+- Count printed before pre-check loop; `[Skip]` lines appear beneath it — per locked decision
 
 ### Architecture Notes (from research)
 
@@ -62,6 +69,5 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-19T09:59:00Z
-**Stopped at:** Completed 04-02-PLAN.md
-**Status:** Phase 4 Plan 02 complete. discover.py cleaned of gcloud subprocess calls; credential singleton warmed on main thread before workers; _init_gcp_clients() no longer wraps get_gcp_credential() in bare except. Requirements CRED-02, CRED-03, CRED-05 fulfilled. Ready for Plan 03.
+**Last session:** 2026-02-19T11:47:43Z
+**Stopped at:** Completed 05-01-PLAN.md

@@ -52,7 +52,7 @@ Plans:
   4. Setting `GOOGLE_CLOUD_ORG_ID` causes enumeration to scope to that organization's projects
   5. Running with `--include-projects "prod-*"` or `--exclude-projects "test-*"` filters the project list before discovery begins
   6. A project where the Compute API is disabled is skipped with an INFO log — it is not treated as a permission error or auth failure
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 05-01-PLAN.md — Core enumeration logic in config.py (ProjectInfo, search_projects, filters, API pre-checks)
 - [ ] 05-02-PLAN.md — Wire CLI flags and enumerate_gcp_projects() into discover.py and main.py
@@ -100,7 +100,7 @@ Plans:
 | 2. Concurrent Execution Hardening | v1 | 2/2 | Complete | 2026-02-18 |
 | 3. Observability and UX Polish | v1 | 1/1 | Complete | 2026-02-18 |
 | 4. GCP Credential Chain and Fail-Fast | v1.1 | 2/2 | Complete | 2026-02-19 |
-| 5. GCP Project Enumeration | v1.1 | 0/2 | Not started | — |
+| 5. GCP Project Enumeration | 1/2 | In Progress|  | — |
 | 6. Concurrent Multi-Project Execution | v1.1 | 0/? | Not started | — |
 | 7. Retry and Observability | v1.1 | 0/? | Not started | — |
 | 8. Checkpoint and Resume | v1.1 | 0/? | Not started | — |

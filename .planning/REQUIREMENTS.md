@@ -17,12 +17,12 @@ Requirements for GCP Multi-Project Discovery milestone. Each maps to roadmap pha
 
 ### Project Enumeration
 
-- [ ] **ENUM-01**: Tool auto-discovers all ACTIVE projects accessible to the credential
-- [ ] **ENUM-02**: Tool warns explicitly when 0 projects found with IAM guidance
-- [ ] **ENUM-03**: Single-project backward compat via `--project` flag or `GOOGLE_CLOUD_PROJECT` env var
-- [ ] **ENUM-04**: Org/folder-aware enumeration when `GOOGLE_CLOUD_ORG_ID` is set
-- [ ] **ENUM-05**: Project include/exclude via `--include-projects` / `--exclude-projects` glob patterns
-- [ ] **ENUM-06**: `accessNotConfigured` errors classified and skipped gracefully (not treated as auth failure)
+- [x] **ENUM-01**: Tool auto-discovers all ACTIVE projects accessible to the credential
+- [x] **ENUM-02**: Tool warns explicitly when 0 projects found with IAM guidance
+- [x] **ENUM-03**: Single-project backward compat via `--project` flag or `GOOGLE_CLOUD_PROJECT` env var
+- [x] **ENUM-04**: Org/folder-aware enumeration when `GOOGLE_CLOUD_ORG_ID` is set
+- [x] **ENUM-05**: Project include/exclude via `--include-projects` / `--exclude-projects` glob patterns
+- [x] **ENUM-06**: `accessNotConfigured` errors classified and skipped gracefully (not treated as auth failure)
 
 ### Concurrent Execution
 
@@ -84,12 +84,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CRED-03 | Phase 4 | Complete |
 | CRED-04 | Phase 4 | Complete |
 | CRED-05 | Phase 4 | Complete |
-| ENUM-01 | Phase 5 | Pending |
-| ENUM-02 | Phase 5 | Pending |
-| ENUM-03 | Phase 5 | Pending |
-| ENUM-04 | Phase 5 | Pending |
-| ENUM-05 | Phase 5 | Pending |
-| ENUM-06 | Phase 5 | Pending |
+| ENUM-01 | Phase 5 | Complete |
+| ENUM-02 | Phase 5 | Complete |
+| ENUM-03 | Phase 5 | Complete |
+| ENUM-04 | Phase 5 | Complete |
+| ENUM-05 | Phase 5 | Complete |
+| ENUM-06 | Phase 5 | Complete |
 | EXEC-01 | Phase 6 | Pending |
 | EXEC-02 | Phase 6 | Pending |
 | EXEC-03 | Phase 6 | Pending |
