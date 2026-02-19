@@ -10,13 +10,13 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 6 — Concurrent Multi-Project Execution
-Plan: 1 of 2 complete
-Status: In progress
-Last activity: 2026-02-19 — Plan 06-01 complete (shared_compute_clients injection into GCPDiscovery.__init__)
+Plan: 2 of 2 complete
+Status: Phase complete
+Last activity: 2026-02-19 — Plan 06-02 complete (concurrent multi-project discovery loop in discover.py)
 
 ```
-v1.1 Progress: [███       ] 30% (1.5/5 phases — Phase 6 in progress)
-Phase 4: [x] Phase 5: [x] Phase 6: [ ] Phase 7: [ ] Phase 8: [ ]
+v1.1 Progress: [████      ] 40% (2/5 phases — Phase 7 next)
+Phase 4: [x] Phase 5: [x] Phase 6: [x] Phase 7: [ ] Phase 8: [ ]
 ```
 
 ## Accumulated Context
@@ -56,6 +56,13 @@ All v1 decisions archived — see .planning/milestones/v1-ROADMAP.md for full hi
 - `from google.cloud import dns` placed as deferred import inside shared-clients branch only
 - `_build_zones_by_region()` called in shared-clients branch (uses `self.zones_client` now assigned from dict)
 
+**06-02 (concurrent multi-project discovery loop):**
+- `--workers` default in standalone `discover.py` changed to 4 per locked decision; `main.py` global `--workers` left at 8 (shared with Azure intra-subscription workers — changing would break Azure default)
+- `completed_count` as plain variable in `main()` scope (executor loop is not a nested function, no `nonlocal` needed)
+- `discover_project()` closure defined inside `main()` — captures `all_regions`, `shared_compute_clients`, `args` from enclosing scope; identical structural pattern to Azure's `discover_subscription()`
+- `ResourceCounter("gcp").count_resources(all_native_objects)` replaces per-instance `discovery.count_resources()` for post-loop aggregated counting
+- Exit code `1 if errors else 0` — matches Azure's non-zero exit on any failed subscription
+
 ### Architecture Notes (from research)
 
 - `get_gcp_credential()` in `config.py` — singleton with threading.Lock, `credentials.refresh()` warm-up, fail-fast on `RefreshError` / `DefaultCredentialsError`
@@ -81,5 +88,5 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-19T13:27:22Z
-**Stopped at:** Completed 06-01-PLAN.md (shared_compute_clients injection into GCPDiscovery)
+**Last session:** 2026-02-19T13:35:00Z
+**Stopped at:** Completed 06-02-PLAN.md (concurrent multi-project discovery loop in discover.py)
