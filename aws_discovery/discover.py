@@ -5,6 +5,7 @@ Discovers AWS Native Objects and calculates Management Token requirements.
 """
 
 import argparse
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -23,7 +24,7 @@ def check_awscli_version():
     import sys
 
     try:
-        result = subprocess.run(["aws", "--version"], capture_output=True, text=True, encoding='utf-8')
+        result = subprocess.run(["aws", "--version"], capture_output=True, text=True, encoding="utf-8")
         version_match = re.search(r"aws-cli/(\d+)\.(\d+)\.(\d+)", result.stdout + result.stderr)
         if not version_match:
             print("ERROR: Unable to determine AWS CLI version. Please ensure AWS CLI v2 is installed.")
@@ -118,6 +119,13 @@ def main(args=None):
         # Discover Native Objects
         print("Starting AWS Discovery...")
         native_objects = discovery.discover_native_objects(max_workers=args.workers)
+
+        # Annotate every resource with account_id and prefix resource_id for uniqueness
+        account_id = scanned_accounts[0] if scanned_accounts else "unknown"
+        for r in native_objects:
+            r["account_id"] = account_id
+            r["resource_id"] = f"{account_id}:{r['resource_id']}"
+
         print(f"Found {len(native_objects)} Native Objects")
 
         # Count DDI objects and active IPs
@@ -152,22 +160,22 @@ def main(args=None):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Export CSV for Sales Engineers
-        csv_file = f"output/aws_universal_ddi_licensing_{timestamp}.csv"
+        csv_file = os.path.join("output", f"aws_universal_ddi_licensing_{timestamp}.csv")
         calculator.export_csv(csv_file, provider="aws")
         print(f"Licensing CSV exported: {csv_file}")
 
         # Export text summary
-        txt_file = f"output/aws_universal_ddi_licensing_{timestamp}.txt"
+        txt_file = os.path.join("output", f"aws_universal_ddi_licensing_{timestamp}.txt")
         calculator.export_text_summary(txt_file, provider="aws")
         print(f"Licensing summary exported: {txt_file}")
 
         # Export estimator-only CSV
-        estimator_csv = f"output/aws_universal_ddi_estimator_{timestamp}.csv"
+        estimator_csv = os.path.join("output", f"aws_universal_ddi_estimator_{timestamp}.csv")
         calculator.export_estimator_csv(estimator_csv)
         print(f"Estimator CSV exported: {estimator_csv}")
 
         # Export auditable proof manifest (scope + hashes)
-        proof_file = f"output/aws_universal_ddi_proof_{timestamp}.json"
+        proof_file = os.path.join("output", f"aws_universal_ddi_proof_{timestamp}.json")
         calculator.export_proof_manifest(
             proof_file,
             provider="aws",
@@ -200,7 +208,6 @@ def main(args=None):
             print("Results saved to:")
             for file_type, filepath in saved_files.items():
                 print(f"  {file_type}: {filepath}")
-
 
         print("\nDiscovery completed successfully!")
 

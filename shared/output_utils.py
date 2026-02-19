@@ -5,15 +5,14 @@ Shared output utilities for saving discovery results.
 import json
 import os
 from datetime import datetime
-from typing import Any, Dict, List
-
+from typing import Any, Dict, List, Optional
 
 
 def print_discovery_summary(
     native_objects: List[Dict],
     count_results: Dict,
     provider: str,
-    extra_info: dict | None = None,
+    extra_info: Optional[dict] = None,
 ):
     """
     Print discovery summary to console.
@@ -97,7 +96,7 @@ def save_discovery_results(
     output_format: str,
     timestamp: str,
     provider: str,
-    extra_info: dict | None = None,
+    extra_info: Optional[dict] = None,
 ) -> Dict[str, str]:
     """
     Save discovery results in the specified format.
@@ -123,7 +122,7 @@ def save_discovery_results(
 
     # Save based on format
     if output_format == "json":
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             output = {"resources": data}
             if extra_info:
                 output.update(extra_info)
@@ -152,7 +151,7 @@ def save_discovery_results(
             df = pd.DataFrame(data)
         df.to_csv(filepath, index=False)
     else:  # txt
-        with open(filepath, "w") as f:
+        with open(filepath, "w", encoding="utf-8") as f:
             if not data:
                 f.write(f"No {provider.upper()} Native Objects found.\n")
                 return {"native_objects": filepath}
@@ -215,7 +214,7 @@ def save_unknown_resources(
     filename = f"{provider}_unknown_resources_{timestamp}.json"
     filepath = os.path.join(output_dir, filename)
 
-    with open(filepath, "w") as f:
+    with open(filepath, "w", encoding="utf-8") as f:
         json.dump(
             {"count": len(unknown), "unknown_resources": unknown},
             f,
@@ -232,7 +231,7 @@ def save_resource_count_results(
     output_format: str,
     timestamp: str,
     provider: str,
-    extra_info: dict | None = None,
+    extra_info: Optional[dict] = None,
 ) -> Dict[str, str]:
     extra_info = extra_info or {}
 
@@ -244,7 +243,7 @@ def save_resource_count_results(
     count_filepath = os.path.join(output_dir, count_filename)
 
     if output_format == "json":
-        with open(count_filepath, "w") as f:
+        with open(count_filepath, "w", encoding="utf-8") as f:
             output = dict(count_results)
             if extra_info:
                 output.update(extra_info)
@@ -266,7 +265,7 @@ def save_resource_count_results(
         df = pd.DataFrame([flat_data])
         df.to_csv(count_filepath, index=False)
     else:
-        with open(count_filepath, "w") as f:
+        with open(count_filepath, "w", encoding="utf-8") as f:
             from datetime import datetime as dt
 
             f.write(f"{provider.upper()} Resource Count Results\n")
@@ -349,7 +348,7 @@ def format_azure_resource(
     Format Azure resource data for consistent output.
 
     Args:
-        resource: Raw Azure resource data (from vars() on Azure SDK model)
+        resource: Azure resource data dict (explicit field extraction)
         resource_type: Type of resource (vm, vnet, subnet, etc.)
         region: Azure region
         requires_management_token: Whether this resource requires Management Tokens

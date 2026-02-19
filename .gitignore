@@ -173,4 +173,7 @@ output/
 *.txt
 !requirements.txt
 !README.md
-!LICENSE 
+!LICENSE
+
+# GSD planning docs (local-only)
+.planning/

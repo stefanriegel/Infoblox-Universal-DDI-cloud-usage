@@ -2,6 +2,33 @@
 # Setup Python virtual environment and install dependencies for AWS, Azure, and GCP discovery
 set -e
 
+# --- Section: Find Python 3.11+ ---
+PYTHON_CMD=""
+for candidate in python3.14 python3.13 python3.12 python3.11 python3 python; do
+  if command -v "$candidate" >/dev/null 2>&1; then
+    ver=$("$candidate" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null)
+    major=$(echo "$ver" | cut -d. -f1)
+    minor=$(echo "$ver" | cut -d. -f2)
+    if [ "$major" -ge 3 ] 2>/dev/null && [ "$minor" -ge 11 ] 2>/dev/null; then
+      PYTHON_CMD="$candidate"
+      PYTHON_VERSION="$ver"
+      break
+    fi
+  fi
+done
+
+if [ -z "$PYTHON_CMD" ]; then
+  echo "[ERROR] No Python 3.11+ found. Searched: python3.14, python3.13, python3.12, python3.11, python3, python"
+  echo
+  echo "  macOS:   brew install python@3.12"
+  echo "  Ubuntu:  sudo apt install python3.12"
+  echo "  Download: https://www.python.org/downloads/"
+  echo
+  exit 1
+fi
+echo "[OK] Using $PYTHON_CMD (Python $PYTHON_VERSION)"
+echo
+
 # Check for non-interactive mode (CI)
 PROVIDER_CHOICE="${1:-}"
 
@@ -26,8 +53,8 @@ if [ -d "venv" ]; then
 fi
 
 # --- Section: Create new environment ---
-echo "[INFO] Creating new Python virtual environment..."
-python3 -m venv venv
+echo "[INFO] Creating new Python virtual environment using $PYTHON_CMD..."
+"$PYTHON_CMD" -m venv venv
 source venv/bin/activate
 echo
 

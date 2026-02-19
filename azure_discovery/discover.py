@@ -9,18 +9,24 @@ import json
 import os
 import signal
 import sys
-import time
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timedelta
-from functools import wraps
 from pathlib import Path
 
-from .azure_discovery import AzureDiscovery
+from azure.mgmt.compute import ComputeManagementClient
+from azure.mgmt.containerservice import ContainerServiceClient
+from azure.mgmt.dns import DnsManagementClient
+from azure.mgmt.network import NetworkManagementClient
+from azure.mgmt.privatedns import PrivateDnsManagementClient
+from azure.mgmt.resource import ResourceManagementClient
+
+from .azure_discovery import AzureDiscovery, make_retry_policy
 from .config import (
     AzureConfig,
     get_all_azure_regions,
     get_all_subscription_ids,
+    get_azure_credential,
 )
 
 # Add parent directory to path for imports
@@ -28,25 +34,28 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 
 def validate_azure_credentials():
-    """Validate that Azure credentials are configured and working."""
+    """Validate that Azure credentials are configured and working.
+    Uses ClientSecretCredential or InteractiveBrowserCredential/DeviceCodeCredential."""
     from azure.identity import CredentialUnavailableError
+    from azure.core.exceptions import ClientAuthenticationError
     from .config import get_azure_credential
 
     try:
         credential = get_azure_credential()
-        # Try to get a token to verify credentials work
+        # Try to get a token to verify credentials work (defense-in-depth;
+        # get_azure_credential already warms the credential internally)
         credential.get_token("https://management.azure.com/.default")
         return True
     except CredentialUnavailableError as e:
         print(f"ERROR: Azure credentials not available: {e}")
-        print("Please configure one of:")
-        print("  - Service principal: Set AZURE_CLIENT_ID," " AZURE_CLIENT_SECRET, AZURE_TENANT_ID")
-        print("  - Azure CLI: Run 'az login'")
-        print("  - Managed identity: Ensure running in Azure with " "managed identity enabled")
+        return False
+    except ClientAuthenticationError as e:
+        print(f"ERROR: Azure authentication failed: {e}")
+        print("Check your credentials and try again.")
         return False
     except Exception as e:
-        print(f"ERROR: Failed to authenticate with Azure: {e}")
-        return False
+        print(f"ERROR: Unexpected error during credential validation: {e}")
+        raise
 
 
 def save_checkpoint(checkpoint_file, args, all_subs, scanned_subs, all_native_objects, errors=None):
@@ -62,28 +71,31 @@ def save_checkpoint(checkpoint_file, args, all_subs, scanned_subs, all_native_ob
     try:
         os.makedirs(os.path.dirname(checkpoint_file), exist_ok=True)
         temp_file = checkpoint_file + ".tmp"
-        with open(temp_file, "w") as f:
+        with open(temp_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
-        os.rename(temp_file, checkpoint_file)
+        os.replace(temp_file, checkpoint_file)
         print(f"Checkpoint saved: {len(scanned_subs)}/{len(all_subs)} subscriptions completed.")
     except Exception as e:
         print(f"Warning: Failed to save checkpoint: {e}")
 
 
-def load_checkpoint(checkpoint_file):
+def load_checkpoint(checkpoint_file, ttl_hours=48):
     """Load checkpoint data if valid and recent."""
     if not os.path.exists(checkpoint_file):
         return None
     try:
-        with open(checkpoint_file, "r") as f:
+        with open(checkpoint_file, "r", encoding="utf-8") as f:
             data = json.load(f)
         timestamp = datetime.fromisoformat(data["timestamp"])
-        if datetime.now() - timestamp > timedelta(hours=48):
-            print("Checkpoint is older than 48 hours, starting fresh.")
+        if ttl_hours > 0 and datetime.now() - timestamp > timedelta(hours=ttl_hours):
+            print(f"Checkpoint expired ({ttl_hours}h TTL). Starting fresh scan.")
             return None
         return data
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        print(f"Warning: Checkpoint file is corrupted or incompatible ({e}). Starting fresh scan.")
+        return None
     except Exception as e:
-        print(f"Warning: Failed to load checkpoint: {e}")
+        print(f"Warning: Failed to load checkpoint ({e}). Starting fresh scan.")
         return None
 
 
@@ -97,36 +109,18 @@ def prompt_resume(checkpoint_data):
     return response in ("y", "yes")
 
 
-def retry_on_failure(max_attempts=3, delay=1):
-    """Decorator to retry API calls on failure."""
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            attempts = 0
-            while attempts < max_attempts:
-                try:
-                    return func(*args, **kwargs)
-                except Exception as e:
-                    attempts += 1
-                    if attempts >= max_attempts:
-                        raise
-                    print(f"Retry {attempts}/{max_attempts} for {func.__name__}: {e}")
-                    time.sleep(delay * (2 ** (attempts - 1)))  # Exponential backoff
-            return None
-        return wrapper
-    return decorator
-
-
 def signal_handler(signum, frame):
     """Handle signals for graceful shutdown."""
     print("\nReceived signal, saving checkpoint and exiting...")
     # Note: This is a simple handler; in real usage, we'd pass args and state, but for now, just exit
     sys.exit(1)
 
+
 def main(args=None):
     """Main discovery function."""
     signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    if hasattr(signal, "SIGTERM"):
+        signal.signal(signal.SIGTERM, signal_handler)
 
     if args is None:
         # If called directly, parse arguments from command line
@@ -161,14 +155,8 @@ def main(args=None):
         )
         parser.add_argument(
             "--checkpoint-file",
-            default="output/azure_discovery_checkpoint.json",
+            default=os.path.join("output", "azure_discovery_checkpoint.json"),
             help="Path to checkpoint file (default: output/azure_discovery_checkpoint.json)",
-        )
-        parser.add_argument(
-            "--checkpoint-interval",
-            type=int,
-            default=50,
-            help="Save checkpoint every N subscriptions (default: 50)",
         )
         parser.add_argument(
             "--retry-attempts",
@@ -186,6 +174,18 @@ def main(args=None):
             action="store_true",
             help=("Generate Infoblox Universal DDI licensing calculations " "for Sales Engineers"),
         )
+        parser.add_argument(
+            "--checkpoint-ttl-hours",
+            type=int,
+            default=48,
+            help="Checkpoint expiry in hours (default: 48). Use 0 to never expire.",
+        )
+        parser.add_argument(
+            "--warn-sub-threshold",
+            type=int,
+            default=200,
+            help="Print a warning when subscription count exceeds this value and --subscription-workers >2 (default: 200).",
+        )
 
         args = parser.parse_args()
 
@@ -195,7 +195,7 @@ def main(args=None):
     print(f"Parallel workers: {args.workers}")
     print(f"Subscription workers: {args.subscription_workers}")
     if not args.no_checkpoint:
-        print(f"Checkpointing enabled: {args.checkpoint_file} (every {args.checkpoint_interval} subs or 15 mins)")
+        print(f"Checkpointing enabled: {args.checkpoint_file} (after each subscription)")
     print()
 
     # Validate credentials before attempting discovery
@@ -208,20 +208,34 @@ def main(args=None):
         print("No subscriptions found. Check your Azure credentials and permissions.")
         return 1
     print(f"Found {len(all_subs)} enabled subscriptions")
+    all_subs_total = list(all_subs)  # Capture full list before checkpoint filtering
+
+    # Warn for large-tenant + high-worker combination (OBSV-02)
+    if len(all_subs_total) > args.warn_sub_threshold and args.subscription_workers > 2:
+        print(
+            f"[Warning] {len(all_subs_total)} subscriptions detected with "
+            f"--subscription-workers {args.subscription_workers}. "
+            f"This combination may trigger ARM rate limiting (429 throttling). "
+            f"Consider reducing to --subscription-workers 2 for large tenants."
+        )
 
     # Check for checkpoint and resume
     checkpoint_data = None
     if not args.no_checkpoint:
-        checkpoint_data = load_checkpoint(args.checkpoint_file)
+        checkpoint_data = load_checkpoint(args.checkpoint_file, args.checkpoint_ttl_hours)
         if checkpoint_data:
             if args.resume or prompt_resume(checkpoint_data):
                 print("Resuming from checkpoint...")
                 # Restore state
                 scanned_subs = checkpoint_data["completed_subs"]
                 all_native_objects = checkpoint_data["all_native_objects"]
+                # Verbose resume: print count and list of skipped subscription IDs
+                remaining = len(all_subs) - len(scanned_subs)
+                print(f"Skipping {len(scanned_subs)} previously completed subscriptions," f" scanning {remaining} remaining:")
+                for sub_id in scanned_subs:
+                    print(f"  - {sub_id}")
                 # Filter all_subs to exclude completed ones
                 all_subs = [sub for sub in all_subs if sub not in scanned_subs]
-                print(f"Skipped {len(scanned_subs)} completed subscriptions.")
             else:
                 print("Starting fresh...")
                 checkpoint_data = None
@@ -241,101 +255,119 @@ def main(args=None):
     all_regions = get_all_azure_regions()
     print(f"Found {len(all_regions)} available regions")
 
-    # Get all subscriptions
-    all_subs = get_all_subscription_ids()
-    if not all_subs:
-        print("No subscriptions found. Check your Azure credentials and permissions.")
-        return 1
-    print(f"Found {len(all_subs)} enabled subscriptions")
-
-    # Check for checkpoint and resume
-    checkpoint_data = None
-    if not args.no_checkpoint:
-        checkpoint_data = load_checkpoint(args.checkpoint_file)
-        if checkpoint_data:
-            if args.resume or prompt_resume(checkpoint_data):
-                print("Resuming from checkpoint...")
-                # Restore state
-                scanned_subs = checkpoint_data["completed_subs"]
-                all_native_objects = checkpoint_data["all_native_objects"]
-                # Filter all_subs to exclude completed ones
-                all_subs = [sub for sub in all_subs if sub not in scanned_subs]
-                print(f"Skipped {len(scanned_subs)} completed subscriptions.")
-            else:
-                print("Starting fresh...")
-                checkpoint_data = None
-                scanned_subs = []
-                all_native_objects = []
-        else:
-            scanned_subs = []
-            all_native_objects = []
-    else:
-        scanned_subs = []
-        all_native_objects = []
-
     print()
 
     # Discover across all subscriptions in parallel
-    if 'all_native_objects' not in locals():
-        all_native_objects = []
-    if 'scanned_subs' not in locals():
-        scanned_subs = []
 
     lock = threading.Lock()
-    last_checkpoint_time = time.time()
     errors = checkpoint_data.get("errors", []) if checkpoint_data else []
 
-    def discover_subscription(sub_id):
-        print(f"Scanning subscription: {sub_id}")
-        config = AzureConfig(regions=all_regions, output_directory="output", output_format=args.format, subscription_id=sub_id)
-        discovery = AzureDiscovery(config, retry_attempts=args.retry_attempts)
-        native_objects = discovery.discover_native_objects(max_workers=args.workers)
-        print(f"Found {len(native_objects)} Native Objects in this subscription")
-        return sub_id, native_objects
+    # Get the credential singleton once before spawning workers.
+    # InteractiveBrowserCredential must not be called from worker threads.
+    credential = get_azure_credential()
+    print_lock = lock  # reuse existing threading.Lock for thread-safe output
 
-    def should_save_checkpoint():
-        return (len(scanned_subs) % args.checkpoint_interval == 0) or (time.time() - last_checkpoint_time > 900)  # 15 mins
+    def discover_subscription(sub_id):
+        retry_policy = make_retry_policy(sub_id, print_lock)
+
+        with ComputeManagementClient(credential, sub_id, retry_policy=retry_policy) as compute_client, NetworkManagementClient(
+            credential, sub_id, retry_policy=retry_policy
+        ) as network_client, ResourceManagementClient(
+            credential, sub_id, retry_policy=retry_policy
+        ) as resource_client, DnsManagementClient(
+            credential, sub_id, retry_policy=retry_policy
+        ) as dns_client, PrivateDnsManagementClient(
+            credential, sub_id, retry_policy=retry_policy
+        ) as privatedns_client, ContainerServiceClient(
+            credential, sub_id, retry_policy=retry_policy
+        ) as container_client:
+
+            config = AzureConfig(
+                regions=all_regions,
+                output_directory="output",
+                output_format=args.format,
+                subscription_id=sub_id,
+            )
+            discovery = AzureDiscovery(
+                config,
+                compute_client=compute_client,
+                network_client=network_client,
+                resource_client=resource_client,
+                dns_client=dns_client,
+                privatedns_client=privatedns_client,
+                container_client=container_client,
+            )
+            native_objects = discovery.discover_native_objects(max_workers=args.workers)
+
+            # Annotate every resource with subscription_id and prefix resource_id for uniqueness
+            for r in native_objects:
+                r["subscription_id"] = sub_id
+                r["resource_id"] = f"{sub_id}:{r['resource_id']}"
+
+            return sub_id, native_objects
+        # All six clients are closed here -- sockets released
+
+    completed_count = len(scanned_subs)  # account for resumed subs
+    total = len(all_subs_total)
 
     with ThreadPoolExecutor(max_workers=args.subscription_workers) as executor:
         future_to_sub = {executor.submit(discover_subscription, sub_id): sub_id for sub_id in all_subs}
         for future in as_completed(future_to_sub):
             sub_id = future_to_sub[future]
-
             try:
                 result_sub_id, native_objects = future.result()
                 with lock:
+                    completed_count += 1
                     all_native_objects.extend(native_objects)
                     scanned_subs.append(result_sub_id)
-                    if not args.no_checkpoint and should_save_checkpoint():
-                        save_checkpoint(args.checkpoint_file, args, get_all_subscription_ids(), scanned_subs, all_native_objects, errors)
-                        last_checkpoint_time = time.time()
+                    print(f"[{completed_count}/{total}] {result_sub_id}")
+                    if not args.no_checkpoint:
+                        save_checkpoint(args.checkpoint_file, args, all_subs_total, scanned_subs, all_native_objects, errors)
             except Exception as e:
-                print(f"Error discovering subscription {sub_id}: {e}")
                 with lock:
-                    errors.append(f"{sub_id}: {str(e)}")
-                # Continue with other subscriptions
+                    completed_count += 1
+                    errors.append({"sub_id": sub_id, "error": str(e)})
+                    print(f"[{completed_count}/{total}] {sub_id}: FAILED -- {e}")
+
+    succeeded = len(scanned_subs)
+    print(f"\nScan complete: {succeeded}/{total} subscriptions succeeded")
+
+    if errors:
+        print(f"\nFAILED ({len(errors)}):")
+        for err in errors:
+            if isinstance(err, dict):
+                print(f"  - {err['sub_id']}: {err['error']}")
+            else:
+                print(f"  - {err}")  # backward compat with checkpoint string format
 
     print(f"\nTotal Native Objects found across all subscriptions: " f"{len(all_native_objects)}")
 
     # Log failed subscriptions to a separate file
     if errors:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        error_file = f"output/azure_failed_subscriptions_{timestamp}.txt"
+        error_file = os.path.join("output", f"azure_failed_subscriptions_{timestamp}.txt")
         try:
             os.makedirs("output", exist_ok=True)
-            with open(error_file, 'w') as f:
-                for error in errors:
-                    f.write(error + '\n')
+            with open(error_file, "w", encoding="utf-8") as f:
+                for err in errors:
+                    if isinstance(err, dict):
+                        f.write(f"{err['sub_id']}: {err['error']}\n")
+                    else:
+                        f.write(err + "\n")  # backward compat with checkpoint string format
             print(f"Failed subscriptions logged to: {error_file}")
         except Exception as e:
             print(f"Warning: Failed to write error log: {e}")
 
-    # Create a dummy discovery for counting and saving
+    # Create a dummy discovery for counting and saving.
+    # AzureDiscovery is constructed without pre-built clients here; it internally creates
+    # management clients but never calls any Azure API (count_resources() and save_discovery_results()
+    # only process _discovered_resources which is set directly below). These internal clients
+    # will be garbage-collected normally after this function returns.
     config = AzureConfig(
         regions=all_regions,
         output_directory="output",
         output_format=args.format,
-        subscription_id=all_subs[0] if all_subs else "",
+        subscription_id=all_subs_total[0] if all_subs_total else "",
     )
     discovery = AzureDiscovery(config)
     discovery._discovered_resources = all_native_objects  # Set resources
@@ -376,22 +408,22 @@ def main(args=None):
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         # Export CSV for Sales Engineers
-        csv_file = f"output/azure_universal_ddi_licensing_{timestamp}.csv"
+        csv_file = os.path.join("output", f"azure_universal_ddi_licensing_{timestamp}.csv")
         calculator.export_csv(csv_file, provider="azure")
         print(f"Licensing CSV exported: {csv_file}")
 
         # Export text summary
-        txt_file = f"output/azure_universal_ddi_licensing_{timestamp}.txt"
+        txt_file = os.path.join("output", f"azure_universal_ddi_licensing_{timestamp}.txt")
         calculator.export_text_summary(txt_file, provider="azure")
         print(f"Licensing summary exported: {txt_file}")
 
         # Export estimator-only CSV
-        estimator_csv = f"output/azure_universal_ddi_estimator_{timestamp}.csv"
+        estimator_csv = os.path.join("output", f"azure_universal_ddi_estimator_{timestamp}.csv")
         calculator.export_estimator_csv(estimator_csv)
         print(f"Estimator CSV exported: {estimator_csv}")
 
         # Export auditable proof manifest (scope + hashes)
-        proof_file = f"output/azure_universal_ddi_proof_{timestamp}.json"
+        proof_file = os.path.join("output", f"azure_universal_ddi_proof_{timestamp}.json")
         calculator.export_proof_manifest(
             proof_file,
             provider="azure",
@@ -408,7 +440,6 @@ def main(args=None):
             print("Results saved to:")
             for file_type, filepath in saved_files.items():
                 print(f"  {file_type}: {filepath}")
-
 
         print("\nDiscovery completed successfully!")
 

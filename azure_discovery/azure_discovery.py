@@ -5,11 +5,13 @@ Discovers Azure Native Objects and calculates Management Token requirements.
 """
 
 import logging
-import time
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List
 
+from azure.core.pipeline.policies import RetryPolicy
 from azure.mgmt.compute import ComputeManagementClient
+from azure.mgmt.containerservice import ContainerServiceClient
 from azure.mgmt.dns import DnsManagementClient
 from azure.mgmt.network import NetworkManagementClient
 from azure.mgmt.privatedns import PrivateDnsManagementClient
@@ -31,16 +33,78 @@ logging.getLogger("azure.core").setLevel(logging.ERROR)
 logging.getLogger("azure.mgmt").setLevel(logging.ERROR)
 
 
+class VisibleRetryPolicy(RetryPolicy):
+    """RetryPolicy subclass that prints throttle events before sleeping.
+
+    Honors Retry-After header from ARM 429 responses. Falls back to
+    exponential backoff (2s, 4s, 8s) when the header is absent.
+    Max 3 retries per API call.
+    """
+
+    def __init__(self, sub_name: str, print_lock: threading.Lock, **kwargs):
+        super().__init__(**kwargs)
+        self._sub_name = sub_name
+        self._lock = print_lock
+
+    def sleep(self, settings, transport, response=None):
+        if response is not None:
+            retry_after = self.get_retry_after(response)
+            wait_secs = retry_after if retry_after is not None else self.get_backoff_time(settings)
+            if wait_secs is not None:
+                with self._lock:
+                    print(f"  {self._sub_name}: throttled, retrying in {wait_secs:.0f}s")
+        super().sleep(settings, transport, response)
+
+
+def make_retry_policy(sub_name: str, print_lock: threading.Lock) -> VisibleRetryPolicy:
+    """Build a VisibleRetryPolicy configured for ARM API scanning.
+
+    Args:
+        sub_name: Display name for this subscription (used in retry messages).
+        print_lock: Threading lock for safe console output.
+    """
+    return VisibleRetryPolicy(
+        sub_name=sub_name,
+        print_lock=print_lock,
+        retry_total=3,
+        retry_connect=3,
+        retry_read=3,
+        retry_status=3,
+        retry_backoff_factor=2.0,  # fallback: 2s, 4s, 8s when no Retry-After
+        retry_backoff_max=60,  # cap fallback at 60s
+        retry_on_status_codes=[429, 500, 502, 503, 504],
+    )
+
+
 class AzureDiscovery(BaseDiscovery):
     """Azure Cloud Discovery implementation."""
 
-    def __init__(self, config: AzureConfig, retry_attempts: int = 3):
+    def __init__(
+        self,
+        config: AzureConfig,
+        retry_attempts: int = 3,  # Deprecated: no longer used; SDK RetryPolicy handles retries
+        compute_client=None,
+        network_client=None,
+        resource_client=None,
+        dns_client=None,
+        privatedns_client=None,
+        container_client=None,
+    ):
         """
         Initialize Azure discovery.
 
         Args:
             config: Azure configuration
-            retry_attempts: Number of retry attempts for API calls
+            retry_attempts: Deprecated. No longer used — SDK RetryPolicy handles retries.
+                Retained for backward compatibility.
+            compute_client: Optional pre-built ComputeManagementClient. When all six
+                client kwargs are provided, _init_azure_clients() is skipped so the
+                caller controls client lifecycle (create, scan, close).
+            network_client: Optional pre-built NetworkManagementClient.
+            resource_client: Optional pre-built ResourceManagementClient.
+            dns_client: Optional pre-built DnsManagementClient.
+            privatedns_client: Optional pre-built PrivateDnsManagementClient.
+            container_client: Optional pre-built ContainerServiceClient.
         """
         # Convert AzureConfig to DiscoveryConfig
         discovery_config = DiscoveryConfig(
@@ -53,10 +117,28 @@ class AzureDiscovery(BaseDiscovery):
 
         # Store original Azure config for Azure-specific functionality
         self.azure_config = config
-        self.retry_attempts = retry_attempts
+        self.retry_attempts = retry_attempts  # Deprecated; kept for backward compat
 
-        # Initialize Azure clients
-        self._init_azure_clients()
+        # When all five core clients are provided, use them directly and skip internal init.
+        # This enables external lifecycle management (create → scan → close per subscription).
+        if (
+            compute_client is not None
+            and network_client is not None
+            and resource_client is not None
+            and dns_client is not None
+            and privatedns_client is not None
+        ):
+            self.compute_client = compute_client
+            self.network_client = network_client
+            self.resource_client = resource_client
+            self.dns_client = dns_client
+            self.privatedns_client = privatedns_client
+            self.container_client = container_client
+            self.credential = None
+            self.subscription_id = config.subscription_id or ""
+        else:
+            # Initialize Azure clients internally (backward-compatible path)
+            self._init_azure_clients()
 
     def _init_azure_clients(self):
         """Initialize Azure clients for different services."""
@@ -71,20 +153,7 @@ class AzureDiscovery(BaseDiscovery):
         self.resource_client = ResourceManagementClient(self.credential, self.subscription_id)
         self.dns_client = DnsManagementClient(self.credential, self.subscription_id)
         self.privatedns_client = PrivateDnsManagementClient(self.credential, self.subscription_id)
-
-    def _retry_api_call(self, func, *args, **kwargs):
-        """Retry API call with exponential backoff."""
-        attempts = 0
-        while attempts < self.retry_attempts:
-            try:
-                return func(*args, **kwargs)
-            except Exception as e:
-                attempts += 1
-                if attempts >= self.retry_attempts:
-                    raise
-                delay = 1 * (2 ** (attempts - 1))  # Exponential backoff
-                self.logger.warning(f"API call failed (attempt {attempts}/{self.retry_attempts}): {e}. Retrying in {delay}s...")
-                time.sleep(delay)
+        self.container_client = ContainerServiceClient(self.credential, self.subscription_id)
 
     def discover_native_objects(self, max_workers: int = 8) -> List[Dict]:
         """
@@ -104,7 +173,7 @@ class AzureDiscovery(BaseDiscovery):
         all_resources = []
 
         # Get all resource groups
-        resource_groups = list(self._retry_api_call(self.resource_client.resource_groups.list))
+        resource_groups = list(self.resource_client.resource_groups.list())
 
         # Discover resources in resource groups in parallel
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -164,6 +233,8 @@ class AzureDiscovery(BaseDiscovery):
         resources.extend(self._discover_network_security_groups(rg_name))
         resources.extend(self._discover_express_route_circuits(rg_name))
         resources.extend(self._discover_dedicated_hosts(rg_name))
+        resources.extend(self._discover_vmss(rg_name))
+        resources.extend(self._discover_aks_clusters(rg_name))
 
         # Resource groups are fully handled by the dedicated _discover_* methods above.
         return resources
@@ -254,9 +325,18 @@ class AzureDiscovery(BaseDiscovery):
                     is_managed = self._is_managed_service(getattr(vm, "tags", {}))
                     requires_token = has_network_interfaces and not is_managed
 
-                    # Use vars() to convert Azure SDK model to dict
-                    vm_dict = vars(vm)
-                    formatted_vm = format_azure_resource(vm_dict, "vm", region, requires_token)
+                    hw_profile = getattr(vm_detail, "hardware_profile", None)
+                    os_profile = getattr(vm_detail, "os_profile", None)
+                    vm_details = {
+                        "vm_id": getattr(vm_detail, "id", None),
+                        "vm_name": vm_name,
+                        "vm_size": getattr(hw_profile, "vm_size", None) if hw_profile else None,
+                        "os_type": getattr(os_profile, "computer_name", None) if os_profile else None,
+                        "provisioning_state": getattr(vm_detail, "provisioning_state", None),
+                        "name": vm_name,
+                        "tags": getattr(vm, "tags", {}),
+                    }
+                    formatted_vm = format_azure_resource(vm_details, "vm", region, requires_token)
 
                     # Add IP addresses to details
                     if private_ips or public_ips:
@@ -277,8 +357,14 @@ class AzureDiscovery(BaseDiscovery):
                 except Exception as e:
                     self.logger.warning(f"Error getting detailed VM info for {vm_name}: {e}")
                     # Fallback to basic VM info without IP addresses
-                    vm_dict = vars(vm)
-                    formatted_vm = format_azure_resource(vm_dict, "vm", region)
+                    vm_details = {
+                        "vm_id": getattr(vm, "id", None),
+                        "vm_name": vm_name,
+                        "provisioning_state": getattr(vm, "provisioning_state", None),
+                        "name": vm_name,
+                        "tags": getattr(vm, "tags", {}),
+                    }
+                    formatted_vm = format_azure_resource(vm_details, "vm", region)
                     resources.append(formatted_vm)
 
         except Exception as e:
@@ -289,7 +375,7 @@ class AzureDiscovery(BaseDiscovery):
         """Discover Virtual Networks in a resource group."""
         resources = []
         try:
-            vnets = list(self._retry_api_call(self.network_client.virtual_networks.list, rg_name))
+            vnets = list(self.network_client.virtual_networks.list(rg_name))
             for vnet in vnets:
                 region = getattr(vnet, "location", "unknown")
                 vnet_name = getattr(vnet, "name", None)
@@ -297,16 +383,41 @@ class AzureDiscovery(BaseDiscovery):
                     self.logger.warning(f"VNet with no name in {rg_name}, skipping subnets.")
                     continue
 
-                vnet_dict = vars(vnet)
-                formatted_vnet = format_azure_resource(vnet_dict, "vnet", region)
+                vnet_id = getattr(vnet, "id", None)
+                addr_space = getattr(vnet, "address_space", None)
+                address_prefixes = getattr(addr_space, "address_prefixes", []) if addr_space else []
+
+                details = {
+                    "vnet_id": vnet_id,
+                    "vnet_name": vnet_name,
+                    "address_prefixes": address_prefixes,
+                    "enable_ddos_protection": getattr(vnet, "enable_ddos_protection", None),
+                    "provisioning_state": getattr(vnet, "provisioning_state", None),
+                }
+
+                formatted_vnet = format_azure_resource(details, "vnet", region)
+                formatted_vnet["name"] = vnet_name
                 resources.append(formatted_vnet)
 
                 # Subnets for this VNet
                 try:
-                    subnets = list(self._retry_api_call(self.network_client.subnets.list, rg_name, vnet_name))
+                    subnets = list(self.network_client.subnets.list(rg_name, vnet_name))
                     for subnet in subnets:
-                        subnet_dict = vars(subnet)
-                        formatted_subnet = format_azure_resource(subnet_dict, "subnet", region)
+                        subnet_name = getattr(subnet, "name", None)
+                        subnet_id = getattr(subnet, "id", None)
+
+                        details = {
+                            "subnet_id": subnet_id,
+                            "subnet_name": subnet_name,
+                            "vnet_id": vnet_id,
+                            "address_prefix": getattr(subnet, "address_prefix", None),
+                            "address_prefixes": getattr(subnet, "address_prefixes", None),
+                            "provisioning_state": getattr(subnet, "provisioning_state", None),
+                            "private_endpoint_network_policies": getattr(subnet, "private_endpoint_network_policies", None),
+                        }
+
+                        formatted_subnet = format_azure_resource(details, "subnet", region)
+                        formatted_subnet["name"] = subnet_name or ""
                         resources.append(formatted_subnet)
                 except Exception as e:
                     self.logger.warning(f"Error discovering subnets in VNet {vnet_name} in {rg_name}: {e}")
@@ -315,13 +426,32 @@ class AzureDiscovery(BaseDiscovery):
         return resources
 
     def _discover_load_balancers(self, rg_name: str) -> List[Dict]:
-        """Discover Load Balancers in a resource group."""
+        """Discover Load Balancers in a resource group with frontend IP extraction."""
         resources = []
         try:
             for lb in self.network_client.load_balancers.list(rg_name):
                 region = getattr(lb, "location", "unknown")
-                lb_dict = vars(lb)
-                formatted_lb = format_azure_resource(lb_dict, "load_balancer", region)
+                lb_name = getattr(lb, "name", "")
+
+                # Extract frontend private IPs (public IPs already captured by _discover_public_ip_addresses)
+                private_ips = []
+                if hasattr(lb, "frontend_ip_configurations") and lb.frontend_ip_configurations:
+                    for frontend_config in lb.frontend_ip_configurations:
+                        priv_ip = getattr(frontend_config, "private_ip_address", None)
+                        if priv_ip:
+                            private_ips.append(priv_ip)
+
+                details = {
+                    "lb_id": getattr(lb, "id", None),
+                    "lb_name": lb_name,
+                    "sku": str(getattr(getattr(lb, "sku", None), "name", "")) if getattr(lb, "sku", None) else None,
+                    "provisioning_state": getattr(lb, "provisioning_state", None),
+                    "private_ip": private_ips[0] if private_ips else None,
+                    "private_ips": private_ips,
+                }
+
+                formatted_lb = format_azure_resource(details, "load-balancer", region)
+                formatted_lb["name"] = lb_name
                 resources.append(formatted_lb)
         except Exception as e:
             self.logger.warning(f"Error discovering Load Balancers in {rg_name}: {e}")
@@ -333,9 +463,17 @@ class AzureDiscovery(BaseDiscovery):
         try:
             for vpngw in self.network_client.virtual_network_gateways.list(rg_name):
                 region = getattr(vpngw, "location", "unknown")
-                vpngw_dict = vars(vpngw)
-                formatted_vpngw = format_azure_resource(vpngw_dict, "gateway", region)
-                resources.append(formatted_vpngw)
+                details = {
+                    "gateway_id": getattr(vpngw, "id", None),
+                    "gateway_name": getattr(vpngw, "name", ""),
+                    "gateway_type": str(getattr(vpngw, "gateway_type", "")) or None,
+                    "vpn_type": str(getattr(vpngw, "vpn_type", "")) or None,
+                    "sku": str(getattr(getattr(vpngw, "sku", None), "name", "")) if getattr(vpngw, "sku", None) else None,
+                    "provisioning_state": getattr(vpngw, "provisioning_state", None),
+                }
+                formatted = format_azure_resource(details, "gateway", region)
+                formatted["name"] = getattr(vpngw, "name", "")
+                resources.append(formatted)
         except Exception as e:
             self.logger.warning(f"Error discovering VPN Gateways in {rg_name}: {e}")
         return resources
@@ -346,9 +484,15 @@ class AzureDiscovery(BaseDiscovery):
         try:
             for appgw in self.network_client.application_gateways.list(rg_name):
                 region = getattr(appgw, "location", "unknown")
-                appgw_dict = vars(appgw)
-                formatted_appgw = format_azure_resource(appgw_dict, "gateway", region)
-                resources.append(formatted_appgw)
+                details = {
+                    "appgw_id": getattr(appgw, "id", None),
+                    "appgw_name": getattr(appgw, "name", ""),
+                    "sku": str(getattr(getattr(appgw, "sku", None), "name", "")) if getattr(appgw, "sku", None) else None,
+                    "provisioning_state": getattr(appgw, "provisioning_state", None),
+                }
+                formatted = format_azure_resource(details, "gateway", region)
+                formatted["name"] = getattr(appgw, "name", "")
+                resources.append(formatted)
         except Exception as e:
             self.logger.warning(f"Error discovering Application Gateways in {rg_name}: {e}")
         return resources
@@ -359,9 +503,16 @@ class AzureDiscovery(BaseDiscovery):
         try:
             for fw in self.network_client.azure_firewalls.list(rg_name):
                 region = getattr(fw, "location", "unknown")
-                fw_dict = vars(fw)
-                formatted_fw = format_azure_resource(fw_dict, "firewall", region)
-                resources.append(formatted_fw)
+                details = {
+                    "firewall_id": getattr(fw, "id", None),
+                    "firewall_name": getattr(fw, "name", ""),
+                    "sku": str(getattr(getattr(fw, "sku", None), "name", "")) if getattr(fw, "sku", None) else None,
+                    "provisioning_state": getattr(fw, "provisioning_state", None),
+                    "threat_intel_mode": str(getattr(fw, "threat_intel_mode", "")) or None,
+                }
+                formatted = format_azure_resource(details, "firewall", region)
+                formatted["name"] = getattr(fw, "name", "")
+                resources.append(formatted)
         except Exception as e:
             self.logger.warning(f"Error discovering Azure Firewalls in {rg_name}: {e}")
         return resources
@@ -372,9 +523,28 @@ class AzureDiscovery(BaseDiscovery):
         try:
             for pe in self.network_client.private_endpoints.list(rg_name):
                 region = getattr(pe, "location", "unknown")
-                pe_dict = vars(pe)
-                formatted_pe = format_azure_resource(pe_dict, "endpoint", region)
-                resources.append(formatted_pe)
+                # Extract private IP from manual connection or NIC
+                private_ips = []
+                for iface in getattr(pe, "network_interfaces", []) or []:
+                    iface_id = getattr(iface, "id", None)
+                    if iface_id:
+                        # NIC IPs are captured separately; record the association
+                        pass
+                for custom_dns in getattr(pe, "custom_dns_configs", []) or []:
+                    for ip in getattr(custom_dns, "ip_addresses", []) or []:
+                        if ip:
+                            private_ips.append(ip)
+
+                details = {
+                    "endpoint_id": getattr(pe, "id", None),
+                    "endpoint_name": getattr(pe, "name", ""),
+                    "provisioning_state": getattr(pe, "provisioning_state", None),
+                    "private_ips": private_ips,
+                    "private_ip": private_ips[0] if private_ips else None,
+                }
+                formatted = format_azure_resource(details, "endpoint", region)
+                formatted["name"] = getattr(pe, "name", "")
+                resources.append(formatted)
         except Exception as e:
             self.logger.warning(f"Error discovering Private Endpoints in {rg_name}: {e}")
         return resources
@@ -385,9 +555,16 @@ class AzureDiscovery(BaseDiscovery):
         try:
             for natgw in self.network_client.nat_gateways.list(rg_name):
                 region = getattr(natgw, "location", "unknown")
-                natgw_dict = vars(natgw)
-                formatted_natgw = format_azure_resource(natgw_dict, "gateway", region)
-                resources.append(formatted_natgw)
+                details = {
+                    "natgw_id": getattr(natgw, "id", None),
+                    "natgw_name": getattr(natgw, "name", ""),
+                    "sku": str(getattr(getattr(natgw, "sku", None), "name", "")) if getattr(natgw, "sku", None) else None,
+                    "idle_timeout_in_minutes": getattr(natgw, "idle_timeout_in_minutes", None),
+                    "provisioning_state": getattr(natgw, "provisioning_state", None),
+                }
+                formatted = format_azure_resource(details, "gateway", region)
+                formatted["name"] = getattr(natgw, "name", "")
+                resources.append(formatted)
         except Exception as e:
             self.logger.warning(f"Error discovering NAT Gateways in {rg_name}: {e}")
         return resources
@@ -398,9 +575,15 @@ class AzureDiscovery(BaseDiscovery):
         try:
             for rt in self.network_client.route_tables.list(rg_name):
                 region = getattr(rt, "location", "unknown")
-                rt_dict = vars(rt)
-                formatted_rt = format_azure_resource(rt_dict, "router", region)
-                resources.append(formatted_rt)
+                details = {
+                    "route_table_id": getattr(rt, "id", None),
+                    "route_table_name": getattr(rt, "name", ""),
+                    "provisioning_state": getattr(rt, "provisioning_state", None),
+                    "disable_bgp_route_propagation": getattr(rt, "disable_bgp_route_propagation", None),
+                }
+                formatted = format_azure_resource(details, "router", region)
+                formatted["name"] = getattr(rt, "name", "")
+                resources.append(formatted)
         except Exception as e:
             self.logger.warning(f"Error discovering Route Tables in {rg_name}: {e}")
         return resources
@@ -411,9 +594,20 @@ class AzureDiscovery(BaseDiscovery):
         try:
             for pip in self.network_client.public_ip_addresses.list(rg_name):
                 region = getattr(pip, "location", "unknown")
-                pip_dict = vars(pip)
-                formatted_pip = format_azure_resource(pip_dict, "public-ip", region)
-                resources.append(formatted_pip)
+                ip_addr = getattr(pip, "ip_address", None)
+
+                details = {
+                    "pip_id": getattr(pip, "id", None),
+                    "pip_name": getattr(pip, "name", ""),
+                    "ip_address": ip_addr,
+                    "public_ip_allocation_method": str(getattr(pip, "public_ip_allocation_method", "")) or None,
+                    "public_ip_address_version": str(getattr(pip, "public_ip_address_version", "")) or None,
+                    "sku": str(getattr(getattr(pip, "sku", None), "name", "")) if getattr(pip, "sku", None) else None,
+                    "provisioning_state": getattr(pip, "provisioning_state", None),
+                }
+                formatted = format_azure_resource(details, "public-ip", region)
+                formatted["name"] = getattr(pip, "name", "")
+                resources.append(formatted)
         except Exception as e:
             self.logger.warning(f"Error discovering Public IP Addresses in {rg_name}: {e}")
         return resources
@@ -424,9 +618,14 @@ class AzureDiscovery(BaseDiscovery):
         try:
             for nsg in self.network_client.network_security_groups.list(rg_name):
                 region = getattr(nsg, "location", "unknown")
-                nsg_dict = vars(nsg)
-                formatted_nsg = format_azure_resource(nsg_dict, "switch", region)
-                resources.append(formatted_nsg)
+                details = {
+                    "nsg_id": getattr(nsg, "id", None),
+                    "nsg_name": getattr(nsg, "name", ""),
+                    "provisioning_state": getattr(nsg, "provisioning_state", None),
+                }
+                formatted = format_azure_resource(details, "switch", region)
+                formatted["name"] = getattr(nsg, "name", "")
+                resources.append(formatted)
         except Exception as e:
             self.logger.warning(f"Error discovering Network Security Groups in {rg_name}: {e}")
         return resources
@@ -437,9 +636,19 @@ class AzureDiscovery(BaseDiscovery):
         try:
             for erc in self.network_client.express_route_circuits.list(rg_name):
                 region = getattr(erc, "location", "unknown")
-                erc_dict = vars(erc)
-                formatted_erc = format_azure_resource(erc_dict, "switch", region)
-                resources.append(formatted_erc)
+                details = {
+                    "circuit_id": getattr(erc, "id", None),
+                    "circuit_name": getattr(erc, "name", ""),
+                    "service_provider_name": getattr(
+                        getattr(erc, "service_provider_properties", None), "service_provider_name", None
+                    ),
+                    "bandwidth_in_mbps": getattr(getattr(erc, "service_provider_properties", None), "bandwidth_in_mbps", None),
+                    "sku": str(getattr(getattr(erc, "sku", None), "name", "")) if getattr(erc, "sku", None) else None,
+                    "provisioning_state": getattr(erc, "provisioning_state", None),
+                }
+                formatted = format_azure_resource(details, "switch", region)
+                formatted["name"] = getattr(erc, "name", "")
+                resources.append(formatted)
         except Exception as e:
             self.logger.warning(f"Error discovering ExpressRoute Circuits in {rg_name}: {e}")
         return resources
@@ -454,11 +663,170 @@ class AzureDiscovery(BaseDiscovery):
                 if not host_group_name:
                     continue
                 for host in self.compute_client.dedicated_hosts.list_by_host_group(rg_name, host_group_name):
-                    host_dict = vars(host)
-                    formatted_host = format_azure_resource(host_dict, "server", region)
-                    resources.append(formatted_host)
+                    details = {
+                        "host_id": getattr(host, "id", None),
+                        "host_name": getattr(host, "name", ""),
+                        "host_group": host_group_name,
+                        "sku": str(getattr(getattr(host, "sku", None), "name", "")) if getattr(host, "sku", None) else None,
+                        "provisioning_state": getattr(host, "provisioning_state", None),
+                    }
+                    formatted = format_azure_resource(details, "server", region)
+                    formatted["name"] = getattr(host, "name", "")
+                    resources.append(formatted)
         except Exception as e:
             self.logger.warning(f"Error discovering Dedicated Hosts in {rg_name}: {e}")
+        return resources
+
+    def _discover_vmss(self, rg_name: str) -> List[Dict]:
+        """Discover Virtual Machine Scale Set instances in a resource group."""
+        resources = []
+        try:
+            for vmss in self.compute_client.virtual_machine_scale_sets.list(rg_name):
+                vmss_name = getattr(vmss, "name", None)
+                if not vmss_name:
+                    continue
+
+                region = getattr(vmss, "location", "unknown")
+
+                try:
+                    for vm_instance in self.compute_client.virtual_machine_scale_set_vms.list(rg_name, vmss_name):
+                        instance_id = getattr(vm_instance, "instance_id", None)
+                        if not instance_id:
+                            continue
+
+                        # Extract IPs from VMSS VM network interfaces
+                        private_ips = []
+                        public_ips = []
+                        subnet_ids = []
+
+                        try:
+                            nics = self.network_client.network_interfaces.list_virtual_machine_scale_set_vm_network_interfaces(
+                                rg_name, vmss_name, instance_id
+                            )
+                            for nic in nics:
+                                if hasattr(nic, "ip_configurations") and nic.ip_configurations:
+                                    for ip_config in nic.ip_configurations:
+                                        if hasattr(ip_config, "private_ip_address") and ip_config.private_ip_address:
+                                            private_ips.append(ip_config.private_ip_address)
+
+                                        subnet_ref = getattr(ip_config, "subnet", None)
+                                        subnet_id = getattr(subnet_ref, "id", None) if subnet_ref else None
+                                        if subnet_id:
+                                            subnet_ids.append(subnet_id)
+
+                                        if (
+                                            hasattr(ip_config, "public_ip_address")
+                                            and ip_config.public_ip_address
+                                            and hasattr(ip_config.public_ip_address, "ip_address")
+                                            and ip_config.public_ip_address.ip_address
+                                        ):
+                                            public_ips.append(ip_config.public_ip_address.ip_address)
+                        except Exception as e:
+                            self.logger.warning(f"Error getting NICs for VMSS instance {vmss_name}/{instance_id}: {e}")
+
+                        subnet_id = subnet_ids[0] if subnet_ids else None
+                        vnet_id = None
+                        if isinstance(subnet_id, str) and "/subnets/" in subnet_id.lower():
+                            vnet_id = subnet_id[: subnet_id.lower().rfind("/subnets/")]
+
+                        has_ips = len(private_ips) > 0 or len(public_ips) > 0
+                        is_managed = self._is_managed_service(getattr(vm_instance, "tags", {}))
+                        requires_token = has_ips and not is_managed
+
+                        instance_details = {
+                            "vm_id": getattr(vm_instance, "id", None),
+                            "instance_id": instance_id,
+                            "vmss_name": vmss_name,
+                            "provisioning_state": getattr(vm_instance, "provisioning_state", None),
+                            "name": getattr(vm_instance, "name", ""),
+                            "tags": getattr(vm_instance, "tags", {}),
+                        }
+                        formatted = format_azure_resource(instance_details, "vmss-instance", region, requires_token)
+
+                        if private_ips or public_ips:
+                            formatted["details"].update(
+                                {
+                                    "private_ip": private_ips[0] if private_ips else None,
+                                    "public_ip": public_ips[0] if public_ips else None,
+                                    "private_ips": private_ips,
+                                    "public_ips": public_ips,
+                                    "subnet_id": subnet_id,
+                                    "subnet_ids": subnet_ids,
+                                    "vnet_id": vnet_id,
+                                    "vmss_name": vmss_name,
+                                }
+                            )
+
+                        resources.append(formatted)
+
+                except Exception as e:
+                    self.logger.warning(f"Error discovering VMSS instances in {vmss_name}/{rg_name}: {e}")
+
+        except Exception as e:
+            self.logger.warning(f"Error discovering VMSS in {rg_name}: {e}")
+        return resources
+
+    def _discover_aks_clusters(self, rg_name: str) -> List[Dict]:
+        """Discover AKS (Azure Kubernetes Service) clusters in a resource group.
+
+        AKS clusters consume pod and service CIDRs that are IPAM-relevant DDI objects,
+        similar to GCP's GKE cluster discovery.
+        """
+        resources = []
+        if not getattr(self, "container_client", None):
+            return resources
+        try:
+            for cluster in self.container_client.managed_clusters.list_by_resource_group(rg_name):
+                cluster_name = getattr(cluster, "name", None)
+                if not cluster_name:
+                    continue
+
+                region = getattr(cluster, "location", "unknown")
+                net_profile = getattr(cluster, "network_profile", None)
+
+                pod_cidr = getattr(net_profile, "pod_cidr", None) if net_profile else None
+                service_cidr = getattr(net_profile, "service_cidr", None) if net_profile else None
+                dns_service_ip = getattr(net_profile, "dns_service_ip", None) if net_profile else None
+                network_plugin = str(getattr(net_profile, "network_plugin", "")) if net_profile else None
+
+                # Agent pool profile summary
+                agent_pools = getattr(cluster, "agent_pool_profiles", []) or []
+                total_node_count = sum(getattr(pool, "count", 0) or 0 for pool in agent_pools)
+                vnet_subnet_id = None
+                for pool in agent_pools:
+                    sid = getattr(pool, "vnet_subnet_id", None)
+                    if sid:
+                        vnet_subnet_id = sid
+                        break
+
+                k8s_version = getattr(cluster, "kubernetes_version", None)
+                provisioning_state = getattr(cluster, "provisioning_state", "unknown")
+
+                details = {
+                    "cluster_name": cluster_name,
+                    "pod_cidr": pod_cidr,
+                    "service_cidr": service_cidr,
+                    "dns_service_ip": dns_service_ip,
+                    "network_plugin": network_plugin,
+                    "kubernetes_version": k8s_version,
+                    "total_node_count": total_node_count,
+                    "vnet_subnet_id": vnet_subnet_id,
+                }
+
+                resources.append(
+                    self._format_resource(
+                        resource_data=details,
+                        resource_type="aks-cluster",
+                        region=region,
+                        name=cluster_name,
+                        requires_management_token=True,
+                        state=str(provisioning_state).lower(),
+                        tags=getattr(cluster, "tags", {}) or {},
+                    )
+                )
+
+        except Exception as e:
+            self.logger.warning(f"Error discovering AKS clusters in {rg_name}: {e}")
         return resources
 
     def _discover_azure_dns_zones_and_records(self) -> List[Dict]:
@@ -490,8 +858,16 @@ class AzureDiscovery(BaseDiscovery):
                         resource_group = None
 
                 # Add the public zone as a resource
+                zone_details = {
+                    "zone_id": zone_id,
+                    "zone_name": zone_name,
+                    "zone_type": str(zone_type) if zone_type else "Public",
+                    "number_of_record_sets": getattr(zone, "number_of_record_sets", None),
+                    "name_servers": getattr(zone, "name_servers", None),
+                    "resource_group": resource_group,
+                }
                 zone_resource = self._format_resource(
-                    resource_data=vars(zone),
+                    resource_data=zone_details,
                     resource_type="dns-zone",
                     region=region,
                     name=zone_name,
@@ -512,10 +888,15 @@ class AzureDiscovery(BaseDiscovery):
                             record_type = getattr(record_set, "type", None)
                             if not record_name or not record_type:
                                 continue
-                            if record_type == "SOA":
-                                continue
+                            record_details = {
+                                "record_name": record_name,
+                                "record_type": record_type,
+                                "ttl": getattr(record_set, "ttl", None),
+                                "fqdn": getattr(record_set, "fqdn", None),
+                                "zone_name": zone_name,
+                            }
                             record_resource = self._format_resource(
-                                resource_data=vars(record_set),
+                                resource_data=record_details,
                                 resource_type="dns-record",
                                 region=region,
                                 name=record_name,
@@ -556,8 +937,15 @@ class AzureDiscovery(BaseDiscovery):
                         resource_group = None
 
                 # Add the private zone as a resource
+                pzone_details = {
+                    "zone_id": pzone_id,
+                    "zone_name": pzone_name,
+                    "zone_type": "Private",
+                    "number_of_record_sets": getattr(pzone, "number_of_record_sets", None),
+                    "resource_group": resource_group,
+                }
                 pzone_resource = self._format_resource(
-                    resource_data=vars(pzone),
+                    resource_data=pzone_details,
                     resource_type="dns-zone",
                     region=region,
                     name=pzone_name,
@@ -578,10 +966,16 @@ class AzureDiscovery(BaseDiscovery):
                             record_type = getattr(record_set, "type", None)
                             if not record_name or not record_type:
                                 continue
-                            if record_type == "SOA":
-                                continue
+                            record_details = {
+                                "record_name": record_name,
+                                "record_type": record_type,
+                                "ttl": getattr(record_set, "ttl", None),
+                                "fqdn": getattr(record_set, "fqdn", None),
+                                "zone_name": pzone_name,
+                                "is_private": True,
+                            }
                             record_resource = self._format_resource(
-                                resource_data=vars(record_set),
+                                resource_data=record_details,
                                 resource_type="dns-record",
                                 region=region,
                                 name=record_name,
@@ -606,36 +1000,32 @@ class AzureDiscovery(BaseDiscovery):
         return resources
 
     def _is_managed_service(self, tags: Dict[str, str]) -> bool:
-        """Check if a resource is a managed service (Management Token-free)."""
+        """Check if a resource is a managed service (Management Token-free).
+
+        Detects resources created/managed by Azure platform services (AKS system
+        pools, App Service infra, etc.). Avoids false positives from generic tags
+        that happen to contain 'azure' or 'service'.
+        """
         if not tags:
             return False
+
+        # Specific tag key prefixes that indicate Azure-managed resources
+        managed_key_prefixes = (
+            "aks-managed-",
+            "k8s-azure-",
+            "ms-resource-usage:",
+        )
+        managed_key_exact = {"managed-by", "managed_by", "azure-managed"}
 
         for key, value in tags.items():
             key_lower = key.lower()
             value_lower = value.lower()
 
-            # Common managed service indicators
-            if any(
-                indicator in key_lower
-                for indicator in [
-                    "managed",
-                    "service",
-                    "azure",
-                    "aks",
-                    "appservice",
-                ]
-            ):
+            if key_lower in managed_key_exact:
                 return True
-            if any(
-                indicator in value_lower
-                for indicator in [
-                    "managed",
-                    "service",
-                    "azure",
-                    "aks",
-                    "appservice",
-                ]
-            ):
+            if any(key_lower.startswith(prefix) for prefix in managed_key_prefixes):
+                return True
+            if value_lower in ("azure-managed", "aks", "appservice", "azure-functions"):
                 return True
 
         return False

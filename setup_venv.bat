@@ -2,6 +2,45 @@
 REM Setup Python virtual environment and install dependencies for AWS, Azure, and GCP discovery
 REM Batch file fallback for Windows when PowerShell execution is restricted
 
+REM --- Section: Find Python 3.11+ ---
+REM Try py launcher first (Windows standard), then python3, then python
+set PYTHON_CMD=
+set PYVER=
+
+REM Try: py -3 (Windows Python Launcher)
+py -3 -c "import sys; exit(0 if sys.version_info >= (3, 11) else 1)" 2>nul
+if not errorlevel 1 (
+    set PYTHON_CMD=py -3
+    for /f "delims=" %%v in ('py -3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"') do set PYVER=%%v
+    goto :found_python
+)
+
+REM Try: python3
+python3 -c "import sys; exit(0 if sys.version_info >= (3, 11) else 1)" 2>nul
+if not errorlevel 1 (
+    set PYTHON_CMD=python3
+    for /f "delims=" %%v in ('python3 -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"') do set PYVER=%%v
+    goto :found_python
+)
+
+REM Try: python
+python -c "import sys; exit(0 if sys.version_info >= (3, 11) else 1)" 2>nul
+if not errorlevel 1 (
+    set PYTHON_CMD=python
+    for /f "delims=" %%v in ('python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"') do set PYVER=%%v
+    goto :found_python
+)
+
+echo [ERROR] No Python 3.11+ found. Searched: py launcher, python3, python
+echo   Download: https://www.python.org/downloads/
+echo.
+pause
+exit /b 1
+
+:found_python
+echo [OK] Using %PYTHON_CMD% (Python %PYVER%)
+echo.
+
 echo ================================
 echo  Infoblox Universal DDI Setup Routine
 echo ================================
@@ -15,8 +54,8 @@ if exist "venv" (
 )
 
 REM --- Section: Create new environment ---
-echo [INFO] Creating new Python virtual environment...
-python -m venv venv
+echo [INFO] Creating new Python virtual environment using %PYTHON_CMD%...
+%PYTHON_CMD% -m venv venv
 call venv\Scripts\activate.bat
 
 REM --- Section: Upgrade pip ---

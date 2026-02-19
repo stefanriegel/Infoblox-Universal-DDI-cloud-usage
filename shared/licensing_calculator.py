@@ -7,9 +7,19 @@ Uses official Infoblox Universal DDI licensing metrics from the documentation.
 """
 
 from datetime import datetime
-from typing import Dict, List, Any
+from typing import Any, Dict, List, Optional
 import csv
-from shared.constants import AWS_REGIONS, AZURE_REGIONS, GCP_REGIONS
+import re
+
+from shared.constants import ASSET_RESOURCE_TYPES, DDI_RESOURCE_TYPES
+
+# Region patterns for provider detection (covers all current and future regions)
+# AWS: two-letter continent + dash + direction/name + dash + digit (e.g. us-east-1, af-south-1)
+_AWS_REGION_RE = re.compile(r"^[a-z]{2}-[a-z]+-\d+$")
+# GCP: continent-direction + digit (e.g. us-central1, europe-west4, asia-southeast1)
+_GCP_REGION_RE = re.compile(r"^[a-z]+-[a-z]+\d+$")
+# Azure: lowercase letters only, no hyphens or digits in position 2-3 (e.g. eastus, westeurope, canadacentral)
+_AZURE_REGION_RE = re.compile(r"^[a-z]{4,}[a-z0-9]*$")
 
 
 class UniversalDDILicensingCalculator:
@@ -23,11 +33,11 @@ class UniversalDDILicensingCalculator:
     def __init__(self):
         """Initialize the licensing calculator."""
         self.results = {}
-        self.current_provider: str | None = None
-        self.active_ip_breakdown: dict[str, int] | None = None
-        self.active_ip_breakdown_by_space: dict[str, int] | None = None
+        self.current_provider: Optional[str] = None
+        self.active_ip_breakdown: Optional[Dict[str, int]] = None
+        self.active_ip_breakdown_by_space: Optional[Dict[str, int]] = None
 
-    def calculate_from_discovery_results(self, native_objects: List[Dict], provider: str | None = None) -> Dict[str, Any]:
+    def calculate_from_discovery_results(self, native_objects: List[Dict], provider: Optional[str] = None) -> Dict[str, Any]:
         """
         Calculate licensing requirements from native discovery results.
 
@@ -92,38 +102,9 @@ class UniversalDDILicensingCalculator:
 
     def _count_ddi_objects(self, resources: List[Dict]) -> int:
         """Count DDI Objects (DNS/DHCP/IPAM infrastructure)."""
-        ddi_resource_types = {
-            # AWS DDI Objects
-            "vpc",
-            "subnet",
-            "route53-zone",
-            "route53-record",
-            # Azure DDI Objects
-            "vnet",
-            "dns-zone",
-            "dns-record",
-            "dhcp-range",
-            "ipam-block",
-            "ipam-space",
-            "host-record",
-            "ddns-record",
-            "address-block",
-            "view",
-            "zone",
-            "dtc-lbdn",
-            "dtc-server",
-            "dtc-pool",
-            "dtc-topology-rule",
-            "dtc-health-check",
-            "dhcp-exclusion-range",
-            "dhcp-filter-rule",
-            "dhcp-option",
-            "ddns-zone",
-            # GCP DDI Objects
-            "vpc-network",
-            "dns-zone",
-            "dns-record",
-        }
+        ddi_resource_types = set()
+        for types in DDI_RESOURCE_TYPES.values():
+            ddi_resource_types.update(types)
 
         return len([r for r in resources if r.get("resource_type") in ddi_resource_types])
 
@@ -146,24 +127,9 @@ class UniversalDDILicensingCalculator:
 
     def _count_managed_assets(self, resources: List[Dict]) -> int:
         """Count Managed Assets (compute/network resources with IPs)."""
-        asset_resource_types = {
-            # AWS Assets
-            "ec2-instance",
-            "application-load-balancer",
-            "network-load-balancer",
-            "classic-load-balancer",
-            # Azure Assets
-            "vm",
-            "load_balancer",
-            "gateway",
-            "endpoint",
-            "firewall",
-            "switch",
-            "router",
-            "server",
-            # GCP Assets
-            "compute-instance",
-        }
+        asset_resource_types = set()
+        for types in ASSET_RESOURCE_TYPES.values():
+            asset_resource_types.update(types)
 
         # Count assets that have IP addresses (as per Infoblox licensing rules)
         asset_count = 0
@@ -231,18 +197,20 @@ class UniversalDDILicensingCalculator:
         region = (resource.get("region") or "").lower()
         rtype = (resource.get("resource_type") or "").lower()
 
-        # Region-based mapping using known region lists
-        if region in [r.lower() for r in AWS_REGIONS]:
-            return "aws"
-        if region in [r.lower() for r in AZURE_REGIONS]:
-            return "azure"
-        if region in [r.lower() for r in GCP_REGIONS]:
-            return "gcp"
+        # Region-based detection using naming patterns (covers all current and future regions)
+        if region and region != "global":
+            if _AWS_REGION_RE.match(region):
+                return "aws"
+            if _GCP_REGION_RE.match(region):
+                return "gcp"
+            if _AZURE_REGION_RE.match(region):
+                return "azure"
 
         # Type-based mapping sets
-        aws_types = {"vpc", "subnet", "route53-zone", "route53-record"}
+        aws_types = {"vpc", "subnet", "route53-zone", "route53-record", "dhcp-option-set", "eni", "elastic-ip", "eks-cluster"}
         azure_types = {
             "vm",
+            "vmss-instance",
             "vnet",
             "subnet",
             "dns-zone",
@@ -251,16 +219,13 @@ class UniversalDDILicensingCalculator:
             "switch",
             "gateway",
             "router",
-            "dhcp-range",
-            "ipam-block",
-            "ipam-space",
-            "host-record",
-            "ddns-record",
-            "address-block",
-            "view",
-            "zone",
+            "public-ip",
+            "load-balancer",
+            "firewall",
+            "server",
+            "aks-cluster",
         }
-        gcp_types = {"compute-instance", "vpc-network", "dns-zone", "dns-record"}
+        gcp_types = {"compute-instance", "vpc-network", "dns-zone", "dns-record", "cloud-nat", "gke-cluster", "reserved-ip"}
 
         # Prefer current provider on overlap
         cp = (self.current_provider or "").lower()
@@ -293,33 +258,16 @@ class UniversalDDILicensingCalculator:
 
     def _is_ddi_object(self, resource_type: str) -> bool:
         """Check if resource type is a DDI object."""
-        ddi_types = {
-            "vpc",
-            "subnet",
-            "route53-zone",
-            "route53-record",
-            "vnet",
-            "dns-zone",
-            "dns-record",
-            "dhcp-range",
-            "ipam-block",
-            "ipam-space",
-            "vpc-network",
-        }
+        ddi_types = set()
+        for types in DDI_RESOURCE_TYPES.values():
+            ddi_types.update(types)
         return resource_type in ddi_types
 
     def _is_managed_asset(self, resource_type: str) -> bool:
         """Check if resource type is a managed asset."""
-        asset_types = {
-            "ec2-instance",
-            "application-load-balancer",
-            "network-load-balancer",
-            "classic-load-balancer",
-            "vm",
-            "load_balancer",
-            "gateway",
-            "compute-instance",
-        }
+        asset_types = set()
+        for types in ASSET_RESOURCE_TYPES.values():
+            asset_types.update(types)
         return resource_type in asset_types
 
     def _has_ip_addresses(self, details: Dict) -> bool:
@@ -327,12 +275,12 @@ class UniversalDDILicensingCalculator:
         ip_fields = ["ip", "private_ip", "public_ip", "private_ips", "public_ips"]
         return any(details.get(field) for field in ip_fields)
 
-    def export_csv(self, output_file: str, provider: str | None = None) -> str:
+    def export_csv(self, output_file: str, provider: Optional[str] = None) -> str:
         """Export licensing calculations to CSV format for Sales Engineers (active provider only)."""
         if not self.results:
             raise ValueError("No calculation results available. Run calculate_from_discovery_results first.")
 
-        with open(output_file, "w", newline="") as csvfile:
+        with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
 
             # Header
@@ -413,12 +361,12 @@ class UniversalDDILicensingCalculator:
 
         return output_file
 
-    def export_text_summary(self, output_file: str, provider: str | None = None) -> str:
+    def export_text_summary(self, output_file: str, provider: Optional[str] = None) -> str:
         """Export a text summary for Sales Engineers (only for the active provider)."""
         if not self.results:
             raise ValueError("No calculation results available. Run calculate_from_discovery_results first.")
 
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             f.write("INFOBLOX UNIVERSAL DDI LICENSING CALCULATOR\n")
             f.write("=" * 50 + "\n\n")
 
@@ -491,7 +439,7 @@ class UniversalDDILicensingCalculator:
         counts = self.results["counts"]
         tokens = self.results["token_requirements"]
 
-        with open(output_file, "w", newline="") as csvfile:
+        with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
             writer = csv.writer(csvfile)
             writer.writerow(
                 [
@@ -619,7 +567,7 @@ class UniversalDDILicensingCalculator:
         }
 
         # Write manifest
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             _json.dump(manifest, f, indent=2)
 
         # Hash the manifest itself and append
@@ -629,7 +577,7 @@ class UniversalDDILicensingCalculator:
             manifest,
             hashes=dict(manifest.get("hashes", {}), manifest_sha256=manifest_sha256),
         )
-        with open(output_file, "w") as f:
+        with open(output_file, "w", encoding="utf-8") as f:
             _json.dump(manifest_with_hash, f, indent=2)
 
         return output_file

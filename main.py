@@ -10,11 +10,17 @@ import subprocess
 import sys
 from pathlib import Path
 
+if sys.version_info < (3, 11):
+    sys.exit(
+        f"Error: Python 3.11+ required (found {sys.version_info.major}.{sys.version_info.minor}). "
+        f"Download: https://www.python.org/downloads/"
+    )
+
 # Add current directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
 # Set UTF-8 encoding for subprocess calls (fixes Windows encoding issues)
-os.environ['PYTHONIOENCODING'] = 'utf-8'
+os.environ["PYTHONIOENCODING"] = "utf-8"
 
 
 def _print_kv(key: str, value: str) -> None:
@@ -27,7 +33,7 @@ def _check_aws_auth() -> int:
 
     # Optional: AWS CLI helps with SSO login for non-experienced users.
     try:
-        proc = subprocess.run(["aws", "--version"], capture_output=True, text=True, encoding='utf-8')
+        proc = subprocess.run(["aws", "--version"], capture_output=True, text=True, encoding="utf-8")
         output = (proc.stdout or "") + (proc.stderr or "")
         m = re.search(r"aws-cli/(\d+)\.(\d+)\.(\d+)", output)
         if m:
@@ -80,8 +86,9 @@ def _check_azure_auth() -> int:
     try:
         # Try to find az command in common locations on Windows
         az_cmd = ["az"]
-        if os.name == 'nt':  # Windows
+        if os.name == "nt":  # Windows
             import platform
+
             if platform.system() == "Windows":
                 common_paths = [
                     r"C:\Program Files\Microsoft SDKs\Azure\CLI2\wbin\az.cmd",
@@ -92,7 +99,7 @@ def _check_azure_auth() -> int:
                         az_cmd = [path]
                         break
 
-        proc = subprocess.run(az_cmd + ["version"], capture_output=True, text=True, encoding='utf-8')
+        proc = subprocess.run(az_cmd + ["version"], capture_output=True, text=True, encoding="utf-8")
         if proc.returncode == 0:
             _print_kv("az CLI", "installed")
         else:
@@ -128,8 +135,12 @@ def _check_gcp_auth() -> int:
     print("=" * 28)
 
     # Optional: gcloud makes application-default login easy.
+    # On Windows, gcloud is often installed as gcloud.cmd
+    gcloud_cmd = "gcloud"
+    if sys.platform == "win32":
+        gcloud_cmd = "gcloud.cmd"
     try:
-        proc = subprocess.run(["gcloud", "--version"], capture_output=True, text=True, encoding='utf-8')
+        proc = subprocess.run([gcloud_cmd, "--version"], capture_output=True, text=True, encoding="utf-8")
         if proc.returncode == 0:
             _print_kv("gcloud", "installed")
         else:
@@ -220,14 +231,8 @@ def main():
     )
     parser.add_argument(
         "--checkpoint-file",
-        default="output/azure_discovery_checkpoint.json",
+        default=os.path.join("output", "azure_discovery_checkpoint.json"),
         help="Path to checkpoint file (default: output/azure_discovery_checkpoint.json)",
-    )
-    parser.add_argument(
-        "--checkpoint-interval",
-        type=int,
-        default=50,
-        help="Save checkpoint every N subscriptions (default: 50)",
     )
     parser.add_argument(
         "--retry-attempts",
@@ -245,6 +250,44 @@ def main():
         "--check-auth",
         action="store_true",
         help="Validate cloud credentials and print setup guidance, then exit",
+    )
+    parser.add_argument(
+        "--checkpoint-ttl-hours",
+        type=int,
+        default=48,
+        help="Checkpoint expiry in hours (default: 48). Use 0 to never expire.",
+    )
+    parser.add_argument(
+        "--warn-sub-threshold",
+        type=int,
+        default=200,
+        help="Print a warning when subscription count exceeds this value and --subscription-workers >2 (default: 200).",
+    )
+
+    # GCP-specific arguments
+    parser.add_argument(
+        "--project",
+        default=None,
+        help="(GCP) Scan a single GCP project (bypasses enumeration).",
+    )
+    parser.add_argument(
+        "--org-id",
+        default=None,
+        help="(GCP) Scope enumeration to this GCP organization ID.",
+    )
+    parser.add_argument(
+        "--include-projects",
+        nargs="+",
+        metavar="PATTERN",
+        default=None,
+        help="(GCP) Only scan projects matching these glob patterns.",
+    )
+    parser.add_argument(
+        "--exclude-projects",
+        nargs="+",
+        metavar="PATTERN",
+        default=None,
+        help="(GCP) Skip projects matching these glob patterns.",
     )
 
     # Remove extra_args, use parse_known_args instead
@@ -274,8 +317,9 @@ def main():
             azure_args.no_checkpoint = args.no_checkpoint
             azure_args.resume = args.resume
             azure_args.checkpoint_file = args.checkpoint_file
-            azure_args.checkpoint_interval = args.checkpoint_interval
             azure_args.retry_attempts = args.retry_attempts
+            azure_args.checkpoint_ttl_hours = args.checkpoint_ttl_hours
+            azure_args.warn_sub_threshold = args.warn_sub_threshold
             azure_main(azure_args)
         elif args.provider == "gcp":
             from gcp_discovery.discover import main as gcp_main
@@ -284,6 +328,10 @@ def main():
             gcp_args.format = args.format
             gcp_args.workers = args.workers
             gcp_args.full = args.full
+            gcp_args.project = args.project
+            gcp_args.org_id = args.org_id
+            gcp_args.include_projects = args.include_projects
+            gcp_args.exclude_projects = args.exclude_projects
             gcp_main(gcp_args)
         else:
             print(f"Unsupported provider: {args.provider}")

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 import ipaddress
-from typing import Dict, List, Any, Iterable, Tuple, Set
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 from .constants import (
     DDI_RESOURCE_TYPES,
@@ -23,8 +23,8 @@ class ResourceCount:
 
     # Extra details for transparency/auditing.
     # Note: counts can overlap and are not additive.
-    active_ip_breakdown: Dict[str, int] | None = None
-    active_ip_breakdown_by_space: Dict[str, int] | None = None
+    active_ip_breakdown: Optional[Dict[str, int]] = None
+    active_ip_breakdown_by_space: Optional[Dict[str, int]] = None
 
 
 class ResourceCounter:
@@ -123,7 +123,7 @@ class ResourceCounter:
             breakdown[region] = breakdown.get(region, 0) + 1
         return breakdown
 
-    def _canonicalize_ip(self, value: Any) -> str | None:
+    def _canonicalize_ip(self, value: Any) -> Optional[str]:
         """Return a canonical IPv4/IPv6 string or None."""
         if not isinstance(value, str):
             return None
@@ -155,7 +155,7 @@ class ResourceCounter:
                     yield from self._iter_ip_strings(value.get(k))
             return
 
-    def _infer_network_space(self, details: Dict[str, Any]) -> str | None:
+    def _infer_network_space(self, details: Dict[str, Any]) -> Optional[str]:
         """Best-effort IP-space identifier derived from network context."""
         if self.provider == "aws":
             vpc_id = details.get("vpc_id") or details.get("VpcId")
@@ -256,7 +256,7 @@ class ResourceCounter:
             for item in value:
                 yield from self._iter_cidr_strings(item)
 
-    def _parse_cidr(self, cidr: str) -> ipaddress.IPv4Network | ipaddress.IPv6Network | None:
+    def _parse_cidr(self, cidr: str) -> Optional[Union[ipaddress.IPv4Network, ipaddress.IPv6Network]]:
         try:
             return ipaddress.ip_network(cidr, strict=False)
         except ValueError:
