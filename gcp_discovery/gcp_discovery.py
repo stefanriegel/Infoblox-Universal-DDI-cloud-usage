@@ -57,29 +57,32 @@ class GCPDiscovery(BaseDiscovery):
 
     def _init_gcp_clients(self):
         """Initialize GCP clients for different services."""
+        # Auth exceptions (DefaultCredentialsError, RefreshError) propagate from
+        # get_gcp_credential() — the singleton exits on failure, so they never
+        # reach here in practice. No bare except wrapping the credential call (CRED-05).
+        credentials, project = get_gcp_credential()
+
+        from google.cloud import compute_v1, dns
+
+        self.credentials = credentials
+        self.project_id = project or self.gcp_config.project_id
+
         try:
-            credentials, project = get_gcp_credential()
-
-            # Import GCP clients
-            from google.cloud import compute_v1, dns
-
-            self.credentials = credentials
-            self.project_id = project or self.gcp_config.project_id
-
-            # Initialize clients
+            # Initialize compute clients (project-agnostic, shared)
             self.compute_client = compute_v1.InstancesClient(credentials=credentials)
             self.zones_client = compute_v1.ZonesClient(credentials=credentials)
             self.networks_client = compute_v1.NetworksClient(credentials=credentials)
             self.subnetworks_client = compute_v1.SubnetworksClient(credentials=credentials)
             self.addresses_client = compute_v1.AddressesClient(credentials=credentials)
             self.global_addresses_client = compute_v1.GlobalAddressesClient(credentials=credentials)
+
+            # DNS client requires per-project instantiation
             self.dns_client = dns.Client(project=self.project_id, credentials=credentials)
 
             # Cache zone names so we don't guess region-a/b/c.
             self._zones_by_region = self._build_zones_by_region()
-
         except Exception as e:
-            raise Exception(f"Failed to initialize GCP clients: {e}")
+            raise RuntimeError(f"Failed to initialize GCP clients: {e}") from e
 
     def _build_zones_by_region(self) -> Dict[str, List[str]]:
         """Build a {region: [zones]} map once.
