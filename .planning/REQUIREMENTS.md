@@ -1,53 +1,64 @@
-# Requirements: Azure Large-Tenant Discovery Fix
+# Requirements: Infoblox Universal DDI Cloud Usage Tool
 
-**Defined:** 2026-02-18
-**Core Value:** Every enabled Azure subscription must be scanned successfully — no subscription should silently fail due to credential or concurrency issues.
+**Defined:** 2026-02-19
+**Core Value:** Every cloud resource across all projects/subscriptions must be discovered reliably — no project or subscription should silently fail due to credential or concurrency issues.
 
-## v1 Requirements
+## v1.1 Requirements
 
-Requirements for the bug fix release. Each maps to roadmap phases.
+Requirements for GCP Multi-Project Discovery milestone. Each maps to roadmap phases.
 
-### Credential Chain
+### Credentials
 
-- [x] **CRED-01**: Credential chain uses classes with built-in MSAL token caching (no subprocess-based credentials under concurrent load)
-- [x] **CRED-02**: ServicePrincipal authentication via `ClientSecretCredential` works as primary path when env vars are set
-- [x] **CRED-03**: Interactive authentication via `InteractiveBrowserCredential` with `TokenCachePersistenceOptions` works as fallback when no service principal is configured
-- [x] **CRED-04**: Credential singleton is warmed up (token acquired) before any worker threads are spawned
-- [x] **CRED-05**: Credential fallback catches only typed exceptions (`CredentialUnavailableError`, `ClientAuthenticationError`), not bare `Exception`
-- [x] **CRED-06**: Tool works correctly on Windows 11, macOS, and Linux (backward compatibility preserved)
+- [x] **CRED-01**: Tool authenticates via Service Account key file or Application Default Credentials with actual token validation
+- [x] **CRED-02**: Tool exits immediately with actionable message on invalid/expired credentials (no silent 0-resource "success")
+- [ ] **CRED-03**: Credential singleton warmed on main thread before worker threads spawn
+- [x] **CRED-04**: Credential type logged at startup (`[Auth] Using service account: ...` or `[Auth] Using Application Default Credentials`)
+- [x] **CRED-05**: Only typed exception catches in credential chain (RefreshError, DefaultCredentialsError)
 
-### Concurrency
+### Project Enumeration
 
-- [x] **CONC-01**: ARM 429 responses are retried using the `Retry-After` header value instead of fixed exponential backoff
-- [x] **CONC-02**: Management clients (`ComputeManagementClient`, `NetworkManagementClient`, etc.) are explicitly closed after each subscription completes
-- [x] **CONC-03**: Tool scans 500+ subscriptions without socket exhaustion or credential failures on Windows
+- [ ] **ENUM-01**: Tool auto-discovers all ACTIVE projects accessible to the credential
+- [ ] **ENUM-02**: Tool warns explicitly when 0 projects found with IAM guidance
+- [ ] **ENUM-03**: Single-project backward compat via `--project` flag or `GOOGLE_CLOUD_PROJECT` env var
+- [ ] **ENUM-04**: Org/folder-aware enumeration when `GOOGLE_CLOUD_ORG_ID` is set
+- [ ] **ENUM-05**: Project include/exclude via `--include-projects` / `--exclude-projects` glob patterns
+- [ ] **ENUM-06**: `accessNotConfigured` errors classified and skipped gracefully (not treated as auth failure)
 
-### Code Correctness
+### Concurrent Execution
 
-- [x] **CODE-01**: Duplicate `get_all_subscription_ids()` calls in `discover.py` are eliminated (single call, result reused)
-- [x] **CODE-02**: Checkpoint resume correctly filters already-completed subscriptions (second subscription listing no longer overwrites filtered list)
-- [x] **CODE-03**: Existing checkpoint/resume functionality continues to work for interrupted large-tenant scans
+- [ ] **EXEC-01**: Per-project `dns.Client` lifecycle (created and closed per project worker)
+- [ ] **EXEC-02**: Shared compute clients reused across projects with `project=` per API call
+- [ ] **EXEC-03**: Progress output shows `[N/total] project-id` as each project completes
+- [ ] **EXEC-04**: Each discovered resource attributed with project_id in details
+- [ ] **EXEC-05**: `resource_id` format includes project_id to prevent multi-project collisions
 
-### Observability
+### Retry & Observability
 
-- [x] **OBSV-01**: Credential type selected at startup is logged (e.g., "Using ClientSecretCredential" or "Using InteractiveBrowserCredential")
-- [x] **OBSV-02**: Warning printed when subscription count >200 and `--subscription-workers` >2
-- [x] **OBSV-03**: Checkpoint TTL is configurable via `--checkpoint-ttl-hours` (default 48h)
+- [ ] **RTRY-01**: GCP 403 `rateLimitExceeded` retried with exponential backoff
+- [ ] **RTRY-02**: Each retry attempt logged with project context
+- [ ] **RTRY-03**: Failed projects collected and logged with error messages after scan
+- [ ] **RTRY-04**: Large-org warning when project count exceeds threshold with high worker count
 
-## v2 Requirements
+### Checkpoint/Resume
+
+- [ ] **CHKP-01**: Checkpoint saved per project completion (JSON with completed_project_ids, resources, errors)
+- [ ] **CHKP-02**: Resume on restart skips already-completed projects
+- [ ] **CHKP-03**: `--checkpoint-ttl-hours` configurable (default 48)
+- [ ] **CHKP-04**: Atomic checkpoint writes (temp file + rename)
+- [ ] **CHKP-05**: SIGINT handler saves checkpoint before exit
+
+## Future Requirements
 
 Deferred to future release. Tracked but not in current roadmap.
 
-### Performance
+### Cloud Asset Inventory
 
-- **PERF-01**: Azure Resource Graph integration for batch cross-subscription resource enumeration
-- **PERF-02**: Proactive rate-limit throttling via `x-ms-ratelimit-remaining-subscription-reads` response header
-- **PERF-03**: Adaptive worker count auto-tuning based on tenant size and credential type
+- **ASSET-01**: Enumerate resources across all projects via Cloud Asset Inventory API
+- **ASSET-02**: Cross-reference Asset Inventory with per-project discovery for completeness check
 
-### Platform
+### Async Rewrite
 
-- **PLAT-01**: WAM broker integration (`InteractiveBrowserBrokerCredential`) for silent SSO on Windows 10+
-- **PLAT-02**: Async/asyncio discovery mode using `azure.mgmt.*.aio` clients
+- **ASYNC-01**: Replace ThreadPoolExecutor with async/await using async Google Cloud clients
 
 ## Out of Scope
 
@@ -55,42 +66,50 @@ Explicitly excluded. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| Adding new Azure resource types to discovery | Separate enhancement, not related to credential bug |
-| Changing licensing calculation logic | Unrelated to the bug |
-| AWS or GCP discovery changes | Different providers, unaffected |
-| UI/CLI output format changes | Cosmetic, not the bug |
-| Full async/asyncio rewrite | Massive scope; threading model is correct after credential fix |
-| Azure Resource Graph replacement | Requires new dependency, parallel code paths for DNS types not in ARG; v2+ optimization |
-| Per-subscription credential objects | Anti-pattern — defeats singleton caching, creates more subprocess calls |
-| Mandatory service principal requirement | Breaks developer/SE workflow using `az login` |
+| New GCP resource types | Current set (VMs, VPCs, subnets, IPs, DNS) sufficient for DDI licensing |
+| Per-project credential objects | Anti-pattern; defeats singleton caching — one credential serves all projects |
+| Azure/AWS discovery changes | Different providers, not in scope for this milestone |
+| Async rewrite | Massive scope; threading model is correct for this use case |
+| UI/CLI output format changes | Cosmetic, not reliability |
+| gcloud CLI subprocess for project enumeration | Same problems as gcloud auth list — slow, wrong auth path, WSL issues |
 
 ## Traceability
 
-Which phases cover which requirements. Confirmed during roadmap creation 2026-02-18.
+Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| CRED-01 | Phase 1 | Complete |
-| CRED-02 | Phase 1 | Complete |
-| CRED-03 | Phase 1 | Complete |
-| CRED-04 | Phase 1 | Complete |
-| CRED-05 | Phase 1 | Complete |
-| CRED-06 | Phase 1 | Complete |
-| CODE-01 | Phase 1 | Complete |
-| CODE-02 | Phase 1 | Complete |
-| CODE-03 | Phase 1 | Complete |
-| CONC-01 | Phase 2 | Complete |
-| CONC-02 | Phase 2 | Complete |
-| CONC-03 | Phase 2 | Complete |
-| OBSV-01 | Phase 3 | Complete |
-| OBSV-02 | Phase 3 | Complete |
-| OBSV-03 | Phase 3 | Complete |
+| CRED-01 | Phase 4 | Complete |
+| CRED-02 | Phase 4 | Complete |
+| CRED-03 | Phase 4 | Pending |
+| CRED-04 | Phase 4 | Complete |
+| CRED-05 | Phase 4 | Complete |
+| ENUM-01 | Phase 5 | Pending |
+| ENUM-02 | Phase 5 | Pending |
+| ENUM-03 | Phase 5 | Pending |
+| ENUM-04 | Phase 5 | Pending |
+| ENUM-05 | Phase 5 | Pending |
+| ENUM-06 | Phase 5 | Pending |
+| EXEC-01 | Phase 6 | Pending |
+| EXEC-02 | Phase 6 | Pending |
+| EXEC-03 | Phase 6 | Pending |
+| EXEC-04 | Phase 6 | Pending |
+| EXEC-05 | Phase 6 | Pending |
+| RTRY-01 | Phase 7 | Pending |
+| RTRY-02 | Phase 7 | Pending |
+| RTRY-03 | Phase 7 | Pending |
+| RTRY-04 | Phase 7 | Pending |
+| CHKP-01 | Phase 8 | Pending |
+| CHKP-02 | Phase 8 | Pending |
+| CHKP-03 | Phase 8 | Pending |
+| CHKP-04 | Phase 8 | Pending |
+| CHKP-05 | Phase 8 | Pending |
 
 **Coverage:**
-- v1 requirements: 15 total
-- Mapped to phases: 15
-- Unmapped: 0
+- v1.1 requirements: 25 total
+- Mapped to phases: 25
+- Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-02-18*
-*Last updated: 2026-02-18 — traceability confirmed against ROADMAP.md*
+*Requirements defined: 2026-02-19*
+*Last updated: 2026-02-19 after roadmap creation (traceability complete)*

@@ -36,7 +36,7 @@
   3. Running the tool with valid Application Default Credentials authenticates and logs `[Auth] Using Application Default Credentials` at startup
   4. The credential object is created once on the main thread; worker threads receive the same validated credential instance without re-authenticating
   5. A credential chain failure raises a typed exception (RefreshError or DefaultCredentialsError) — bare `except Exception` blocks do not swallow auth errors
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 04-01-PLAN.md — Build credential singleton in config.py (validation, logging, permission pre-check)
 - [ ] 04-02-PLAN.md — Wire singleton into discover.py and fix bare exception catches in gcp_discovery.py
@@ -96,7 +96,7 @@ Plans:
 | 1. Credential Chain and Code Correctness | v1 | 3/3 | Complete | 2026-02-18 |
 | 2. Concurrent Execution Hardening | v1 | 2/2 | Complete | 2026-02-18 |
 | 3. Observability and UX Polish | v1 | 1/1 | Complete | 2026-02-18 |
-| 4. GCP Credential Chain and Fail-Fast | v1.1 | 0/2 | Planned | — |
+| 4. GCP Credential Chain and Fail-Fast | 1/2 | In Progress|  | — |
 | 5. GCP Project Enumeration | v1.1 | 0/? | Not started | — |
 | 6. Concurrent Multi-Project Execution | v1.1 | 0/? | Not started | — |
 | 7. Retry and Observability | v1.1 | 0/? | Not started | — |

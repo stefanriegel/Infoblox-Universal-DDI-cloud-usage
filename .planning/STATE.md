@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-19)
 ## Current Position
 
 Phase: 4 — GCP Credential Chain and Fail-Fast
-Plan: —
-Status: Not started
-Last activity: 2026-02-19 — v1.1 roadmap created
+Plan: 1 of 3
+Status: In progress
+Last activity: 2026-02-19 — Completed 04-01 GCP credential singleton
 
 ```
 v1.1 Progress: [          ] 0% (0/5 phases)
@@ -25,6 +25,12 @@ Phase 4: [ ] Phase 5: [ ] Phase 6: [ ] Phase 7: [ ] Phase 8: [ ]
 
 Decisions are logged in PROJECT.md Key Decisions table.
 All v1 decisions archived — see .planning/milestones/v1-ROADMAP.md for full history.
+
+**04-01 (GCP credential singleton):**
+- `except Exception` in `_check_gcp_compute_permission()` is acceptable — not in the credential chain; only PermissionDenied/Forbidden trigger sys.exit(1)
+- `google.oauth2.credentials.Credentials` covers both ADC user creds and gcloud auth login (same Python class); logged as "Application Default Credentials"
+- `get_all_gcp_regions()` bare `except Exception` retained — it is a discovery fallback for API availability, not an auth error handler
+- compute_v1 and api_exceptions imports deferred inside `_check_gcp_compute_permission()` to avoid circular imports
 
 ### Architecture Notes (from research)
 
@@ -51,5 +57,6 @@ None.
 
 ## Session Continuity
 
-**Last session:** 2026-02-19T09:30:18.287Z
-**Status:** v1.1 roadmap created. 25/25 requirements mapped across Phases 4-8. Ready to plan Phase 4.
+**Last session:** 2026-02-19T09:52:00Z
+**Stopped at:** Completed 04-01-PLAN.md
+**Status:** Phase 4 Plan 01 complete. GCP credential singleton built in config.py. Requirements CRED-01, CRED-02, CRED-04, CRED-05 fulfilled. Ready for Plan 02 (discover.py cleanup).
