@@ -9,7 +9,7 @@ import logging
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from tqdm import tqdm
 
@@ -33,12 +33,20 @@ logging.getLogger("google.cloud").setLevel(logging.WARNING)
 class GCPDiscovery(BaseDiscovery):
     """GCP Cloud Discovery implementation."""
 
-    def __init__(self, config: GCPConfig):
+    def __init__(self, config: GCPConfig, shared_compute_clients: Optional[dict] = None):
         """
         Initialize GCP discovery.
 
         Args:
             config: GCP configuration
+            shared_compute_clients: Optional dict of pre-built, project-agnostic compute
+                clients to share across GCPDiscovery instances. When provided, the caller
+                supplies all six compute clients and a fresh dns.Client is created per
+                instance (EXEC-01 / EXEC-02). When None, the existing _init_gcp_clients()
+                path runs unchanged (backward compatible).
+
+                Expected keys: "instances", "zones", "networks", "subnetworks",
+                "addresses", "global_addresses".
         """
         # Convert GCPConfig to DiscoveryConfig
         discovery_config = DiscoveryConfig(
@@ -52,8 +60,32 @@ class GCPDiscovery(BaseDiscovery):
         # Store original GCP config for GCP-specific functionality
         self.gcp_config = config
 
-        # Initialize GCP clients
-        self._init_gcp_clients()
+        if shared_compute_clients is not None:
+            # EXEC-02: reuse caller-provided compute clients (project-agnostic, thread-safe)
+            # EXEC-01: create fresh dns.Client per instance (dns.Client stores project= at init)
+            credentials, project = get_gcp_credential()
+            self.credentials = credentials
+            # config.project_id is always set by caller in multi-project mode.
+            # In single-project mode, fall back to ADC project for consistency.
+            self.project_id = config.project_id or project
+
+            self.compute_client = shared_compute_clients["instances"]
+            self.zones_client = shared_compute_clients["zones"]
+            self.networks_client = shared_compute_clients["networks"]
+            self.subnetworks_client = shared_compute_clients["subnetworks"]
+            self.addresses_client = shared_compute_clients["addresses"]
+            self.global_addresses_client = shared_compute_clients["global_addresses"]
+
+            # dns.Client requires per-project instantiation (stores project= at construction).
+            # At v0.35.1 it has no close() method and uses HTTP REST transport — GC handles cleanup.
+            from google.cloud import dns
+            self.dns_client = dns.Client(project=self.project_id, credentials=credentials)
+
+            # Build the zones-by-region cache using the shared zones_client
+            self._zones_by_region = self._build_zones_by_region()
+        else:
+            # Backward-compatible path: create all clients internally
+            self._init_gcp_clients()
 
     def _init_gcp_clients(self):
         """Initialize GCP clients for different services."""
