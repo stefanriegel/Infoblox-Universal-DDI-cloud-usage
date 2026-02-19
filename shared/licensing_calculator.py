@@ -13,6 +13,37 @@ import re
 
 from shared.constants import ASSET_RESOURCE_TYPES, DDI_RESOURCE_TYPES
 
+# Pre-computed type sets (avoid per-call reconstruction)
+_ALL_DDI_TYPES = frozenset(t for types in DDI_RESOURCE_TYPES.values() for t in types)
+_ALL_ASSET_TYPES = frozenset(t for types in ASSET_RESOURCE_TYPES.values() for t in types)
+
+# Type-based provider mapping sets (used by _determine_provider)
+_AWS_TYPES = frozenset(
+    {"vpc", "subnet", "route53-zone", "route53-record", "dhcp-option-set", "eni", "elastic-ip", "eks-cluster"}
+)
+_AZURE_TYPES = frozenset(
+    {
+        "vm",
+        "vmss-instance",
+        "vnet",
+        "subnet",
+        "dns-zone",
+        "dns-record",
+        "endpoint",
+        "switch",
+        "gateway",
+        "router",
+        "public-ip",
+        "load-balancer",
+        "firewall",
+        "server",
+        "aks-cluster",
+    }
+)
+_GCP_TYPES = frozenset(
+    {"compute-instance", "vpc-network", "dns-zone", "dns-record", "cloud-nat", "gke-cluster", "reserved-ip"}
+)
+
 # Region patterns for provider detection (covers all current and future regions)
 # AWS: two-letter continent + dash + direction/name + dash + digit (e.g. us-east-1, af-south-1)
 _AWS_REGION_RE = re.compile(r"^[a-z]{2}-[a-z]+-\d+$")
@@ -102,11 +133,7 @@ class UniversalDDILicensingCalculator:
 
     def _count_ddi_objects(self, resources: List[Dict]) -> int:
         """Count DDI Objects (DNS/DHCP/IPAM infrastructure)."""
-        ddi_resource_types = set()
-        for types in DDI_RESOURCE_TYPES.values():
-            ddi_resource_types.update(types)
-
-        return len([r for r in resources if r.get("resource_type") in ddi_resource_types])
+        return sum(1 for r in resources if r.get("resource_type") in _ALL_DDI_TYPES)
 
     def _count_active_ips(self, resources: List[Dict]) -> int:
         """Count Active IP Addresses.
@@ -127,14 +154,10 @@ class UniversalDDILicensingCalculator:
 
     def _count_managed_assets(self, resources: List[Dict]) -> int:
         """Count Managed Assets (compute/network resources with IPs)."""
-        asset_resource_types = set()
-        for types in ASSET_RESOURCE_TYPES.values():
-            asset_resource_types.update(types)
-
         # Count assets that have IP addresses (as per Infoblox licensing rules)
         asset_count = 0
         for resource in resources:
-            if resource.get("resource_type") in asset_resource_types:
+            if resource.get("resource_type") in _ALL_ASSET_TYPES:
                 # Check if asset has at least one IP address
                 details = resource.get("details", {})
                 has_ip = False
@@ -159,9 +182,10 @@ class UniversalDDILicensingCalculator:
     def _get_provider_breakdown(self, resources: List[Dict]) -> Dict[str, Dict[str, int]]:
         """Get breakdown of counts by cloud provider."""
         providers = {}
+        # Group resources by provider in a single pass (avoids double _determine_provider)
+        resources_by_provider: Dict[str, List[Dict]] = {}
 
         for resource in resources:
-            # Determine provider from resource details or region
             provider = self._determine_provider(resource)
 
             if provider not in providers:
@@ -171,23 +195,23 @@ class UniversalDDILicensingCalculator:
                     "managed_assets": 0,
                     "total_objects": 0,
                 }
+                resources_by_provider[provider] = []
 
             providers[provider]["total_objects"] += 1
+            resources_by_provider[provider].append(resource)
 
             # Categorize the resource
             resource_type = resource.get("resource_type", "")
 
-            if self._is_ddi_object(resource_type):
+            if resource_type in _ALL_DDI_TYPES:
                 providers[provider]["ddi_objects"] += 1
-            elif self._is_managed_asset(resource_type):
-                # Only count if it has IP addresses
+            elif resource_type in _ALL_ASSET_TYPES:
                 details = resource.get("details", {})
                 if self._has_ip_addresses(details):
                     providers[provider]["managed_assets"] += 1
 
-        # Count unique IPs per provider
-        for provider in providers:
-            provider_resources = [r for r in resources if self._determine_provider(r) == provider]
+        # Count unique IPs per provider using pre-grouped resources
+        for provider, provider_resources in resources_by_provider.items():
             providers[provider]["active_ips"] = self._count_active_ips(provider_resources)
 
         return providers
@@ -206,42 +230,21 @@ class UniversalDDILicensingCalculator:
             if _AZURE_REGION_RE.match(region):
                 return "azure"
 
-        # Type-based mapping sets
-        aws_types = {"vpc", "subnet", "route53-zone", "route53-record", "dhcp-option-set", "eni", "elastic-ip", "eks-cluster"}
-        azure_types = {
-            "vm",
-            "vmss-instance",
-            "vnet",
-            "subnet",
-            "dns-zone",
-            "dns-record",
-            "endpoint",
-            "switch",
-            "gateway",
-            "router",
-            "public-ip",
-            "load-balancer",
-            "firewall",
-            "server",
-            "aks-cluster",
-        }
-        gcp_types = {"compute-instance", "vpc-network", "dns-zone", "dns-record", "cloud-nat", "gke-cluster", "reserved-ip"}
-
         # Prefer current provider on overlap
         cp = (self.current_provider or "").lower()
-        if cp == "aws" and rtype in aws_types:
+        if cp == "aws" and rtype in _AWS_TYPES:
             return "aws"
-        if cp == "azure" and rtype in azure_types:
+        if cp == "azure" and rtype in _AZURE_TYPES:
             return "azure"
-        if cp == "gcp" and rtype in gcp_types:
+        if cp == "gcp" and rtype in _GCP_TYPES:
             return "gcp"
 
         # Otherwise choose by type order: gcp first (to avoid misclassifying 'dns-zone'), then azure, then aws
-        if rtype in gcp_types:
+        if rtype in _GCP_TYPES:
             return "gcp"
-        if rtype in azure_types:
+        if rtype in _AZURE_TYPES:
             return "azure"
-        if rtype in aws_types:
+        if rtype in _AWS_TYPES:
             return "aws"
 
         # Fallback on patterns
@@ -258,17 +261,11 @@ class UniversalDDILicensingCalculator:
 
     def _is_ddi_object(self, resource_type: str) -> bool:
         """Check if resource type is a DDI object."""
-        ddi_types = set()
-        for types in DDI_RESOURCE_TYPES.values():
-            ddi_types.update(types)
-        return resource_type in ddi_types
+        return resource_type in _ALL_DDI_TYPES
 
     def _is_managed_asset(self, resource_type: str) -> bool:
         """Check if resource type is a managed asset."""
-        asset_types = set()
-        for types in ASSET_RESOURCE_TYPES.values():
-            asset_types.update(types)
-        return resource_type in asset_types
+        return resource_type in _ALL_ASSET_TYPES
 
     def _has_ip_addresses(self, details: Dict) -> bool:
         """Check if resource details contain IP addresses."""
@@ -566,18 +563,12 @@ class UniversalDDILicensingCalculator:
             "hashes": {"resources_sha256": resources_sha256},
         }
 
-        # Write manifest
+        # Serialize manifest to bytes, hash it, then write once
+        manifest_bytes = _json.dumps(manifest, indent=2).encode("utf-8")
+        manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+        manifest["hashes"]["manifest_sha256"] = manifest_sha256
+
         with open(output_file, "w", encoding="utf-8") as f:
             _json.dump(manifest, f, indent=2)
-
-        # Hash the manifest itself and append
-        with open(output_file, "rb") as f:
-            manifest_sha256 = hashlib.sha256(f.read()).hexdigest()
-        manifest_with_hash = dict(
-            manifest,
-            hashes=dict(manifest.get("hashes", {}), manifest_sha256=manifest_sha256),
-        )
-        with open(output_file, "w", encoding="utf-8") as f:
-            _json.dump(manifest_with_hash, f, indent=2)
 
         return output_file

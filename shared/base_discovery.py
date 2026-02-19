@@ -21,6 +21,12 @@ class DiscoveryConfig:
 class BaseDiscovery(ABC):
     """Base class for cloud discovery implementations."""
 
+    # Subclasses override these to customize managed-service detection.
+    # The base _is_managed_service checks key exact, key prefix, and value exact.
+    _managed_key_prefixes: tuple = ()
+    _managed_key_exact: frozenset = frozenset({"managed-by", "managed_by"})
+    _managed_value_exact: frozenset = frozenset()
+
     def __init__(self, config: DiscoveryConfig):
         """
         Initialize the base discovery class.
@@ -31,6 +37,7 @@ class BaseDiscovery(ABC):
         self.config = config
         self._discovered_resources: Optional[List[Dict]] = None
         self.resource_counter = ResourceCounter(config.provider)
+        self._scan_timestamp: str = datetime.now().isoformat()
 
         logging.basicConfig(level=logging.WARNING)
         self.logger = logging.getLogger(self.__class__.__name__)
@@ -147,18 +154,27 @@ class BaseDiscovery(ABC):
             "requires_management_token": requires_management_token,
             "tags": tags or {},
             "details": resource_data,
-            "discovered_at": datetime.now().isoformat(),
+            "discovered_at": self._scan_timestamp,
         }
 
     def _is_managed_service(self, tags: Dict[str, str]) -> bool:
-        """Base managed-service check. Provider subclasses override with specific indicators."""
+        """Data-driven managed-service check using class-level indicator sets.
+
+        Subclasses customize detection by setting _managed_key_prefixes,
+        _managed_key_exact, and _managed_value_exact class attributes.
+        """
         if not tags:
             return False
 
-        managed_key_exact = {"managed-by", "managed_by"}
         for key, value in tags.items():
             key_lower = key.lower()
-            if key_lower in managed_key_exact:
+            value_lower = value.lower() if isinstance(value, str) else ""
+
+            if key_lower in self._managed_key_exact:
+                return True
+            if any(key_lower.startswith(prefix) for prefix in self._managed_key_prefixes):
+                return True
+            if value_lower in self._managed_value_exact:
                 return True
 
         return False

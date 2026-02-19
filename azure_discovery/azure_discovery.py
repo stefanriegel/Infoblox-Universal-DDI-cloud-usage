@@ -79,6 +79,10 @@ def make_retry_policy(sub_name: str, print_lock: threading.Lock) -> VisibleRetry
 class AzureDiscovery(BaseDiscovery):
     """Azure Cloud Discovery implementation."""
 
+    _managed_key_prefixes = ("aks-managed-", "k8s-azure-", "ms-resource-usage:")
+    _managed_key_exact = frozenset({"managed-by", "managed_by", "azure-managed"})
+    _managed_value_exact = frozenset({"azure-managed", "aks", "appservice", "azure-functions"})
+
     def __init__(
         self,
         config: AzureConfig,
@@ -998,37 +1002,6 @@ class AzureDiscovery(BaseDiscovery):
             self.logger.error(f"Error discovering Azure DNS zones/records: {e}")
 
         return resources
-
-    def _is_managed_service(self, tags: Dict[str, str]) -> bool:
-        """Check if a resource is a managed service (Management Token-free).
-
-        Detects resources created/managed by Azure platform services (AKS system
-        pools, App Service infra, etc.). Avoids false positives from generic tags
-        that happen to contain 'azure' or 'service'.
-        """
-        if not tags:
-            return False
-
-        # Specific tag key prefixes that indicate Azure-managed resources
-        managed_key_prefixes = (
-            "aks-managed-",
-            "k8s-azure-",
-            "ms-resource-usage:",
-        )
-        managed_key_exact = {"managed-by", "managed_by", "azure-managed"}
-
-        for key, value in tags.items():
-            key_lower = key.lower()
-            value_lower = value.lower()
-
-            if key_lower in managed_key_exact:
-                return True
-            if any(key_lower.startswith(prefix) for prefix in managed_key_prefixes):
-                return True
-            if value_lower in ("azure-managed", "aks", "appservice", "azure-functions"):
-                return True
-
-        return False
 
     def get_scanned_subscription_ids(self) -> list:
         """Return the Azure Subscription ID(s) scanned."""

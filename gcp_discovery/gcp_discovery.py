@@ -33,6 +33,10 @@ logging.getLogger("google.cloud").setLevel(logging.WARNING)
 class GCPDiscovery(BaseDiscovery):
     """GCP Cloud Discovery implementation."""
 
+    _managed_key_prefixes = ("goog-managed-by", "gke-managed", "cloud-run", "cloud-functions")
+    _managed_key_exact = frozenset({"managed-by", "managed_by", "google-managed"})
+    _managed_value_exact = frozenset({"google-managed", "gke", "cloud-run", "cloud-functions"})
+
     def __init__(self, config: GCPConfig, shared_compute_clients: Optional[dict] = None):
         """
         Initialize GCP discovery.
@@ -793,38 +797,6 @@ class GCPDiscovery(BaseDiscovery):
             self.logger.error(f"Error discovering DNS records for zone {zone.name}: {e}")
 
         return resources
-
-    def _is_managed_service(self, labels: Dict[str, str]) -> bool:
-        """Check if a resource is a managed service (Management Token-free).
-
-        Detects resources created/managed by GCP platform services (GKE system
-        pods, Cloud Run infra, Cloud Functions, etc.). Uses specific key prefixes
-        and exact value matches to avoid false positives.
-        """
-        if not labels:
-            return False
-
-        # Specific label key prefixes that indicate GCP-managed resources
-        managed_key_prefixes = (
-            "goog-managed-by",
-            "gke-managed",
-            "cloud-run",
-            "cloud-functions",
-        )
-        managed_key_exact = {"managed-by", "managed_by", "google-managed"}
-
-        for key, value in labels.items():
-            key_lower = key.lower()
-            value_lower = value.lower()
-
-            if key_lower in managed_key_exact:
-                return True
-            if any(key_lower.startswith(prefix) for prefix in managed_key_prefixes):
-                return True
-            if value_lower in ("google-managed", "gke", "cloud-run", "cloud-functions"):
-                return True
-
-        return False
 
     def get_scanned_project_ids(self) -> list:
         """Return the GCP Project ID(s) scanned."""

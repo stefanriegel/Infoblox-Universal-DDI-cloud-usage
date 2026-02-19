@@ -35,6 +35,18 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 class AWSDiscovery(BaseDiscovery):
     """AWS Cloud Discovery implementation."""
 
+    _managed_key_prefixes = (
+        "aws:ecs:",
+        "aws:eks:",
+        "eks.amazonaws.com/",
+        "lambda:",
+        "aws:lambda:",
+        "elasticmapreduce:",
+        "aws:elasticmapreduce:",
+    )
+    _managed_key_exact = frozenset({"managed-by", "managed_by", "aws-managed"})
+    _managed_value_exact = frozenset({"aws-managed", "ecs", "lambda", "eks"})
+
     def __init__(self, config: AWSConfig):
         """
         Initialize AWS discovery.
@@ -751,41 +763,6 @@ class AWSDiscovery(BaseDiscovery):
             self.logger.error(f"Error discovering Route 53 zones/records: {e}")
 
         return resources
-
-    def _is_managed_service(self, tags: Dict[str, str]) -> bool:
-        """Check if a resource is a managed service (Management Token-free).
-
-        Detects resources created/managed by AWS platform services (ECS tasks,
-        Lambda ENIs, EKS system pods, etc.). Avoids false positives from generic
-        aws:cloudformation:* or aws:autoscaling:* auto-tags.
-        """
-        if not tags:
-            return False
-
-        # Specific tag key prefixes that indicate AWS-managed resources
-        managed_key_prefixes = (
-            "aws:ecs:",
-            "aws:eks:",
-            "eks.amazonaws.com/",
-            "lambda:",
-            "aws:lambda:",
-            "elasticmapreduce:",
-            "aws:elasticmapreduce:",
-        )
-        managed_key_exact = {"managed-by", "managed_by", "aws-managed"}
-
-        for key, value in tags.items():
-            key_lower = key.lower()
-            value_lower = value.lower()
-
-            if key_lower in managed_key_exact:
-                return True
-            if any(key_lower.startswith(prefix) for prefix in managed_key_prefixes):
-                return True
-            if value_lower in ("aws-managed", "ecs", "lambda", "eks"):
-                return True
-
-        return False
 
     def get_management_token_free_assets(self) -> List[Dict]:
         """

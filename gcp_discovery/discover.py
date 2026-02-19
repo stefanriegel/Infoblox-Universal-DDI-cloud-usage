@@ -253,8 +253,6 @@ def main(args=None):
         calculator = UniversalDDILicensingCalculator()
         calculator.calculate_from_discovery_results(all_native_objects, provider="gcp")
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
         # Export CSV for Sales Engineers
         csv_file = os.path.join("output", f"gcp_universal_ddi_licensing_{timestamp}.csv")
         calculator.export_csv(csv_file, provider="gcp")

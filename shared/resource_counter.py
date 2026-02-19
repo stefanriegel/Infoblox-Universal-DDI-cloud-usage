@@ -10,6 +10,31 @@ from .constants import (
     SUPPORTED_PROVIDERS,
 )
 
+# Source definitions for active IP extraction. DNS-derived keys are intentionally excluded.
+# Maps detail key -> (source_category, ip_role)
+_IP_KEY_MAP: Dict[str, Tuple[str, str]] = {
+    # Attached / discovered
+    "ip": ("discovered", "unknown"),
+    "private_ip": ("discovered", "private"),
+    "public_ip": ("discovered", "public"),
+    "private_ips": ("discovered", "private"),
+    "public_ips": ("discovered", "public"),
+    "ipv6_ip": ("discovered", "private"),
+    "ipv6_ips": ("discovered", "private"),
+    "discovered_ips": ("discovered", "unknown"),
+    # Allocated/reserved/fixed/lease sources (when present)
+    "reserved_ips": ("allocated", "unknown"),
+    "reservation_ips": ("allocated", "unknown"),
+    "elastic_ip": ("allocated", "public"),
+    "elastic_ips": ("allocated", "public"),
+    "fixed_ips": ("fixed", "unknown"),
+    "fixed_addresses": ("fixed", "unknown"),
+    "dhcp_lease_ips": ("dhcp_lease", "unknown"),
+    "lease_ips": ("dhcp_lease", "unknown"),
+    # Azure/GCP common field name for allocated public IP resources.
+    "ip_address": ("allocated", "unknown"),
+}
+
 
 @dataclass
 class ResourceCount:
@@ -216,31 +241,7 @@ class ResourceCounter:
         """Yield (ip, role, source) tuples from a resource."""
         details = (resource.get("details") or {}) if isinstance(resource, dict) else {}
 
-        # Source definitions. DNS-derived keys are intentionally excluded.
-        key_map: Dict[str, Tuple[str, str]] = {
-            # Attached / discovered
-            "ip": ("discovered", "unknown"),
-            "private_ip": ("discovered", "private"),
-            "public_ip": ("discovered", "public"),
-            "private_ips": ("discovered", "private"),
-            "public_ips": ("discovered", "public"),
-            "ipv6_ip": ("discovered", "private"),
-            "ipv6_ips": ("discovered", "private"),
-            "discovered_ips": ("discovered", "unknown"),
-            # Allocated/reserved/fixed/lease sources (when present)
-            "reserved_ips": ("allocated", "unknown"),
-            "reservation_ips": ("allocated", "unknown"),
-            "elastic_ip": ("allocated", "public"),
-            "elastic_ips": ("allocated", "public"),
-            "fixed_ips": ("fixed", "unknown"),
-            "fixed_addresses": ("fixed", "unknown"),
-            "dhcp_lease_ips": ("dhcp_lease", "unknown"),
-            "lease_ips": ("dhcp_lease", "unknown"),
-            # Azure/GCP common field name for allocated public IP resources.
-            "ip_address": ("allocated", "unknown"),
-        }
-
-        for key, (source, role) in key_map.items():
+        for key, (source, role) in _IP_KEY_MAP.items():
             if key not in details:
                 continue
             for ip in self._iter_ip_strings(details.get(key)):

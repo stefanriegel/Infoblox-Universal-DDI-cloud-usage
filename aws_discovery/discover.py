@@ -157,8 +157,6 @@ def main(args=None):
         calculator = UniversalDDILicensingCalculator()
         licensing_results = calculator.calculate_from_discovery_results(native_objects, provider="aws")
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
         # Export CSV for Sales Engineers
         csv_file = os.path.join("output", f"aws_universal_ddi_licensing_{timestamp}.csv")
         calculator.export_csv(csv_file, provider="aws")
