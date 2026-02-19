@@ -2,10 +2,12 @@
 GCP Configuration for Cloud Discovery
 """
 
+import fnmatch
 import os
 import sys
 import threading
-from typing import List, Optional
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
 from google.auth import default
 from google.auth.exceptions import DefaultCredentialsError, RefreshError
@@ -20,6 +22,15 @@ from shared.config import BaseConfig
 # Module-level credential singleton (thread-safe)
 _gcp_credential_cache = None  # Tuple of (credentials, project)
 _gcp_credential_lock = threading.Lock()
+
+
+@dataclass
+class ProjectInfo:
+    """Per-project API availability record produced by enumerate_gcp_projects()."""
+
+    project_id: str
+    compute_enabled: bool
+    dns_enabled: bool
 
 
 def get_gcp_credential():
@@ -135,6 +146,184 @@ def _fail_gcp_auth(message: str, include_both_paths: bool = False) -> None:
     print("To set the default project (if not in credentials):")
     print("  export GOOGLE_CLOUD_PROJECT=my-project-id")
     sys.exit(1)
+
+
+def _fetch_active_projects(credentials, org_id: Optional[str]) -> List[str]:
+    """Return list of ACTIVE project IDs accessible to the credential.
+
+    Uses search_projects (not list_projects) so the entire org hierarchy is
+    traversed in a single paginated call — no folder recursion required.
+    """
+    from google.cloud import resourcemanager_v3
+    from google.api_core import exceptions as api_exceptions
+
+    client = resourcemanager_v3.ProjectsClient(credentials=credentials)
+
+    if org_id:
+        # org_id may be numeric ("123456") or full resource name ("organizations/123456")
+        parent = org_id if org_id.startswith("organizations/") else f"organizations/{org_id}"
+        query = f"state:ACTIVE parent:{parent}"
+    else:
+        query = "state:ACTIVE"
+
+    try:
+        request = resourcemanager_v3.SearchProjectsRequest(query=query)
+        project_ids = []
+        for project in client.search_projects(request=request):
+            # query="state:ACTIVE" is server-side; this is defense-in-depth
+            if project.state == resourcemanager_v3.Project.State.ACTIVE:
+                project_ids.append(project.project_id)
+        return project_ids
+    except api_exceptions.PermissionDenied:
+        print(
+            "ERROR: Cannot enumerate GCP projects. Ensure cloudresourcemanager.googleapis.com"
+            " is enabled and the credential has resourcemanager.projects.get permission."
+        )
+        sys.exit(1)
+
+
+def _apply_project_filters(
+    project_ids: List[str],
+    include_patterns: Optional[List[str]],
+    exclude_patterns: Optional[List[str]],
+) -> List[str]:
+    """Filter project list by include/exclude glob patterns."""
+    if include_patterns is not None:
+        project_ids = [
+            p for p in project_ids
+            if any(fnmatch.fnmatch(p, pat) for pat in include_patterns)
+        ]
+    if exclude_patterns is not None:
+        project_ids = [
+            p for p in project_ids
+            if not any(fnmatch.fnmatch(p, pat) for pat in exclude_patterns)
+        ]
+    return project_ids
+
+
+def _check_apis_enabled(client, project_id: str) -> Tuple[bool, bool]:
+    """Check if Compute and DNS APIs are enabled for a project.
+
+    Returns (compute_enabled, dns_enabled).
+
+    Args:
+        client: A ServiceUsageClient instance (created once by the caller and reused).
+        project_id: The GCP project ID string (e.g. "my-project-123").
+    """
+    from google.cloud import service_usage_v1
+    from google.api_core import exceptions as api_exceptions
+
+    parent = f"projects/{project_id}"
+    try:
+        request = service_usage_v1.BatchGetServicesRequest(
+            parent=parent,
+            names=[
+                f"{parent}/services/compute.googleapis.com",
+                f"{parent}/services/dns.googleapis.com",
+            ],
+        )
+        response = client.batch_get_services(request=request)
+        compute_enabled = False
+        dns_enabled = False
+        for svc in response.services:
+            enabled = (svc.state == service_usage_v1.types.Service.State.ENABLED)
+            if "compute.googleapis.com" in svc.name:
+                compute_enabled = enabled
+            elif "dns.googleapis.com" in svc.name:
+                dns_enabled = enabled
+        return compute_enabled, dns_enabled
+    except api_exceptions.PermissionDenied:
+        # accessNotConfigured or insufficient IAM — treat both APIs as unavailable
+        return False, False
+    except Exception:
+        # Network/quota transient error — assume enabled, let discovery surface the real error
+        return True, True
+
+
+def _log_api_status(project_id: str, compute_enabled: bool, dns_enabled: bool) -> None:
+    """Print [Skip] lines for disabled APIs. Silent for fully-enabled projects."""
+    if not compute_enabled:
+        print(f"[Skip] {project_id}: Compute API disabled")
+    if not dns_enabled:
+        print(f"[Skip] {project_id}: DNS API disabled")
+
+
+def enumerate_gcp_projects(
+    credentials,
+    adc_project: Optional[str],
+    project: Optional[str],
+    org_id: Optional[str],
+    include_patterns: Optional[List[str]],
+    exclude_patterns: Optional[List[str]],
+) -> List[ProjectInfo]:
+    """Return a curated list of ProjectInfo for accessible ACTIVE GCP projects.
+
+    Backward-compatible: if an explicit project is specified (via the project
+    parameter, GOOGLE_CLOUD_PROJECT env var, or ADC), returns a single-element
+    list without calling search_projects.
+
+    Args:
+        credentials: Validated GCP credential object from get_gcp_credential().
+        adc_project: Project ID inferred from the ADC chain (may be None).
+        project: Explicit --project flag value (takes priority over env and ADC).
+        org_id: Organization ID for scoping enumeration (--org-id flag or
+                GOOGLE_CLOUD_ORG_ID env var). Applied only in multi-project path.
+        include_patterns: Glob patterns; only matching project IDs are kept.
+        exclude_patterns: Glob patterns; matching project IDs are removed.
+
+    Returns:
+        List of ProjectInfo with per-project compute_enabled and dns_enabled flags.
+    """
+    from google.cloud import service_usage_v1
+
+    # Priority: --project flag > GOOGLE_CLOUD_PROJECT env var > ADC project
+    # This matches GCP SDK convention: explicit flag always wins.
+    explicit_project = project or os.getenv("GOOGLE_CLOUD_PROJECT") or adc_project
+
+    # Create a single ServiceUsageClient and reuse it across all pre-checks.
+    usage_client = service_usage_v1.ServiceUsageClient(credentials=credentials)
+
+    if explicit_project:
+        # ENUM-03: bypass enumeration — single-project backward-compat path
+        compute_ok, dns_ok = _check_apis_enabled(usage_client, explicit_project)
+        _log_api_status(explicit_project, compute_ok, dns_ok)
+        return [ProjectInfo(
+            project_id=explicit_project,
+            compute_enabled=compute_ok,
+            dns_enabled=dns_ok,
+        )]
+
+    # Multi-project enumeration path
+    # org_id arg takes priority over env var (same flag-overrides-env convention)
+    effective_org_id = org_id or os.getenv("GOOGLE_CLOUD_ORG_ID")
+    project_ids = _fetch_active_projects(credentials, effective_org_id)
+
+    # ENUM-05: apply include/exclude glob filters before API pre-checks
+    project_ids = _apply_project_filters(project_ids, include_patterns, exclude_patterns)
+
+    # ENUM-02: zero-project case — print actionable hint and exit
+    if not project_ids:
+        print(
+            "ERROR: No ACTIVE GCP projects found."
+            " Ensure the credential has resourcemanager.projects.get permission."
+        )
+        sys.exit(1)
+
+    # ENUM-01: print count before pre-checks so count appears above [Skip] lines
+    print(f"Found {len(project_ids)} ACTIVE projects")
+
+    # ENUM-06: per-project API pre-check using shared usage_client
+    results: List[ProjectInfo] = []
+    for pid in project_ids:
+        compute_ok, dns_ok = _check_apis_enabled(usage_client, pid)
+        _log_api_status(pid, compute_ok, dns_ok)
+        results.append(ProjectInfo(
+            project_id=pid,
+            compute_enabled=compute_ok,
+            dns_enabled=dns_ok,
+        ))
+
+    return results
 
 
 class GCPConfig(BaseConfig):
