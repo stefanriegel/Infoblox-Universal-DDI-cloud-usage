@@ -253,6 +253,32 @@ def main():
         help="Print a warning when subscription count exceeds this value and --subscription-workers >2 (default: 200).",
     )
 
+    # GCP-specific arguments
+    parser.add_argument(
+        "--project",
+        default=None,
+        help="(GCP) Scan a single GCP project (bypasses enumeration).",
+    )
+    parser.add_argument(
+        "--org-id",
+        default=None,
+        help="(GCP) Scope enumeration to this GCP organization ID.",
+    )
+    parser.add_argument(
+        "--include-projects",
+        nargs="+",
+        metavar="PATTERN",
+        default=None,
+        help="(GCP) Only scan projects matching these glob patterns.",
+    )
+    parser.add_argument(
+        "--exclude-projects",
+        nargs="+",
+        metavar="PATTERN",
+        default=None,
+        help="(GCP) Skip projects matching these glob patterns.",
+    )
+
     # Remove extra_args, use parse_known_args instead
     args, unknown = parser.parse_known_args()
 
@@ -291,6 +317,10 @@ def main():
             gcp_args.format = args.format
             gcp_args.workers = args.workers
             gcp_args.full = args.full
+            gcp_args.project = args.project
+            gcp_args.org_id = args.org_id
+            gcp_args.include_projects = args.include_projects
+            gcp_args.exclude_projects = args.exclude_projects
             gcp_main(gcp_args)
         else:
             print(f"Unsupported provider: {args.provider}")
