@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-01-PLAN.md -- Foundation types: resource schema, error taxonomy, audit logger
-- [ ] 01-02-PLAN.md -- Resilience layer: retry decorator, rate limiter, checkpoint engine
+- [x] 01-02-PLAN.md -- Resilience layer: retry decorator, rate limiter, checkpoint engine
 - [x] 01-03-PLAN.md -- User-facing: auth doctor, progress tracker
 - [ ] 01-04-PLAN.md -- Integration: discovery orchestrator, CLI entry point, signal handler
 

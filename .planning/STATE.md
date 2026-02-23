@@ -47,6 +47,10 @@ Recent decisions affecting current work:
 - [01-01]: Used from __future__ import annotations for Python 3.10+ type hint syntax on Python 3.9 runtime
 - [01-01]: Error classification uses strict priority ordering (AUTH > RATE_LIMIT > NETWORK > API > UNKNOWN) for deterministic resolution
 - [01-01]: Audit logger clears existing handlers per setup call for per-scan file isolation
+- [01-02]: Retry decorator delegates to classify_error() for category-based retry eligibility, not exception type matching
+- [01-02]: RateLimiter uses exponential backoff (1s*2^n capped at 60s) when no Retry-After header present
+- [01-02]: Checkpoint save uses fd-tracking with None sentinel to prevent double-close in error cleanup
+- [01-02]: TTL=0 disables expiry check, allowing indefinite checkpoint validity for testing
 - [01-03]: AuthResult.read_only defaults to True with no setter -- AUTH-05 enforced by design, not runtime checks
 - [01-03]: ProgressTracker uses copy.deepcopy for get_summary() to prevent callers from mutating internal state
 - [01-03]: register_provider accepts unit_label parameter so Azure uses 'subscriptions' and GCP uses 'projects'
@@ -63,5 +67,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 01-03-PLAN.md
+Stopped at: Completed 01-02-PLAN.md (resilience layer)
 Resume file: None

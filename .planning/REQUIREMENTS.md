@@ -21,7 +21,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **DISC-02**: User can discover cloud resources across all accessible Azure subscriptions and regions
 - [ ] **DISC-03**: User can discover cloud resources across all accessible GCP projects and regions
 - [ ] **DISC-04**: Discovery runs concurrently across multiple accounts/subscriptions/projects (scales to 100+)
-- [ ] **DISC-05**: Discovery handles API rate limiting with adaptive retry and exponential backoff with jitter
+- [x] **DISC-05**: Discovery handles API rate limiting with adaptive retry and exponential backoff with jitter
 - [x] **DISC-06**: One failed account/subscription/project does not abort the entire scan — errors are logged and scan continues
 - [ ] **DISC-07**: User can filter which accounts/subscriptions/projects to include or exclude from discovery
 - [x] **DISC-08**: User sees consistent progress indication during scan (`[N/total]` per provider)
@@ -64,9 +64,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Resilience
 
-- [ ] **RESIL-01**: Tool supports checkpoint/resume for interrupted scans across all three providers
-- [ ] **RESIL-02**: Checkpoint saves progress atomically (no partial/corrupt checkpoints)
-- [ ] **RESIL-03**: Checkpoint has configurable TTL (default 48h) after which stale checkpoints are discarded
+- [x] **RESIL-01**: Tool supports checkpoint/resume for interrupted scans across all three providers
+- [x] **RESIL-02**: Checkpoint saves progress atomically (no partial/corrupt checkpoints)
+- [x] **RESIL-03**: Checkpoint has configurable TTL (default 48h) after which stale checkpoints are discarded
 
 ### Platform & UX
 
@@ -129,7 +129,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISC-02 | Phase 3 | Pending |
 | DISC-03 | Phase 4 | Pending |
 | DISC-04 | Phase 1 | Pending |
-| DISC-05 | Phase 1 | Pending |
+| DISC-05 | Phase 1 | Complete |
 | DISC-06 | Phase 1 | Complete |
 | DISC-07 | Phase 2 | Pending |
 | DISC-08 | Phase 1 | Complete |
@@ -154,9 +154,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OUT-03 | Phase 2 | Pending |
 | OUT-04 | Phase 2 | Pending |
 | OUT-05 | Phase 2 | Pending |
-| RESIL-01 | Phase 1 | Pending |
-| RESIL-02 | Phase 1 | Pending |
-| RESIL-03 | Phase 1 | Pending |
+| RESIL-01 | Phase 1 | Complete |
+| RESIL-02 | Phase 1 | Complete |
+| RESIL-03 | Phase 1 | Complete |
 | PLAT-01 | Phase 6 | Pending |
 | PLAT-02 | Phase 5 | Pending |
 | PLAT-03 | Phase 5 | Pending |
