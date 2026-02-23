@@ -10,33 +10,34 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 2 of 6 (AWS Provider and End-to-End Pipeline)
-Plan: 3 of 6 in current phase
+Plan: 4 of 6 in current phase
 Status: In Progress
-Last activity: 2026-02-23 -- Completed 02-03-PLAN.md (DDI resource collectors)
+Last activity: 2026-02-23 -- Completed 02-04-PLAN.md (compute, database, and token-free collectors)
 
-Progress: [███████░░░] 30%
+Progress: [████████░░] 33%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 4min
-- Total execution time: 0.47 hours
+- Total plans completed: 8
+- Average duration: 5min
+- Total execution time: 0.58 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-core-infrastructure | 4 | 15min | 4min |
-| 02-aws-provider-and-end-to-end-pipeline | 3 | 17min | 6min |
+| 02-aws-provider-and-end-to-end-pipeline | 4 | 24min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: 01-04 (4min), 02-01 (5min), 02-02 (5min), 02-03 (7min)
+- Last 5 plans: 01-04 (4min), 02-01 (5min), 02-02 (5min), 02-03 (7min), 02-04 (7min)
 - Trend: Stable
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
 | Phase 02 P03 | 7min | 2 tasks | 5 files |
+| Phase 02 P04 | 7min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,10 @@ Recent decisions affecting current work:
 - [02-03]: All ENIs collected regardless of attachment status -- asset_dedup module handles folding
 - [02-03]: DHCP orphan detection uses set membership check against VPC-extracted DhcpOptionsId values
 - [02-03]: Record resource_id format is zone_id/name/type for uniqueness across zones
+- [02-04]: ECS tests use manual mocks due to moto 5.1.21 awsvpc bug (private_dns_name missing on NetworkInterface)
+- [02-04]: RDS instances set ip_addresses=[] -- ENI discovery handles IP attribution
+- [02-04]: Lambda VPC test checks non-empty vpc_id (moto returns synthetic vpc-123abc)
+- [02-04]: Redshift uses ClusterNamespaceArn as resource_id when available
 
 ### Pending Todos
 
@@ -87,5 +92,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 02-03-PLAN.md (DDI resource collectors)
+Stopped at: Completed 02-04-PLAN.md (compute, database, and token-free collectors)
 Resume file: None
