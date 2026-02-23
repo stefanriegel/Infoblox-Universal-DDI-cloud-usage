@@ -35,7 +35,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-01-PLAN.md -- Foundation types: resource schema, error taxonomy, audit logger
 - [ ] 01-02-PLAN.md -- Resilience layer: retry decorator, rate limiter, checkpoint engine
-- [ ] 01-03-PLAN.md -- User-facing: auth doctor, progress tracker
+- [x] 01-03-PLAN.md -- User-facing: auth doctor, progress tracker
 - [ ] 01-04-PLAN.md -- Integration: discovery orchestrator, CLI entry point, signal handler
 
 ### Phase 2: AWS Provider and End-to-End Pipeline
@@ -118,7 +118,7 @@ Note: Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depen
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Infrastructure | 0/4 | Not started | - |
+| 1. Core Infrastructure | 3/4 | In progress | - |
 | 2. AWS Provider and End-to-End Pipeline | 0/TBD | Not started | - |
 | 3. Azure Provider | 0/TBD | Not started | - |
 | 4. GCP Provider | 0/TBD | Not started | - |

@@ -12,8 +12,8 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **AUTH-01**: User can authenticate to AWS via existing SSO profiles (`aws sso login`) without storing credentials
 - [ ] **AUTH-02**: User can authenticate to Azure via `az login` (browser-based) without storing credentials
 - [ ] **AUTH-03**: User can authenticate to GCP via `gcloud auth application-default login` without storing credentials
-- [ ] **AUTH-04**: User can run pre-flight auth validation ("auth doctor") that checks credentials are valid before starting scan
-- [ ] **AUTH-05**: Tool uses read-only cloud access only — never requests write permissions
+- [x] **AUTH-04**: User can run pre-flight auth validation ("auth doctor") that checks credentials are valid before starting scan
+- [x] **AUTH-05**: Tool uses read-only cloud access only — never requests write permissions
 
 ### Discovery
 
@@ -24,7 +24,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **DISC-05**: Discovery handles API rate limiting with adaptive retry and exponential backoff with jitter
 - [x] **DISC-06**: One failed account/subscription/project does not abort the entire scan — errors are logged and scan continues
 - [ ] **DISC-07**: User can filter which accounts/subscriptions/projects to include or exclude from discovery
-- [ ] **DISC-08**: User sees consistent progress indication during scan (`[N/total]` per provider)
+- [x] **DISC-08**: User sees consistent progress indication during scan (`[N/total]` per provider)
 
 ### DDI Object Counting
 
@@ -123,8 +123,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AUTH-01 | Phase 2 | Pending |
 | AUTH-02 | Phase 3 | Pending |
 | AUTH-03 | Phase 4 | Pending |
-| AUTH-04 | Phase 1 | Pending |
-| AUTH-05 | Phase 1 | Pending |
+| AUTH-04 | Phase 1 | Complete |
+| AUTH-05 | Phase 1 | Complete |
 | DISC-01 | Phase 2 | Pending |
 | DISC-02 | Phase 3 | Pending |
 | DISC-03 | Phase 4 | Pending |
@@ -132,7 +132,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISC-05 | Phase 1 | Pending |
 | DISC-06 | Phase 1 | Complete |
 | DISC-07 | Phase 2 | Pending |
-| DISC-08 | Phase 1 | Pending |
+| DISC-08 | Phase 1 | Complete |
 | DDI-01 | Phase 2 | Pending |
 | DDI-02 | Phase 2 | Pending |
 | DDI-03 | Phase 2 | Pending |
