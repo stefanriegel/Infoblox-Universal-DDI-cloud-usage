@@ -12,7 +12,7 @@ This roadmap delivers a complete rewrite of the Infoblox Universal DDI Cloud Usa
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Core Infrastructure** - Foundation abstractions: resource schema, error taxonomy, rate limiter, result collector, checkpoint engine, progress tracking
+- [x] **Phase 1: Core Infrastructure** - Foundation abstractions: resource schema, error taxonomy, rate limiter, result collector, checkpoint engine, progress tracking
 - [ ] **Phase 2: AWS Provider and End-to-End Pipeline** - First complete vertical slice: AWS discovery through counting, token calculation, and CSV/XLS report output
 - [ ] **Phase 3: Azure Provider** - Azure subscription discovery plugged into the proven pipeline with tenant-level rate limiting
 - [ ] **Phase 4: GCP Provider** - GCP project discovery plugged into the proven pipeline, validated against 87-project reference environment
@@ -36,7 +36,7 @@ Plans:
 - [x] 01-01-PLAN.md -- Foundation types: resource schema, error taxonomy, audit logger
 - [x] 01-02-PLAN.md -- Resilience layer: retry decorator, rate limiter, checkpoint engine
 - [x] 01-03-PLAN.md -- User-facing: auth doctor, progress tracker
-- [ ] 01-04-PLAN.md -- Integration: discovery orchestrator, CLI entry point, signal handler
+- [x] 01-04-PLAN.md -- Integration: discovery orchestrator, CLI entry point, signal handler
 
 ### Phase 2: AWS Provider and End-to-End Pipeline
 **Goal**: Users can run a complete AWS scan that discovers resources across all accounts, counts DDI objects/IPs/assets, calculates token estimates, and produces a CSV/XLS report with detail and summary sheets
@@ -118,7 +118,7 @@ Note: Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depen
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Infrastructure | 3/4 | In progress | - |
+| 1. Core Infrastructure | 4/4 | Complete | 2026-02-23 |
 | 2. AWS Provider and End-to-End Pipeline | 0/TBD | Not started | - |
 | 3. Azure Provider | 0/TBD | Not started | - |
 | 4. GCP Provider | 0/TBD | Not started | - |

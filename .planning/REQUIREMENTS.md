@@ -20,7 +20,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **DISC-01**: User can discover cloud resources across all accessible AWS accounts and regions
 - [ ] **DISC-02**: User can discover cloud resources across all accessible Azure subscriptions and regions
 - [ ] **DISC-03**: User can discover cloud resources across all accessible GCP projects and regions
-- [ ] **DISC-04**: Discovery runs concurrently across multiple accounts/subscriptions/projects (scales to 100+)
+- [x] **DISC-04**: Discovery runs concurrently across multiple accounts/subscriptions/projects (scales to 100+)
 - [x] **DISC-05**: Discovery handles API rate limiting with adaptive retry and exponential backoff with jitter
 - [x] **DISC-06**: One failed account/subscription/project does not abort the entire scan — errors are logged and scan continues
 - [ ] **DISC-07**: User can filter which accounts/subscriptions/projects to include or exclude from discovery
@@ -128,7 +128,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISC-01 | Phase 2 | Pending |
 | DISC-02 | Phase 3 | Pending |
 | DISC-03 | Phase 4 | Pending |
-| DISC-04 | Phase 1 | Pending |
+| DISC-04 | Phase 1 | Complete |
 | DISC-05 | Phase 1 | Complete |
 | DISC-06 | Phase 1 | Complete |
 | DISC-07 | Phase 2 | Pending |
