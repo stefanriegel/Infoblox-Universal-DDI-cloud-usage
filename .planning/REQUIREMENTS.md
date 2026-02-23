@@ -9,7 +9,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Authentication & Access
 
-- [ ] **AUTH-01**: User can authenticate to AWS via existing SSO profiles (`aws sso login`) without storing credentials
+- [x] **AUTH-01**: User can authenticate to AWS via existing SSO profiles (`aws sso login`) without storing credentials
 - [ ] **AUTH-02**: User can authenticate to Azure via `az login` (browser-based) without storing credentials
 - [ ] **AUTH-03**: User can authenticate to GCP via `gcloud auth application-default login` without storing credentials
 - [x] **AUTH-04**: User can run pre-flight auth validation ("auth doctor") that checks credentials are valid before starting scan
@@ -17,13 +17,13 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Discovery
 
-- [ ] **DISC-01**: User can discover cloud resources across all accessible AWS accounts and regions
+- [x] **DISC-01**: User can discover cloud resources across all accessible AWS accounts and regions
 - [ ] **DISC-02**: User can discover cloud resources across all accessible Azure subscriptions and regions
 - [ ] **DISC-03**: User can discover cloud resources across all accessible GCP projects and regions
 - [x] **DISC-04**: Discovery runs concurrently across multiple accounts/subscriptions/projects (scales to 100+)
 - [x] **DISC-05**: Discovery handles API rate limiting with adaptive retry and exponential backoff with jitter
 - [x] **DISC-06**: One failed account/subscription/project does not abort the entire scan — errors are logged and scan continues
-- [ ] **DISC-07**: User can filter which accounts/subscriptions/projects to include or exclude from discovery
+- [x] **DISC-07**: User can filter which accounts/subscriptions/projects to include or exclude from discovery
 - [x] **DISC-08**: User sees consistent progress indication during scan (`[N/total]` per provider)
 
 ### DDI Object Counting
@@ -120,18 +120,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | Phase 2 | Pending |
+| AUTH-01 | Phase 2 | Complete |
 | AUTH-02 | Phase 3 | Pending |
 | AUTH-03 | Phase 4 | Pending |
 | AUTH-04 | Phase 1 | Complete |
 | AUTH-05 | Phase 1 | Complete |
-| DISC-01 | Phase 2 | Pending |
+| DISC-01 | Phase 2 | Complete |
 | DISC-02 | Phase 3 | Pending |
 | DISC-03 | Phase 4 | Pending |
 | DISC-04 | Phase 1 | Complete |
 | DISC-05 | Phase 1 | Complete |
 | DISC-06 | Phase 1 | Complete |
-| DISC-07 | Phase 2 | Pending |
+| DISC-07 | Phase 2 | Complete |
 | DISC-08 | Phase 1 | Complete |
 | DDI-01 | Phase 2 | Pending |
 | DDI-02 | Phase 2 | Pending |

@@ -35,6 +35,7 @@ Progress: [██████░░░░] 25%
 - Trend: Stable
 
 *Updated after each plan completion*
+| Phase 02 P01 | 6min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -65,6 +66,9 @@ Recent decisions affecting current work:
 - [02-02]: Tag-based exclusion exempts DDI and token-free types (only managed assets can be excluded)
 - [02-02]: Token ceiling division uses if count > 0 else 0 guard (not max(1, ...))
 - [02-02]: calculate_account_tokens accepts optional deduplicated_ip_count for per-VPC dedup integration
+- [Phase 02]: AWS Organizations API returns 'Id' not 'AccountId' -- code uses actual API field names
+- [Phase 02]: Auth validator keeps account_count=1 fallback when Organizations returns 0 accounts
+- [Phase 02]: SSOTokenLoadError handled via exception class name check since import path varies across botocore versions
 
 ### Pending Todos
 
