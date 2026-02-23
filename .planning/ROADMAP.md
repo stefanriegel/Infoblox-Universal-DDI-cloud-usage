@@ -48,12 +48,15 @@ Plans:
   3. Active IPs (private and public) are de-duplicated per VPC IP space, and managed assets are de-duplicated across discovery paths
   4. Token calculation (DDI/25 + IPs/13 + Assets/3) produces correct totals per account and as a provider total, matching manual calculation
   5. Output XLS file contains a detail sheet (one row per resource with ID, type, account, region, IPs, counted yes/no, category, skip reason) and a summary sheet (totals per account by resource type), plus a SHA-256 proof manifest documenting scan integrity
-**Plans**: TBD
+**Plans**: 6 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [ ] 02-01-PLAN.md -- AWS auth validator, Organizations multi-account, provider skeleton, CLI integration
+- [ ] 02-02-PLAN.md -- Counting, categorization, and token calculation (TDD)
+- [ ] 02-03-PLAN.md -- AWS resource collectors: DDI objects (VPCs, subnets, Route53, DHCP)
+- [ ] 02-04-PLAN.md -- AWS resource collectors: compute, database, and token-free resources
+- [ ] 02-05-PLAN.md -- Output pipeline: XLS report, estimator CSV, proof manifest
+- [ ] 02-06-PLAN.md -- End-to-end integration: wire pipeline and moto integration tests
 
 ### Phase 3: Azure Provider
 **Goal**: Users can run a complete Azure scan across all subscriptions, with tenant-level rate limiting preventing ARM throttling cascades, producing the same quality of output as AWS
@@ -118,8 +121,8 @@ Note: Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depen
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Infrastructure | 4/4 | Complete | 2026-02-23 |
-| 2. AWS Provider and End-to-End Pipeline | 0/TBD | Not started | - |
+| 1. Core Infrastructure | 4/4 | Complete    | 2026-02-23 |
+| 2. AWS Provider and End-to-End Pipeline | 0/6 | Not started | - |
 | 3. Azure Provider | 0/TBD | Not started | - |
 | 4. GCP Provider | 0/TBD | Not started | - |
 | 5. Web Dashboard | 0/TBD | Not started | - |
