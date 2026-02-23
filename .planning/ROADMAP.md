@@ -13,7 +13,7 @@ This roadmap delivers a complete rewrite of the Infoblox Universal DDI Cloud Usa
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Core Infrastructure** - Foundation abstractions: resource schema, error taxonomy, rate limiter, result collector, checkpoint engine, progress tracking
-- [ ] **Phase 2: AWS Provider and End-to-End Pipeline** - First complete vertical slice: AWS discovery through counting, token calculation, and CSV/XLS report output
+- [x] **Phase 2: AWS Provider and End-to-End Pipeline** - First complete vertical slice: AWS discovery through counting, token calculation, and CSV/XLS report output
 - [ ] **Phase 3: Azure Provider** - Azure subscription discovery plugged into the proven pipeline with tenant-level rate limiting
 - [ ] **Phase 4: GCP Provider** - GCP project discovery plugged into the proven pipeline, validated against 87-project reference environment
 - [ ] **Phase 5: Web Dashboard** - FastAPI + HTMX dashboard with real-time SSE progress and results browsing
@@ -53,10 +53,10 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md -- AWS auth validator, Organizations multi-account, provider skeleton, CLI integration
 - [x] 02-02-PLAN.md -- Counting, categorization, and token calculation (TDD)
-- [ ] 02-03-PLAN.md -- AWS resource collectors: DDI objects (VPCs, subnets, Route53, DHCP)
-- [ ] 02-04-PLAN.md -- AWS resource collectors: compute, database, and token-free resources
-- [ ] 02-05-PLAN.md -- Output pipeline: XLS report, estimator CSV, proof manifest
-- [ ] 02-06-PLAN.md -- End-to-end integration: wire pipeline and moto integration tests
+- [x] 02-03-PLAN.md -- AWS resource collectors: DDI objects (VPCs, subnets, Route53, DHCP)
+- [x] 02-04-PLAN.md -- AWS resource collectors: compute, database, and token-free resources
+- [x] 02-05-PLAN.md -- Output pipeline: XLS report, estimator CSV, proof manifest
+- [x] 02-06-PLAN.md -- End-to-end integration: wire pipeline and moto integration tests
 
 ### Phase 3: Azure Provider
 **Goal**: Users can run a complete Azure scan across all subscriptions, with tenant-level rate limiting preventing ARM throttling cascades, producing the same quality of output as AWS
