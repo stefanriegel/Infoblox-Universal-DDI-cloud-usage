@@ -30,11 +30,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Concurrent discovery orchestrator can dispatch work to N account workers with provider-scoped semaphores, and a simulated failure in one worker does not affect others
   3. Rate limiter applies adaptive retry with exponential backoff and jitter, and checkpoint engine saves/loads scan progress atomically with configurable TTL expiry
   4. All infrastructure code is pure Python with no compiled dependencies, no obfuscation, and no telemetry -- auditability constraint satisfied
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
+- [ ] 01-01-PLAN.md -- Foundation types: resource schema, error taxonomy, audit logger
+- [ ] 01-02-PLAN.md -- Resilience layer: retry decorator, rate limiter, checkpoint engine
+- [ ] 01-03-PLAN.md -- User-facing: auth doctor, progress tracker
+- [ ] 01-04-PLAN.md -- Integration: discovery orchestrator, CLI entry point, signal handler
 
 ### Phase 2: AWS Provider and End-to-End Pipeline
 **Goal**: Users can run a complete AWS scan that discovers resources across all accounts, counts DDI objects/IPs/assets, calculates token estimates, and produces a CSV/XLS report with detail and summary sheets
@@ -116,7 +118,7 @@ Note: Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depen
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core Infrastructure | 0/TBD | Not started | - |
+| 1. Core Infrastructure | 0/4 | Not started | - |
 | 2. AWS Provider and End-to-End Pipeline | 0/TBD | Not started | - |
 | 3. Azure Provider | 0/TBD | Not started | - |
 | 4. GCP Provider | 0/TBD | Not started | - |
