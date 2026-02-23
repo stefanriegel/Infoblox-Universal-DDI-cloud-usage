@@ -12,6 +12,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+import csv
+import hashlib
+import json
 import os
 import tempfile
 
@@ -19,6 +22,8 @@ import openpyxl
 
 from cloud_usage.schema.resource import CloudResource
 from cloud_usage.output.xlsx_report import write_xlsx_report
+from cloud_usage.output.estimator_csv import write_estimator_csv
+from cloud_usage.output.proof_manifest import write_proof_manifest
 
 
 def _make_resource(
@@ -429,3 +434,283 @@ class TestXlsxEdgeCases:
         ws = wb["Detail"]
         assert ws.cell(row=2, column=11).value in ("", None)  # Tags
         wb.close()
+
+
+# ---- Estimator CSV Tests ----
+
+
+def _read_csv(filepath: str) -> list[list[str]]:
+    """Read a CSV file and return all rows."""
+    with open(filepath, "r") as f:
+        return list(csv.reader(f))
+
+
+class TestEstimatorCsvGeneration:
+    """Test estimator CSV file creation and structure."""
+
+    def test_csv_creates_file(self, tmp_path):
+        """CSV file is created and non-empty."""
+        filepath = str(tmp_path / "estimator.csv")
+        result = write_estimator_csv(filepath, _sample_account_summaries(), "aws")
+        assert result == filepath
+        assert os.path.exists(filepath)
+        assert os.path.getsize(filepath) > 0
+
+    def test_csv_returns_filepath(self, tmp_path):
+        """write_estimator_csv returns the filepath written."""
+        filepath = str(tmp_path / "estimator.csv")
+        result = write_estimator_csv(filepath, {}, "aws")
+        assert result == filepath
+
+    def test_csv_header_row(self, tmp_path):
+        """CSV has correct header columns."""
+        filepath = str(tmp_path / "estimator.csv")
+        write_estimator_csv(filepath, _sample_account_summaries(), "aws")
+        rows = _read_csv(filepath)
+        expected = [
+            "Account ID", "DDI Objects", "Active IPs", "Managed Assets",
+            "DDI Tokens", "IP Tokens", "Asset Tokens", "Total Tokens",
+        ]
+        assert rows[0] == expected
+
+    def test_csv_row_count(self, tmp_path):
+        """CSV has header + one row per account + TOTAL row."""
+        summaries = _sample_account_summaries()
+        filepath = str(tmp_path / "estimator.csv")
+        write_estimator_csv(filepath, summaries, "aws")
+        rows = _read_csv(filepath)
+        assert len(rows) == 1 + len(summaries) + 1  # header + accounts + total
+
+    def test_csv_totals_match_account_sums(self, tmp_path):
+        """TOTAL row sums match individual account values."""
+        summaries = _sample_account_summaries()
+        filepath = str(tmp_path / "estimator.csv")
+        write_estimator_csv(filepath, summaries, "aws")
+        rows = _read_csv(filepath)
+
+        total_row = rows[-1]
+        assert total_row[0] == "TOTAL"
+
+        # Sum from account rows (skip header at index 0 and total at -1)
+        account_rows = rows[1:-1]
+        for col_idx in range(1, 8):
+            expected_sum = sum(int(row[col_idx]) for row in account_rows)
+            assert int(total_row[col_idx]) == expected_sum
+
+    def test_csv_empty_summaries(self, tmp_path):
+        """CSV handles empty account summaries gracefully."""
+        filepath = str(tmp_path / "estimator.csv")
+        write_estimator_csv(filepath, {}, "aws")
+        rows = _read_csv(filepath)
+        assert len(rows) == 2  # header + total
+        total_row = rows[-1]
+        assert total_row[0] == "TOTAL"
+        assert all(val == "0" for val in total_row[1:])
+
+    def test_csv_accounts_sorted(self, tmp_path):
+        """Account rows are sorted by account ID."""
+        summaries = _sample_account_summaries()
+        filepath = str(tmp_path / "estimator.csv")
+        write_estimator_csv(filepath, summaries, "aws")
+        rows = _read_csv(filepath)
+        account_ids = [row[0] for row in rows[1:-1]]
+        assert account_ids == sorted(account_ids)
+
+
+# ---- Proof Manifest Tests ----
+
+
+def _sample_scan_metadata() -> dict:
+    """Create sample scan metadata."""
+    return {
+        "scan_timestamp": "2026-02-23T10:00:00Z",
+        "scan_duration_seconds": 120,
+    }
+
+
+class TestProofManifestGeneration:
+    """Test proof manifest file creation and structure."""
+
+    def test_manifest_creates_file(self, tmp_path):
+        """Manifest file is created and non-empty."""
+        filepath = str(tmp_path / "proof.json")
+        result = write_proof_manifest(
+            filepath, _sample_resources(), _sample_account_summaries(),
+            _sample_scan_metadata(), "aws",
+        )
+        assert result == filepath
+        assert os.path.exists(filepath)
+        assert os.path.getsize(filepath) > 0
+
+    def test_manifest_returns_filepath(self, tmp_path):
+        """write_proof_manifest returns the filepath written."""
+        filepath = str(tmp_path / "proof.json")
+        result = write_proof_manifest(filepath, [], {}, {}, "aws")
+        assert result == filepath
+
+    def test_manifest_valid_json(self, tmp_path):
+        """Manifest is valid JSON."""
+        filepath = str(tmp_path / "proof.json")
+        write_proof_manifest(
+            filepath, _sample_resources(), _sample_account_summaries(),
+            _sample_scan_metadata(), "aws",
+        )
+        with open(filepath) as f:
+            manifest = json.load(f)
+        assert isinstance(manifest, dict)
+
+    def test_manifest_required_fields(self, tmp_path):
+        """Manifest contains all required top-level fields."""
+        filepath = str(tmp_path / "proof.json")
+        write_proof_manifest(
+            filepath, _sample_resources(), _sample_account_summaries(),
+            _sample_scan_metadata(), "aws",
+        )
+        with open(filepath) as f:
+            manifest = json.load(f)
+        required_fields = [
+            "version", "provider", "scan_timestamp", "scan_duration_seconds",
+            "scope", "ratios", "counts", "tokens",
+            "resource_hash", "manifest_hash",
+        ]
+        for field in required_fields:
+            assert field in manifest, f"Missing field: {field}"
+
+    def test_manifest_scope_fields(self, tmp_path):
+        """Scope section contains accounts, regions, resource types."""
+        filepath = str(tmp_path / "proof.json")
+        write_proof_manifest(
+            filepath, _sample_resources(), _sample_account_summaries(),
+            _sample_scan_metadata(), "aws",
+        )
+        with open(filepath) as f:
+            manifest = json.load(f)
+        scope = manifest["scope"]
+        assert scope["accounts_scanned"] == 2
+        assert scope["regions_scanned"] == 2
+        assert isinstance(scope["resource_types"], list)
+        assert len(scope["resource_types"]) > 0
+
+    def test_manifest_ratios(self, tmp_path):
+        """Ratios match hardcoded token constants."""
+        filepath = str(tmp_path / "proof.json")
+        write_proof_manifest(filepath, [], {}, {}, "aws")
+        with open(filepath) as f:
+            manifest = json.load(f)
+        assert manifest["ratios"]["ddi_per_token"] == 25
+        assert manifest["ratios"]["ips_per_token"] == 13
+        assert manifest["ratios"]["assets_per_token"] == 3
+
+    def test_manifest_counts(self, tmp_path):
+        """Counts section has correct resource totals."""
+        resources = _sample_resources()
+        filepath = str(tmp_path / "proof.json")
+        write_proof_manifest(
+            filepath, resources, _sample_account_summaries(),
+            _sample_scan_metadata(), "aws",
+        )
+        with open(filepath) as f:
+            manifest = json.load(f)
+        counts = manifest["counts"]
+        assert counts["total_resources"] == len(resources)
+        counted = sum(1 for r in resources if r.counted)
+        assert counts["counted_resources"] == counted
+        assert counts["skipped_resources"] == len(resources) - counted
+
+    def test_manifest_resource_hash_reproducible(self, tmp_path):
+        """Same input produces same resource_hash (deterministic)."""
+        resources = _sample_resources()
+        summaries = _sample_account_summaries()
+        metadata = _sample_scan_metadata()
+
+        filepath1 = str(tmp_path / "proof1.json")
+        filepath2 = str(tmp_path / "proof2.json")
+        write_proof_manifest(filepath1, resources, summaries, metadata, "aws")
+        write_proof_manifest(filepath2, resources, summaries, metadata, "aws")
+
+        with open(filepath1) as f:
+            m1 = json.load(f)
+        with open(filepath2) as f:
+            m2 = json.load(f)
+        assert m1["resource_hash"] == m2["resource_hash"]
+
+    def test_manifest_hash_changes_on_different_input(self, tmp_path):
+        """manifest_hash changes when resource data changes."""
+        resources1 = _sample_resources()
+        resources2 = _sample_resources()[:3]  # Fewer resources
+
+        filepath1 = str(tmp_path / "proof1.json")
+        filepath2 = str(tmp_path / "proof2.json")
+        write_proof_manifest(
+            filepath1, resources1, _sample_account_summaries(),
+            _sample_scan_metadata(), "aws",
+        )
+        write_proof_manifest(
+            filepath2, resources2, _sample_account_summaries(),
+            _sample_scan_metadata(), "aws",
+        )
+
+        with open(filepath1) as f:
+            m1 = json.load(f)
+        with open(filepath2) as f:
+            m2 = json.load(f)
+        assert m1["manifest_hash"] != m2["manifest_hash"]
+
+    def test_manifest_hash_is_valid_sha256(self, tmp_path):
+        """resource_hash and manifest_hash are valid SHA-256 hex strings."""
+        filepath = str(tmp_path / "proof.json")
+        write_proof_manifest(
+            filepath, _sample_resources(), _sample_account_summaries(),
+            _sample_scan_metadata(), "aws",
+        )
+        with open(filepath) as f:
+            manifest = json.load(f)
+        # SHA-256 hex digest is 64 characters
+        assert len(manifest["resource_hash"]) == 64
+        assert len(manifest["manifest_hash"]) == 64
+        # Verify all hex chars
+        int(manifest["resource_hash"], 16)
+        int(manifest["manifest_hash"], 16)
+
+    def test_manifest_hash_verifiable(self, tmp_path):
+        """manifest_hash can be verified by recomputing from manifest content."""
+        filepath = str(tmp_path / "proof.json")
+        write_proof_manifest(
+            filepath, _sample_resources(), _sample_account_summaries(),
+            _sample_scan_metadata(), "aws",
+        )
+        with open(filepath) as f:
+            manifest = json.load(f)
+
+        saved_hash = manifest.pop("manifest_hash")
+        recomputed = hashlib.sha256(
+            json.dumps(manifest, sort_keys=True, default=str).encode()
+        ).hexdigest()
+        assert recomputed == saved_hash
+
+    def test_manifest_empty_resources(self, tmp_path):
+        """Manifest handles empty resource list gracefully."""
+        filepath = str(tmp_path / "proof.json")
+        write_proof_manifest(filepath, [], {}, _sample_scan_metadata(), "aws")
+        with open(filepath) as f:
+            manifest = json.load(f)
+        assert manifest["counts"]["total_resources"] == 0
+        assert manifest["counts"]["counted_resources"] == 0
+        assert manifest["counts"]["skipped_resources"] == 0
+        assert manifest["tokens"]["total_tokens"] == 0
+
+    def test_manifest_version(self, tmp_path):
+        """Manifest version is 1.0."""
+        filepath = str(tmp_path / "proof.json")
+        write_proof_manifest(filepath, [], {}, {}, "aws")
+        with open(filepath) as f:
+            manifest = json.load(f)
+        assert manifest["version"] == "1.0"
+
+    def test_manifest_provider(self, tmp_path):
+        """Manifest records the provider name."""
+        filepath = str(tmp_path / "proof.json")
+        write_proof_manifest(filepath, [], {}, {}, "aws")
+        with open(filepath) as f:
+            manifest = json.load(f)
+        assert manifest["provider"] == "aws"
