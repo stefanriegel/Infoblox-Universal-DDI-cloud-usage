@@ -27,6 +27,11 @@ from cloud_usage.providers.aws.collectors.ec2 import (
     collect_vpcs,
     collect_vpn_gateways,
 )
+from cloud_usage.providers.aws.collectors.route53 import (
+    collect_route53_records,
+    collect_route53_zones,
+)
+from cloud_usage.providers.aws.collectors.dhcp import collect_dhcp_option_sets
 
 ACCOUNT_ID = "123456789012"
 REGION = "us-east-1"
@@ -415,3 +420,434 @@ def test_collect_transit_gateways_returns_empty_when_none():
     ec2 = boto3.client("ec2", region_name=REGION)
     resources = collect_transit_gateways(ec2, ACCOUNT_ID, REGION)
     assert resources == []
+
+
+# -- Route53 zone collector tests --
+
+
+@mock_aws
+def test_collect_route53_zones_discovers_zones():
+    r53 = boto3.client("route53", region_name="us-east-1")
+    r53.create_hosted_zone(Name="example.com", CallerReference="ref1")
+    r53.create_hosted_zone(Name="internal.local", CallerReference="ref2")
+
+    resources = collect_route53_zones(r53, ACCOUNT_ID)
+    assert len(resources) == 2
+    assert all(r.resource_type == "route53-zone" for r in resources)
+    assert all(r.provider == "aws" for r in resources)
+    assert all(r.region == "global" for r in resources)
+
+
+@mock_aws
+def test_collect_route53_zones_correct_type():
+    """Zones should have zone_type field in details.
+
+    Note: moto does not correctly set Config.PrivateZone for VPC-associated
+    zones in list_hosted_zones -- it always returns False. The production
+    code correctly checks Config.PrivateZone. This test verifies the public
+    zone path works; private zone detection works correctly with real AWS.
+    """
+    r53 = boto3.client("route53", region_name="us-east-1")
+
+    r53.create_hosted_zone(Name="public.example.com", CallerReference="ref-pub")
+
+    resources = collect_route53_zones(r53, ACCOUNT_ID)
+    pub_zones = [r for r in resources if r.name == "public.example.com"]
+
+    assert len(pub_zones) == 1
+    assert pub_zones[0].details["zone_type"] == "public"
+    assert "zone_type" in pub_zones[0].details
+
+
+def test_collect_route53_zones_private_detection_logic():
+    """Verify the private zone detection logic works when Config.PrivateZone is True.
+
+    This tests the code path directly since moto doesn't set PrivateZone=True
+    in list_hosted_zones responses for VPC-associated zones.
+    """
+    from unittest.mock import MagicMock
+
+    mock_client = MagicMock()
+    mock_paginator = MagicMock()
+    mock_client.get_paginator.return_value = mock_paginator
+    mock_paginator.paginate.return_value = [
+        {
+            "HostedZones": [
+                {
+                    "Id": "/hostedzone/Z111",
+                    "Name": "public.example.com.",
+                    "Config": {"PrivateZone": False},
+                    "ResourceRecordSetCount": 5,
+                },
+                {
+                    "Id": "/hostedzone/Z222",
+                    "Name": "private.internal.",
+                    "Config": {"PrivateZone": True},
+                    "ResourceRecordSetCount": 3,
+                },
+            ]
+        }
+    ]
+
+    resources = collect_route53_zones(mock_client, ACCOUNT_ID)
+    pub = [r for r in resources if r.name == "public.example.com"][0]
+    priv = [r for r in resources if r.name == "private.internal"][0]
+
+    assert pub.details["zone_type"] == "public"
+    assert priv.details["zone_type"] == "private"
+
+
+@mock_aws
+def test_collect_route53_zones_strips_trailing_dot():
+    """Zone names should have trailing dot stripped."""
+    r53 = boto3.client("route53", region_name="us-east-1")
+    r53.create_hosted_zone(Name="test.example.com.", CallerReference="ref1")
+
+    resources = collect_route53_zones(r53, ACCOUNT_ID)
+    assert resources[0].name == "test.example.com"
+
+
+@mock_aws
+def test_collect_route53_zones_strips_hostedzone_prefix():
+    """Zone IDs should have /hostedzone/ prefix stripped."""
+    r53 = boto3.client("route53", region_name="us-east-1")
+    r53.create_hosted_zone(Name="example.com", CallerReference="ref1")
+
+    resources = collect_route53_zones(r53, ACCOUNT_ID)
+    assert not resources[0].resource_id.startswith("/hostedzone/")
+
+
+@mock_aws
+def test_collect_route53_zones_record_count():
+    """Zone details should include record_count."""
+    r53 = boto3.client("route53", region_name="us-east-1")
+    r53.create_hosted_zone(Name="example.com", CallerReference="ref1")
+
+    resources = collect_route53_zones(r53, ACCOUNT_ID)
+    assert "record_count" in resources[0].details
+
+
+# -- Route53 record collector tests --
+
+
+@mock_aws
+def test_collect_route53_records_discovers_all_types():
+    """Records include all DNS record types (A, AAAA, CNAME, MX, NS, SOA, etc.)."""
+    r53 = boto3.client("route53", region_name="us-east-1")
+    zone = r53.create_hosted_zone(Name="example.com", CallerReference="ref1")
+    zone_id = zone["HostedZone"]["Id"].split("/")[-1]
+
+    # Add various record types
+    r53.change_resource_record_sets(
+        HostedZoneId=zone_id,
+        ChangeBatch={
+            "Changes": [
+                {
+                    "Action": "CREATE",
+                    "ResourceRecordSet": {
+                        "Name": "web.example.com",
+                        "Type": "A",
+                        "TTL": 300,
+                        "ResourceRecords": [{"Value": "1.2.3.4"}, {"Value": "5.6.7.8"}],
+                    },
+                },
+                {
+                    "Action": "CREATE",
+                    "ResourceRecordSet": {
+                        "Name": "mail.example.com",
+                        "Type": "CNAME",
+                        "TTL": 300,
+                        "ResourceRecords": [{"Value": "mailhost.example.com"}],
+                    },
+                },
+                {
+                    "Action": "CREATE",
+                    "ResourceRecordSet": {
+                        "Name": "example.com",
+                        "Type": "MX",
+                        "TTL": 300,
+                        "ResourceRecords": [{"Value": "10 mail.example.com"}],
+                    },
+                },
+            ],
+        },
+    )
+
+    resources = collect_route53_records(r53, ACCOUNT_ID, zone_id, "example.com")
+
+    # Should have at least: NS, SOA (default) + A, CNAME, MX (our additions)
+    record_types = {r.details["record_type"] for r in resources}
+    assert "A" in record_types
+    assert "CNAME" in record_types
+    assert "MX" in record_types
+    assert "NS" in record_types
+    assert "SOA" in record_types
+
+
+@mock_aws
+def test_collect_route53_records_a_records_have_ips():
+    """A records should have IPs extracted into ip_addresses."""
+    r53 = boto3.client("route53", region_name="us-east-1")
+    zone = r53.create_hosted_zone(Name="example.com", CallerReference="ref1")
+    zone_id = zone["HostedZone"]["Id"].split("/")[-1]
+
+    r53.change_resource_record_sets(
+        HostedZoneId=zone_id,
+        ChangeBatch={
+            "Changes": [
+                {
+                    "Action": "CREATE",
+                    "ResourceRecordSet": {
+                        "Name": "web.example.com",
+                        "Type": "A",
+                        "TTL": 300,
+                        "ResourceRecords": [{"Value": "1.2.3.4"}, {"Value": "5.6.7.8"}],
+                    },
+                },
+            ],
+        },
+    )
+
+    resources = collect_route53_records(r53, ACCOUNT_ID, zone_id, "example.com")
+    a_records = [r for r in resources if r.details["record_type"] == "A"]
+    assert len(a_records) == 1
+    assert "1.2.3.4" in a_records[0].ip_addresses
+    assert "5.6.7.8" in a_records[0].ip_addresses
+
+
+@mock_aws
+def test_collect_route53_records_cname_has_empty_ips():
+    """CNAME records should have empty ip_addresses."""
+    r53 = boto3.client("route53", region_name="us-east-1")
+    zone = r53.create_hosted_zone(Name="example.com", CallerReference="ref1")
+    zone_id = zone["HostedZone"]["Id"].split("/")[-1]
+
+    r53.change_resource_record_sets(
+        HostedZoneId=zone_id,
+        ChangeBatch={
+            "Changes": [
+                {
+                    "Action": "CREATE",
+                    "ResourceRecordSet": {
+                        "Name": "alias.example.com",
+                        "Type": "CNAME",
+                        "TTL": 300,
+                        "ResourceRecords": [{"Value": "target.example.com"}],
+                    },
+                },
+            ],
+        },
+    )
+
+    resources = collect_route53_records(r53, ACCOUNT_ID, zone_id, "example.com")
+    cname_records = [r for r in resources if r.details["record_type"] == "CNAME"]
+    assert len(cname_records) == 1
+    assert cname_records[0].ip_addresses == []
+
+
+@mock_aws
+def test_collect_route53_records_global_region():
+    """All Route53 records should have region='global'."""
+    r53 = boto3.client("route53", region_name="us-east-1")
+    zone = r53.create_hosted_zone(Name="example.com", CallerReference="ref1")
+    zone_id = zone["HostedZone"]["Id"].split("/")[-1]
+
+    resources = collect_route53_records(r53, ACCOUNT_ID, zone_id, "example.com")
+    assert all(r.region == "global" for r in resources)
+
+
+@mock_aws
+def test_collect_route53_records_resource_id_format():
+    """Record resource_id should be zone_id/name/type."""
+    r53 = boto3.client("route53", region_name="us-east-1")
+    zone = r53.create_hosted_zone(Name="example.com", CallerReference="ref1")
+    zone_id = zone["HostedZone"]["Id"].split("/")[-1]
+
+    r53.change_resource_record_sets(
+        HostedZoneId=zone_id,
+        ChangeBatch={
+            "Changes": [
+                {
+                    "Action": "CREATE",
+                    "ResourceRecordSet": {
+                        "Name": "web.example.com",
+                        "Type": "A",
+                        "TTL": 300,
+                        "ResourceRecords": [{"Value": "1.2.3.4"}],
+                    },
+                },
+            ],
+        },
+    )
+
+    resources = collect_route53_records(r53, ACCOUNT_ID, zone_id, "example.com")
+    a_records = [r for r in resources if r.details["record_type"] == "A"]
+    assert len(a_records) == 1
+    assert a_records[0].resource_id == f"{zone_id}/web.example.com/A"
+
+
+@mock_aws
+def test_collect_route53_records_details():
+    """Record details should include zone_id, zone_name, record_type, ttl, alias."""
+    r53 = boto3.client("route53", region_name="us-east-1")
+    zone = r53.create_hosted_zone(Name="example.com", CallerReference="ref1")
+    zone_id = zone["HostedZone"]["Id"].split("/")[-1]
+
+    r53.change_resource_record_sets(
+        HostedZoneId=zone_id,
+        ChangeBatch={
+            "Changes": [
+                {
+                    "Action": "CREATE",
+                    "ResourceRecordSet": {
+                        "Name": "web.example.com",
+                        "Type": "A",
+                        "TTL": 300,
+                        "ResourceRecords": [{"Value": "1.2.3.4"}],
+                    },
+                },
+            ],
+        },
+    )
+
+    resources = collect_route53_records(r53, ACCOUNT_ID, zone_id, "example.com")
+    a_records = [r for r in resources if r.details["record_type"] == "A"]
+    r = a_records[0]
+
+    assert r.details["zone_id"] == zone_id
+    assert r.details["zone_name"] == "example.com"
+    assert r.details["record_type"] == "A"
+    assert r.details["ttl"] == 300
+    assert r.details["alias"] is False
+
+
+# -- DHCP option set collector tests --
+
+
+@mock_aws
+def test_collect_dhcp_option_sets_vpc_associated():
+    """DHCP option sets associated with VPCs should have orphaned=False."""
+    ec2 = boto3.client("ec2", region_name=REGION)
+
+    # Create an explicit DHCP option set and associate it with a VPC
+    dhcp = ec2.create_dhcp_options(
+        DhcpConfigurations=[
+            {"Key": "domain-name", "Values": ["vpc.internal"]},
+        ]
+    )
+    dhcp_id = dhcp["DhcpOptions"]["DhcpOptionsId"]
+
+    vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+    vpc_id = vpc["Vpc"]["VpcId"]
+    ec2.associate_dhcp_options(DhcpOptionsId=dhcp_id, VpcId=vpc_id)
+
+    vpc_dhcp_ids = {dhcp_id}
+    resources = collect_dhcp_option_sets(ec2, ACCOUNT_ID, REGION, vpc_dhcp_ids)
+
+    associated = [r for r in resources if r.resource_id == dhcp_id]
+    assert len(associated) == 1
+    assert associated[0].details["orphaned"] is False
+    assert associated[0].resource_type == "dhcp-option-set"
+
+
+@mock_aws
+def test_collect_dhcp_option_sets_orphaned():
+    """DHCP option sets not associated with any VPC should have orphaned=True."""
+    ec2 = boto3.client("ec2", region_name=REGION)
+
+    # Create a standalone DHCP option set (not associated with any VPC)
+    dhcp = ec2.create_dhcp_options(
+        DhcpConfigurations=[
+            {"Key": "domain-name", "Values": ["example.com"]},
+            {"Key": "domain-name-servers", "Values": ["10.0.0.2"]},
+        ]
+    )
+    orphan_id = dhcp["DhcpOptions"]["DhcpOptionsId"]
+
+    # Also create a VPC-associated one so we can pass its ID as vpc_dhcp_ids
+    dhcp_assoc = ec2.create_dhcp_options(
+        DhcpConfigurations=[{"Key": "domain-name", "Values": ["used.internal"]}]
+    )
+    assoc_id = dhcp_assoc["DhcpOptions"]["DhcpOptionsId"]
+
+    # Only the associated one is in vpc_dhcp_ids; the orphan is not
+    vpc_dhcp_ids = {assoc_id}
+    resources = collect_dhcp_option_sets(ec2, ACCOUNT_ID, REGION, vpc_dhcp_ids)
+
+    orphaned = [r for r in resources if r.resource_id == orphan_id]
+    assert len(orphaned) == 1
+    assert orphaned[0].details["orphaned"] is True
+
+    associated = [r for r in resources if r.resource_id == assoc_id]
+    assert len(associated) == 1
+    assert associated[0].details["orphaned"] is False
+
+
+@mock_aws
+def test_collect_dhcp_option_sets_configurations():
+    """DHCP option set details should include configurations."""
+    ec2 = boto3.client("ec2", region_name=REGION)
+
+    dhcp = ec2.create_dhcp_options(
+        DhcpConfigurations=[
+            {"Key": "domain-name", "Values": ["example.com"]},
+            {"Key": "domain-name-servers", "Values": ["10.0.0.2", "10.0.0.3"]},
+        ]
+    )
+    dhcp_id = dhcp["DhcpOptions"]["DhcpOptionsId"]
+
+    resources = collect_dhcp_option_sets(ec2, ACCOUNT_ID, REGION, {dhcp_id})
+    our_dhcp = [r for r in resources if r.resource_id == dhcp_id][0]
+
+    assert "configurations" in our_dhcp.details
+    configs = our_dhcp.details["configurations"]
+    config_keys = [c["key"] for c in configs]
+    assert "domain-name" in config_keys
+    assert "domain-name-servers" in config_keys
+
+
+@mock_aws
+def test_collect_vpcs_dhcp_options_for_cross_reference():
+    """VPC collector extracts DhcpOptionsId for downstream DHCP cross-reference."""
+    ec2 = boto3.client("ec2", region_name=REGION)
+
+    # Create a custom DHCP option set and associate with a VPC
+    dhcp = ec2.create_dhcp_options(
+        DhcpConfigurations=[{"Key": "domain-name", "Values": ["test.internal"]}]
+    )
+    dhcp_id = dhcp["DhcpOptions"]["DhcpOptionsId"]
+
+    vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+    vpc_id = vpc["Vpc"]["VpcId"]
+    ec2.associate_dhcp_options(DhcpOptionsId=dhcp_id, VpcId=vpc_id)
+
+    resources = collect_vpcs(ec2, ACCOUNT_ID, REGION)
+    our_vpc = [r for r in resources if r.resource_id == vpc_id][0]
+
+    assert our_vpc.details["dhcp_options_id"] == dhcp_id
+
+    # Build vpc_dhcp_ids from VPCs -- this is how the caller creates the set
+    vpc_dhcp_ids = {r.details["dhcp_options_id"] for r in resources if r.details["dhcp_options_id"]}
+    assert dhcp_id in vpc_dhcp_ids
+
+
+@mock_aws
+def test_collect_subnets_returns_correct_vpc_association():
+    """Subnets should return correct VPC association in details."""
+    ec2 = boto3.client("ec2", region_name=REGION)
+    vpc1 = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+    vpc1_id = vpc1["Vpc"]["VpcId"]
+    vpc2 = ec2.create_vpc(CidrBlock="172.16.0.0/16")
+    vpc2_id = vpc2["Vpc"]["VpcId"]
+
+    subnet1 = ec2.create_subnet(VpcId=vpc1_id, CidrBlock="10.0.1.0/24")
+    subnet1_id = subnet1["Subnet"]["SubnetId"]
+    subnet2 = ec2.create_subnet(VpcId=vpc2_id, CidrBlock="172.16.1.0/24")
+    subnet2_id = subnet2["Subnet"]["SubnetId"]
+
+    resources = collect_subnets(ec2, ACCOUNT_ID, REGION)
+    s1 = [r for r in resources if r.resource_id == subnet1_id][0]
+    s2 = [r for r in resources if r.resource_id == subnet2_id][0]
+
+    assert s1.details["vpc_id"] == vpc1_id
+    assert s2.details["vpc_id"] == vpc2_id
