@@ -1,0 +1,281 @@
+"""
+Tests for ENI folding, tag-based managed service exclusion,
+and cross-account asset de-duplication.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+from cloud_usage.schema.resource import CloudResource
+from cloud_usage.counting.asset_dedup import (
+    fold_enis_into_parents,
+    exclude_managed_service_resources,
+    deduplicate_assets,
+)
+
+
+def _make_resource(
+    resource_type: str = "ec2-instance",
+    resource_id: str | None = None,
+    ip_addresses: list[str] | None = None,
+    details: dict | None = None,
+    tags: dict | None = None,
+    account_id: str = "111111111111",
+    region: str = "us-east-1",
+    counted: bool = True,
+    category: str | None = "asset",
+) -> CloudResource:
+    """Helper to create a CloudResource for asset dedup tests."""
+    if resource_id is None:
+        resource_id = f"arn:aws:{resource_type}:{region}:{account_id}:{id(ip_addresses)}"
+    return CloudResource(
+        resource_id=resource_id,
+        resource_type=resource_type,
+        provider="aws",
+        account_id=account_id,
+        region=region,
+        name=f"test-{resource_type}",
+        ip_addresses=ip_addresses or [],
+        details=details or {},
+        tags=tags or {},
+        discovered_at="2026-02-23T10:00:00",
+        counted=counted,
+        category=category,
+    )
+
+
+class TestFoldEnisIntoParents:
+    """Test ENI folding into parent resources."""
+
+    def test_eni_attached_to_ec2_not_counted(self):
+        """ENI referenced by parent EC2's network_interface_ids is folded."""
+        ec2 = _make_resource(
+            "ec2-instance",
+            ip_addresses=["10.0.1.5"],
+            details={"network_interface_ids": ["eni-111"]},
+        )
+        eni = _make_resource(
+            "eni",
+            resource_id="eni-111",
+            ip_addresses=["10.0.1.5"],
+        )
+        result = fold_enis_into_parents([ec2, eni])
+        ec2_r = [r for r in result if r.resource_type == "ec2-instance"][0]
+        eni_r = [r for r in result if r.resource_type == "eni"][0]
+        assert ec2_r.counted is True
+        assert eni_r.counted is False
+        assert "attached to parent" in eni_r.skip_reason.lower()
+
+    def test_unattached_eni_remains_counted(self):
+        """ENI not referenced by any parent remains counted."""
+        eni = _make_resource(
+            "eni",
+            resource_id="eni-222",
+            ip_addresses=["10.0.2.5"],
+        )
+        result = fold_enis_into_parents([eni])
+        assert result[0].counted is True
+
+    def test_multiple_enis_some_attached(self):
+        """Mix of attached and unattached ENIs."""
+        ec2 = _make_resource(
+            "ec2-instance",
+            ip_addresses=["10.0.1.5"],
+            details={"network_interface_ids": ["eni-aaa", "eni-bbb"]},
+        )
+        eni_a = _make_resource("eni", resource_id="eni-aaa", ip_addresses=["10.0.1.5"])
+        eni_b = _make_resource("eni", resource_id="eni-bbb", ip_addresses=["10.0.1.6"])
+        eni_c = _make_resource("eni", resource_id="eni-ccc", ip_addresses=["10.0.1.7"])
+
+        result = fold_enis_into_parents([ec2, eni_a, eni_b, eni_c])
+        folded = [r for r in result if r.counted is False and r.resource_type == "eni"]
+        unfolded = [r for r in result if r.counted is True and r.resource_type == "eni"]
+        assert len(folded) == 2  # eni-aaa and eni-bbb
+        assert len(unfolded) == 1  # eni-ccc
+
+    def test_no_enis_unchanged(self):
+        """Resources without ENIs pass through unchanged."""
+        ec2 = _make_resource("ec2-instance", ip_addresses=["10.0.1.5"])
+        result = fold_enis_into_parents([ec2])
+        assert len(result) == 1
+        assert result[0].counted is True
+
+    def test_empty_list(self):
+        assert fold_enis_into_parents([]) == []
+
+
+class TestExcludeManagedServiceResources:
+    """Test tag-based managed service exclusion."""
+
+    def test_eks_nodegroup_tag_excludes(self):
+        """EC2 tagged with eks:nodegroup-name is excluded."""
+        r = _make_resource(
+            "ec2-instance",
+            ip_addresses=["10.0.1.5"],
+            tags={"eks:nodegroup-name": "my-nodegroup"},
+        )
+        result = exclude_managed_service_resources([r])
+        assert result[0].counted is False
+        assert "AWS-managed" in result[0].skip_reason
+
+    def test_kubernetes_cluster_prefix_tag_excludes(self):
+        """EC2 tagged with kubernetes.io/cluster/ prefix is excluded."""
+        r = _make_resource(
+            "ec2-instance",
+            ip_addresses=["10.0.1.5"],
+            tags={"kubernetes.io/cluster/my-cluster": "owned"},
+        )
+        result = exclude_managed_service_resources([r])
+        assert result[0].counted is False
+        assert "AWS-managed" in result[0].skip_reason
+
+    def test_aws_eks_cluster_name_tag_excludes(self):
+        """EC2 tagged with aws:eks:cluster-name is excluded."""
+        r = _make_resource(
+            "ec2-instance",
+            ip_addresses=["10.0.1.5"],
+            tags={"aws:eks:cluster-name": "my-cluster"},
+        )
+        result = exclude_managed_service_resources([r])
+        assert result[0].counted is False
+
+    def test_no_eks_tags_remains_counted(self):
+        """EC2 instance without EKS tags remains counted."""
+        r = _make_resource(
+            "ec2-instance",
+            ip_addresses=["10.0.1.5"],
+            tags={"env": "prod"},
+        )
+        result = exclude_managed_service_resources([r])
+        assert result[0].counted is True
+
+    def test_vpc_with_eks_tags_not_excluded(self):
+        """VPC with EKS tags is NOT excluded (DDI types exempt)."""
+        r = _make_resource(
+            "vpc",
+            tags={"eks:nodegroup-name": "my-nodegroup"},
+            category="ddi",
+        )
+        result = exclude_managed_service_resources([r])
+        assert result[0].counted is True
+
+    def test_already_uncounted_not_modified(self):
+        """Resources already excluded are not double-processed."""
+        r = _make_resource(
+            "ec2-instance",
+            ip_addresses=["10.0.1.5"],
+            tags={"eks:nodegroup-name": "ng"},
+            counted=False,
+            category=None,
+        )
+        r.skip_reason = "some other reason"
+        result = exclude_managed_service_resources([r])
+        assert result[0].skip_reason == "some other reason"
+
+    def test_empty_list(self):
+        assert exclude_managed_service_resources([]) == []
+
+
+class TestDeduplicateAssets:
+    """Test cross-account asset de-duplication for shared resources."""
+
+    def test_same_resource_two_accounts_counted_once(self):
+        """Same VPC ID in two accounts (RAM-shared) -> counted in owner only."""
+        owner = _make_resource(
+            "vpc",
+            resource_id="vpc-shared-123",
+            account_id="111111111111",
+            details={"owner_id": "111111111111"},
+            category="ddi",
+        )
+        shared = _make_resource(
+            "vpc",
+            resource_id="vpc-shared-123",
+            account_id="222222222222",
+            details={"owner_id": "111111111111"},
+            category="ddi",
+        )
+        result = deduplicate_assets([owner, shared])
+        owner_r = [r for r in result if r.account_id == "111111111111"][0]
+        shared_r = [r for r in result if r.account_id == "222222222222"][0]
+        assert owner_r.counted is True
+        assert shared_r.counted is False
+        assert "shared resource" in shared_r.skip_reason.lower()
+        assert "111111111111" in shared_r.skip_reason
+
+    def test_same_subnet_two_accounts(self):
+        """Same subnet in two accounts -> counted once in owner."""
+        owner = _make_resource(
+            "subnet",
+            resource_id="subnet-shared-456",
+            account_id="111111111111",
+            details={"owner_id": "111111111111"},
+            category="ddi",
+        )
+        shared = _make_resource(
+            "subnet",
+            resource_id="subnet-shared-456",
+            account_id="222222222222",
+            details={"owner_id": "111111111111"},
+            category="ddi",
+        )
+        result = deduplicate_assets([owner, shared])
+        counted_list = [r for r in result if r.counted is True]
+        assert len(counted_list) == 1
+        assert counted_list[0].account_id == "111111111111"
+
+    def test_unique_resource_ids_all_kept(self):
+        """Resources with unique IDs are all kept."""
+        r1 = _make_resource(
+            "ec2-instance",
+            resource_id="i-aaa",
+            ip_addresses=["10.0.1.5"],
+        )
+        r2 = _make_resource(
+            "ec2-instance",
+            resource_id="i-bbb",
+            ip_addresses=["10.0.1.6"],
+        )
+        result = deduplicate_assets([r1, r2])
+        assert all(r.counted is True for r in result)
+
+    def test_shared_resource_owner_not_first(self):
+        """Owner appears second in list but still gets kept."""
+        shared = _make_resource(
+            "vpc",
+            resource_id="vpc-xyz",
+            account_id="222222222222",
+            details={"owner_id": "111111111111"},
+            category="ddi",
+        )
+        owner = _make_resource(
+            "vpc",
+            resource_id="vpc-xyz",
+            account_id="111111111111",
+            details={"owner_id": "111111111111"},
+            category="ddi",
+        )
+        result = deduplicate_assets([shared, owner])
+        owner_r = [r for r in result if r.account_id == "111111111111"][0]
+        shared_r = [r for r in result if r.account_id == "222222222222"][0]
+        assert owner_r.counted is True
+        assert shared_r.counted is False
+
+    def test_already_uncounted_skipped(self):
+        """Resources already excluded are not considered for dedup."""
+        r = _make_resource(
+            "ec2-instance",
+            resource_id="i-aaa",
+            counted=False,
+        )
+        r.skip_reason = "some reason"
+        result = deduplicate_assets([r])
+        assert result[0].counted is False
+        assert result[0].skip_reason == "some reason"
+
+    def test_empty_list(self):
+        assert deduplicate_assets([]) == []
