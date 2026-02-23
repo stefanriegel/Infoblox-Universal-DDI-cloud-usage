@@ -55,6 +55,10 @@ def categorize_resources(
 def _categorize_single(resource: CloudResource) -> None:
     """Apply categorization rules to a single resource."""
 
+    # 0. Respect prior pipeline exclusions (fold_enis, exclude_managed, dedup)
+    if resource.counted is False and resource.skip_reason is not None:
+        return
+
     # 1. Token-free types are excluded outright
     if resource.resource_type in TOKEN_FREE_TYPES:
         resource.counted = False

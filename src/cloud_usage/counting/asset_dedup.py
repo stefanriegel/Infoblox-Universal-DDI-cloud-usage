@@ -110,8 +110,9 @@ def exclude_managed_service_resources(
     exempt_types = DDI_TYPES | TOKEN_FREE_TYPES
 
     for resource in resources:
-        # Skip already-excluded resources
-        if not resource.counted:
+        # Skip resources already explicitly excluded (counted=False)
+        # but allow resources not yet categorized (counted=None) to be checked
+        if resource.counted is False:
             continue
         # DDI and token-free types are exempt
         if resource.resource_type in exempt_types:
@@ -143,10 +144,10 @@ def deduplicate_assets(
     Returns:
         The same list with shared duplicates excluded.
     """
-    # Group resources by resource_id (only counted ones)
+    # Group resources by resource_id (skip explicitly excluded ones)
     by_id: dict[str, list[CloudResource]] = {}
     for resource in resources:
-        if not resource.counted:
+        if resource.counted is False:
             continue
         by_id.setdefault(resource.resource_id, []).append(resource)
 
