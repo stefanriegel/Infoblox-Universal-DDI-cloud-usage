@@ -51,8 +51,8 @@ Plans:
 **Plans**: 6 plans
 
 Plans:
-- [ ] 02-01-PLAN.md -- AWS auth validator, Organizations multi-account, provider skeleton, CLI integration
-- [ ] 02-02-PLAN.md -- Counting, categorization, and token calculation (TDD)
+- [x] 02-01-PLAN.md -- AWS auth validator, Organizations multi-account, provider skeleton, CLI integration
+- [x] 02-02-PLAN.md -- Counting, categorization, and token calculation (TDD)
 - [ ] 02-03-PLAN.md -- AWS resource collectors: DDI objects (VPCs, subnets, Route53, DHCP)
 - [ ] 02-04-PLAN.md -- AWS resource collectors: compute, database, and token-free resources
 - [ ] 02-05-PLAN.md -- Output pipeline: XLS report, estimator CSV, proof manifest
@@ -122,7 +122,7 @@ Note: Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depen
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Infrastructure | 4/4 | Complete    | 2026-02-23 |
-| 2. AWS Provider and End-to-End Pipeline | 0/6 | Not started | - |
+| 2. AWS Provider and End-to-End Pipeline | 2/6 | In Progress | - |
 | 3. Azure Provider | 0/TBD | Not started | - |
 | 4. GCP Provider | 0/TBD | Not started | - |
 | 5. Web Dashboard | 0/TBD | Not started | - |

@@ -5,32 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Accurate, auditable UDDI token estimation from cloud discovery -- customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Phase 1: Core Infrastructure
+**Current focus:** Phase 2: AWS Provider and End-to-End Pipeline
 
 ## Current Position
 
-Phase: 1 of 6 (Core Infrastructure)
-Plan: 4 of 4 in current phase
-Status: Phase Complete
-Last activity: 2026-02-23 -- Completed 01-04-PLAN.md (discovery orchestrator, CLI entry point, signal handler)
+Phase: 2 of 6 (AWS Provider and End-to-End Pipeline)
+Plan: 2 of 6 in current phase
+Status: In Progress
+Last activity: 2026-02-23 -- Completed 02-02-PLAN.md (counting, categorization, token calculation TDD)
 
-Progress: [██░░░░░░░░] 17%
+Progress: [██████░░░░] 25%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 6
 - Average duration: 4min
-- Total execution time: 0.25 hours
+- Total execution time: 0.35 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-core-infrastructure | 4 | 15min | 4min |
+| 02-aws-provider-and-end-to-end-pipeline | 2 | 10min | 5min |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (4min), 01-02 (4min), 01-03 (3min), 01-04 (4min)
+- Last 5 plans: 01-03 (3min), 01-04 (4min), 02-01 (5min), 02-02 (5min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -58,6 +59,12 @@ Recent decisions affecting current work:
 - [01-04]: GracefulShutdown registers SIGINT/SIGTERM handlers in __init__ and uses threading.Lock for state updates
 - [01-04]: CLI returns graceful message when no provider implementations exist (Phase 1 stub)
 - [01-04]: select_providers() accepts both numbers (1,3) and names (aws,gcp) for user-friendly input
+- [02-02]: Categorizer uses type-to-category mapping dicts (DDI_TYPES, TOKEN_FREE_TYPES) for clarity and easy extension
+- [02-02]: IP counter uses ipaddress stdlib module for private/public classification and validation
+- [02-02]: Per-VPC dedup key is (vpc_id_or_account_id, ip_address) tuple in a set for O(1) dedup
+- [02-02]: Tag-based exclusion exempts DDI and token-free types (only managed assets can be excluded)
+- [02-02]: Token ceiling division uses if count > 0 else 0 guard (not max(1, ...))
+- [02-02]: calculate_account_tokens accepts optional deduplicated_ip_count for per-VPC dedup integration
 
 ### Pending Todos
 
@@ -71,5 +78,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 01-04-PLAN.md (Phase 1 complete)
+Stopped at: Completed 02-02-PLAN.md (counting, categorization, token calculation TDD)
 Resume file: None

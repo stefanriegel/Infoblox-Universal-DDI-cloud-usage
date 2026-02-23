@@ -35,9 +35,9 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Active IP Counting
 
-- [ ] **IP-01**: Tool counts all private IP addresses attached to cloud resources
-- [ ] **IP-02**: Tool counts all public IP addresses attached to cloud resources
-- [ ] **IP-03**: Active IPs are de-duplicated per IP space (per VPC/VNet/network — overlapping RFC1918 ranges across VPCs are counted correctly)
+- [x] **IP-01**: Tool counts all private IP addresses attached to cloud resources
+- [x] **IP-02**: Tool counts all public IP addresses attached to cloud resources
+- [x] **IP-03**: Active IPs are de-duplicated per IP space (per VPC/VNet/network — overlapping RFC1918 ranges across VPCs are counted correctly)
 
 ### Managed Asset Counting
 
@@ -46,13 +46,13 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **ASSET-03**: Token-free resources are explicitly excluded even if they have IPs — AWS: EBS Volumes, S3 Buckets
 - [ ] **ASSET-04**: Token-free resources are explicitly excluded — Azure: VM Disks, Management Groups, VM Monitoring Stats, Network Watcher Flow Logs, Network Watchers, Storage Accounts, Storage Containers, Subscription Tenants, Traffic Manager Profiles
 - [ ] **ASSET-05**: Token-free resources are explicitly excluded — GCP: Compute Persistent Disks, Instance Groups, URL Maps, Cloud Monitoring Metric Stats, Network Connectivity Locations, Cloud Storage Bucket Policies, Cloud Storage Buckets
-- [ ] **ASSET-06**: Assets are de-duplicated across sources so the same asset from multiple discovery paths counts once
+- [x] **ASSET-06**: Assets are de-duplicated across sources so the same asset from multiple discovery paths counts once
 
 ### Token Calculation
 
-- [ ] **TOKEN-01**: Tool calculates tokens needed using native object ratios: DDI objects / 25 + Active IPs / 13 + Managed Assets / 3
-- [ ] **TOKEN-02**: Each resource is categorized: counted (yes/no), category (DDI/IP/Asset), skip reason if excluded
-- [ ] **TOKEN-03**: Token calculation shown per account/subscription/project and as provider total
+- [x] **TOKEN-01**: Tool calculates tokens needed using native object ratios: DDI objects / 25 + Active IPs / 13 + Managed Assets / 3
+- [x] **TOKEN-02**: Each resource is categorized: counted (yes/no), category (DDI/IP/Asset), skip reason if excluded
+- [x] **TOKEN-03**: Token calculation shown per account/subscription/project and as provider total
 
 ### Output & Reporting
 
@@ -137,18 +137,18 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DDI-02 | Phase 2 | Pending |
 | DDI-03 | Phase 2 | Pending |
 | DDI-04 | Phase 2 | Pending |
-| IP-01 | Phase 2 | Pending |
-| IP-02 | Phase 2 | Pending |
-| IP-03 | Phase 2 | Pending |
+| IP-01 | Phase 2 | Complete |
+| IP-02 | Phase 2 | Complete |
+| IP-03 | Phase 2 | Complete |
 | ASSET-01 | Phase 2 | Pending |
 | ASSET-02 | Phase 2 | Pending |
 | ASSET-03 | Phase 2 | Pending |
 | ASSET-04 | Phase 3 | Pending |
 | ASSET-05 | Phase 4 | Pending |
-| ASSET-06 | Phase 2 | Pending |
-| TOKEN-01 | Phase 2 | Pending |
-| TOKEN-02 | Phase 2 | Pending |
-| TOKEN-03 | Phase 2 | Pending |
+| ASSET-06 | Phase 2 | Complete |
+| TOKEN-01 | Phase 2 | Complete |
+| TOKEN-02 | Phase 2 | Complete |
+| TOKEN-03 | Phase 2 | Complete |
 | OUT-01 | Phase 2 | Pending |
 | OUT-02 | Phase 2 | Pending |
 | OUT-03 | Phase 2 | Pending |
