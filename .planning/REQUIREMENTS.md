@@ -120,55 +120,55 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AUTH-01 | — | Pending |
-| AUTH-02 | — | Pending |
-| AUTH-03 | — | Pending |
-| AUTH-04 | — | Pending |
-| AUTH-05 | — | Pending |
-| DISC-01 | — | Pending |
-| DISC-02 | — | Pending |
-| DISC-03 | — | Pending |
-| DISC-04 | — | Pending |
-| DISC-05 | — | Pending |
-| DISC-06 | — | Pending |
-| DISC-07 | — | Pending |
-| DISC-08 | — | Pending |
-| DDI-01 | — | Pending |
-| DDI-02 | — | Pending |
-| DDI-03 | — | Pending |
-| DDI-04 | — | Pending |
-| IP-01 | — | Pending |
-| IP-02 | — | Pending |
-| IP-03 | — | Pending |
-| ASSET-01 | — | Pending |
-| ASSET-02 | — | Pending |
-| ASSET-03 | — | Pending |
-| ASSET-04 | — | Pending |
-| ASSET-05 | — | Pending |
-| ASSET-06 | — | Pending |
-| TOKEN-01 | — | Pending |
-| TOKEN-02 | — | Pending |
-| TOKEN-03 | — | Pending |
-| OUT-01 | — | Pending |
-| OUT-02 | — | Pending |
-| OUT-03 | — | Pending |
-| OUT-04 | — | Pending |
-| OUT-05 | — | Pending |
-| RESIL-01 | — | Pending |
-| RESIL-02 | — | Pending |
-| RESIL-03 | — | Pending |
-| PLAT-01 | — | Pending |
-| PLAT-02 | — | Pending |
-| PLAT-03 | — | Pending |
-| PLAT-04 | — | Pending |
-| PLAT-05 | — | Pending |
-| REF-01 | — | Pending |
+| AUTH-01 | Phase 2 | Pending |
+| AUTH-02 | Phase 3 | Pending |
+| AUTH-03 | Phase 4 | Pending |
+| AUTH-04 | Phase 1 | Pending |
+| AUTH-05 | Phase 1 | Pending |
+| DISC-01 | Phase 2 | Pending |
+| DISC-02 | Phase 3 | Pending |
+| DISC-03 | Phase 4 | Pending |
+| DISC-04 | Phase 1 | Pending |
+| DISC-05 | Phase 1 | Pending |
+| DISC-06 | Phase 1 | Pending |
+| DISC-07 | Phase 2 | Pending |
+| DISC-08 | Phase 1 | Pending |
+| DDI-01 | Phase 2 | Pending |
+| DDI-02 | Phase 2 | Pending |
+| DDI-03 | Phase 2 | Pending |
+| DDI-04 | Phase 2 | Pending |
+| IP-01 | Phase 2 | Pending |
+| IP-02 | Phase 2 | Pending |
+| IP-03 | Phase 2 | Pending |
+| ASSET-01 | Phase 2 | Pending |
+| ASSET-02 | Phase 2 | Pending |
+| ASSET-03 | Phase 2 | Pending |
+| ASSET-04 | Phase 3 | Pending |
+| ASSET-05 | Phase 4 | Pending |
+| ASSET-06 | Phase 2 | Pending |
+| TOKEN-01 | Phase 2 | Pending |
+| TOKEN-02 | Phase 2 | Pending |
+| TOKEN-03 | Phase 2 | Pending |
+| OUT-01 | Phase 2 | Pending |
+| OUT-02 | Phase 2 | Pending |
+| OUT-03 | Phase 2 | Pending |
+| OUT-04 | Phase 2 | Pending |
+| OUT-05 | Phase 2 | Pending |
+| RESIL-01 | Phase 1 | Pending |
+| RESIL-02 | Phase 1 | Pending |
+| RESIL-03 | Phase 1 | Pending |
+| PLAT-01 | Phase 6 | Pending |
+| PLAT-02 | Phase 5 | Pending |
+| PLAT-03 | Phase 5 | Pending |
+| PLAT-04 | Phase 6 | Pending |
+| PLAT-05 | Phase 1 | Pending |
+| REF-01 | Phase 4 | Pending |
 
 **Coverage:**
-- v1 requirements: 42 total
-- Mapped to phases: 0
-- Unmapped: 42
+- v1 requirements: 43 total
+- Mapped to phases: 43
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-23*
-*Last updated: 2026-02-23 after initial definition*
+*Last updated: 2026-02-23 after roadmap creation*

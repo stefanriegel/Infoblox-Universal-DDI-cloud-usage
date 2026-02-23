@@ -54,6 +54,19 @@ Accurate, auditable UDDI token estimation from cloud discovery — customers mus
 - The tool runs locally on customer machines — no cloud hosting, no data leaves the machine
 - Native UDDI token ratios: 25 DDI objects/token, 13 Active IPs/token, 3 Assets/token
 
+### Validated Reference Data (from existing codebase)
+
+**GCP:** Validated with 87 projects — discovery logic and resource counting confirmed correct.
+
+**Azure:** Validated with customer environment (2026-02-23):
+- 13,363 resources discovered across 14 types
+- Resource types: 731 VNets, 1614 subnets, 1535 NSGs, 901 routes, 991 VMs, 310 public IPs, 1904 endpoints, 95 load balancers, 85 gateways, 471 DNS zones, 4161 DNS records, 510 VMSS instances, 49 AKS clusters, 6 firewalls
+- DDI Objects: 7,026 | Active IPs: 33,214
+- Output files: licensing CSV, licensing summary TXT, estimator CSV, proof manifest JSON
+- Customer feedback: "Worked well and was surprisingly fast"
+
+**AWS:** Not yet validated at scale — priority for testing during Phase 2.
+
 ## Constraints
 
 - **Tech stack**: Python-only (Flask/FastAPI + HTML for web UI) — single language for auditability
