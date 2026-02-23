@@ -10,34 +10,35 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 2 of 6 (AWS Provider and End-to-End Pipeline)
-Plan: 4 of 6 in current phase
+Plan: 5 of 6 in current phase
 Status: In Progress
-Last activity: 2026-02-23 -- Completed 02-04-PLAN.md (compute, database, and token-free collectors)
+Last activity: 2026-02-23 -- Completed 02-05-PLAN.md (output pipeline: XLS reports, estimator CSV, proof manifest)
 
-Progress: [████████░░] 33%
+Progress: [████████░░] 38%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 5min
-- Total execution time: 0.58 hours
+- Total execution time: 0.66 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-core-infrastructure | 4 | 15min | 4min |
-| 02-aws-provider-and-end-to-end-pipeline | 4 | 24min | 6min |
+| 02-aws-provider-and-end-to-end-pipeline | 5 | 29min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: 01-04 (4min), 02-01 (5min), 02-02 (5min), 02-03 (7min), 02-04 (7min)
+- Last 5 plans: 02-01 (5min), 02-02 (5min), 02-03 (7min), 02-04 (7min), 02-05 (5min)
 - Trend: Stable
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
 | Phase 02 P03 | 7min | 2 tasks | 5 files |
 | Phase 02 P04 | 7min | 2 tasks | 4 files |
+| Phase 02 P05 | 5min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,9 @@ Recent decisions affecting current work:
 - [02-04]: RDS instances set ip_addresses=[] -- ENI discovery handles IP attribution
 - [02-04]: Lambda VPC test checks non-empty vpc_id (moto returns synthetic vpc-123abc)
 - [02-04]: Redshift uses ClusterNamespaceArn as resource_id when available
+- [02-05]: xlsxwriter for write-only XLS generation (rich formatting, no read overhead); openpyxl only in tests
+- [02-05]: .gitignore output/ exclusion scoped to root /output/ so src/cloud_usage/output/ is trackable
+- [02-05]: Proof manifest uses two-phase hashing: resource_hash from sorted resource tuples, then manifest_hash over all fields
 
 ### Pending Todos
 
@@ -92,5 +96,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 02-04-PLAN.md (compute, database, and token-free collectors)
+Stopped at: Completed 02-05-PLAN.md (output pipeline: XLS reports, estimator CSV, proof manifest)
 Resume file: None

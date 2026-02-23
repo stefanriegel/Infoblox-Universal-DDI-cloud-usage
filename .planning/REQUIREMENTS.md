@@ -56,11 +56,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Output & Reporting
 
-- [ ] **OUT-01**: Tool produces one CSV/XLS file per cloud provider (3 files total)
-- [ ] **OUT-02**: Each file contains a detail sheet with one row per discovered resource (resource ID, type, account, region, IPs, counted yes/no, category, skip reason)
-- [ ] **OUT-03**: Each file contains a summary sheet with totals per account/subscription/project by resource type
-- [ ] **OUT-04**: Tool produces a proof manifest (SHA-256 hashed JSON) documenting scan scope, ratios used, and result integrity
-- [ ] **OUT-05**: Output clearly shows what was counted toward licensing and what was skipped, with reasons
+- [x] **OUT-01**: Tool produces one CSV/XLS file per cloud provider (3 files total)
+- [x] **OUT-02**: Each file contains a detail sheet with one row per discovered resource (resource ID, type, account, region, IPs, counted yes/no, category, skip reason)
+- [x] **OUT-03**: Each file contains a summary sheet with totals per account/subscription/project by resource type
+- [x] **OUT-04**: Tool produces a proof manifest (SHA-256 hashed JSON) documenting scan scope, ratios used, and result integrity
+- [x] **OUT-05**: Output clearly shows what was counted toward licensing and what was skipped, with reasons
 
 ### Resilience
 
@@ -149,11 +149,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | TOKEN-01 | Phase 2 | Complete |
 | TOKEN-02 | Phase 2 | Complete |
 | TOKEN-03 | Phase 2 | Complete |
-| OUT-01 | Phase 2 | Pending |
-| OUT-02 | Phase 2 | Pending |
-| OUT-03 | Phase 2 | Pending |
-| OUT-04 | Phase 2 | Pending |
-| OUT-05 | Phase 2 | Pending |
+| OUT-01 | Phase 2 | Complete |
+| OUT-02 | Phase 2 | Complete |
+| OUT-03 | Phase 2 | Complete |
+| OUT-04 | Phase 2 | Complete |
+| OUT-05 | Phase 2 | Complete |
 | RESIL-01 | Phase 1 | Complete |
 | RESIL-02 | Phase 1 | Complete |
 | RESIL-03 | Phase 1 | Complete |
