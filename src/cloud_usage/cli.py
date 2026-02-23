@@ -3,20 +3,36 @@
 Provides the main command-line interface for the cloud usage estimator.
 Features interactive provider selection prompts for guided use, and
 CLI flags (--aws, --azure, --gcp) for scripted/CI use. Integrates
-auth doctor, checkpoint detection, and discovery orchestrator in the
-correct sequence.
+auth doctor, checkpoint detection, discovery orchestrator, counting
+pipeline, and output generation in the correct sequence.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import sys
+from collections import defaultdict
 from datetime import datetime
 
 from cloud_usage.auth.doctor import AuthDoctor
+from cloud_usage.counting.asset_dedup import (
+    deduplicate_assets,
+    exclude_managed_service_resources,
+    fold_enis_into_parents,
+)
+from cloud_usage.counting.categorizer import categorize_resources
+from cloud_usage.counting.ip_counter import deduplicate_ips_per_vpc
+from cloud_usage.counting.token_calculator import (
+    calculate_account_tokens,
+    calculate_provider_tokens,
+)
 from cloud_usage.discovery.orchestrator import DiscoveryOrchestrator
 from cloud_usage.discovery.progress import ProgressTracker
 from cloud_usage.logging.audit import setup_audit_logger
+from cloud_usage.output.estimator_csv import write_estimator_csv
+from cloud_usage.output.proof_manifest import write_proof_manifest
+from cloud_usage.output.xlsx_report import write_xlsx_report
 from cloud_usage.resilience.checkpoint import CheckpointEngine
 from cloud_usage.resilience.rate_limiter import RateLimiter
 
@@ -192,7 +208,9 @@ def main(argv: list[str] | None = None) -> int:
     3. Run auth doctor pre-flight checks (unless skipped)
     4. Check for existing checkpoint and offer resume
     5. Create and run discovery orchestrator
-    6. Print final summary
+    6. Run counting pipeline (ENI folding -> dedup -> categorization -> IP counting -> tokens)
+    7. Generate output files (XLS, CSV, proof manifest)
+    8. Print final summary
 
     Args:
         argv: Argument list. Defaults to sys.argv[1:] if None.
@@ -296,6 +314,7 @@ def main(argv: list[str] | None = None) -> int:
         return _print_dry_run(providers, audit_logger)
 
     # Create and run orchestrator
+    scan_start = datetime.now()
     progress_tracker = ProgressTracker()
     rate_limiter = RateLimiter()
 
@@ -308,25 +327,123 @@ def main(argv: list[str] | None = None) -> int:
 
     resources, errors = orchestrator.run(resumed_checkpoint=resumed_checkpoint)
 
-    # Print final summary
+    # === Counting Pipeline ===
+    # Step 1: ENI folding -- mark attached ENIs before categorization
+    fold_enis_into_parents(resources)
+
+    # Step 2: Tag-based exclusion of EKS-managed nodes etc.
+    exclude_managed_service_resources(resources)
+
+    # Step 3: Cross-account dedup of RAM-shared resources
+    deduplicate_assets(resources)
+
+    # Step 4: Categorize resources as DDI/IP/Asset/excluded
+    categorize_resources(resources)
+
+    # Step 5: Per-VPC IP deduplication
+    ip_counts = deduplicate_ips_per_vpc(resources)
+
+    # Step 6: Build per-account token summaries
+    account_summaries: dict[str, dict] = {}
+    resources_by_account: dict[str, list] = defaultdict(list)
+    for resource in resources:
+        resources_by_account[resource.account_id].append(resource)
+
+    per_account_ips = ip_counts.get("per_account", {})
+    for acct_id, acct_resources in resources_by_account.items():
+        deduped_ip_count = per_account_ips.get(acct_id, 0)
+        account_summaries[acct_id] = calculate_account_tokens(
+            acct_resources, deduplicated_ip_count=deduped_ip_count
+        )
+
+    # Step 7: Provider-level aggregation
+    provider_totals = calculate_provider_tokens(account_summaries)
+
+    scan_end = datetime.now()
+    scan_duration = (scan_end - scan_start).total_seconds()
+
+    # === Output Generation ===
+    if resources:
+        output_dir = args.output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        timestamp = scan_id
+
+        # Determine provider name for output files
+        provider_name = "aws"  # Current phase supports AWS only
+        for p in providers:
+            provider_name = p.provider_name
+            break
+
+        xlsx_path = f"{output_dir}/{provider_name}_discovery_{timestamp}.xlsx"
+        csv_path = f"{output_dir}/{provider_name}_estimator_{timestamp}.csv"
+        manifest_path = f"{output_dir}/{provider_name}_proof_{timestamp}.json"
+
+        # Convert errors to dicts for output modules
+        error_dicts = []
+        for error in errors:
+            error_dicts.append({
+                "account": error.account_id,
+                "region": "",
+                "resource_type": "",
+                "error": error.message,
+                "suggestion": error.suggestion,
+            })
+
+        write_xlsx_report(
+            xlsx_path, resources, account_summaries, error_dicts, provider_name
+        )
+        write_estimator_csv(csv_path, account_summaries, provider_name)
+        write_proof_manifest(
+            manifest_path,
+            resources,
+            account_summaries,
+            {
+                "scan_timestamp": scan_start.isoformat(),
+                "scan_duration_seconds": scan_duration,
+            },
+            provider_name,
+        )
+
+        audit_logger.info("Output files written: %s, %s, %s", xlsx_path, csv_path, manifest_path)
+
+    # === Print Summary ===
     sys.stderr.write(f"\n{'=' * 60}\n")
     sys.stderr.write("Scan Summary\n")
     sys.stderr.write(f"{'=' * 60}\n")
     sys.stderr.write(f"Resources discovered: {len(resources)}\n")
-    sys.stderr.write(f"Errors encountered: {len(errors)}\n")
-    sys.stderr.write(f"Output directory: {args.output_dir}\n")
+
+    # Category breakdown
+    ddi_count = sum(1 for r in resources if r.counted and r.category == "ddi")
+    asset_count = sum(1 for r in resources if r.counted and r.category == "asset")
+    skipped_count = sum(1 for r in resources if not r.counted)
+    sys.stderr.write(f"  DDI objects:    {ddi_count}\n")
+    sys.stderr.write(f"  Active IPs:     {ip_counts.get('total_unique_ips', 0)}\n")
+    sys.stderr.write(f"  Managed assets: {asset_count}\n")
+    sys.stderr.write(f"  Skipped:        {skipped_count}\n")
+
+    # Token totals
+    sys.stderr.write(f"\nToken estimate: {provider_totals.get('total_tokens', 0)} tokens\n")
 
     if errors:
-        sys.stderr.write(f"\nFailed accounts:\n")
+        sys.stderr.write(f"\nErrors encountered: {len(errors)}\n")
         for error in errors:
             sys.stderr.write(f"  {error.provider} {error.account_id}: {error.message}\n")
             if error.suggestion:
                 sys.stderr.write(f"    Fix: {error.suggestion}\n")
 
+    if resources:
+        sys.stderr.write(f"\nOutput files:\n")
+        sys.stderr.write(f"  XLS:      {xlsx_path}\n")
+        sys.stderr.write(f"  CSV:      {csv_path}\n")
+        sys.stderr.write(f"  Manifest: {manifest_path}\n")
+
+    sys.stderr.write(f"Output directory: {args.output_dir}\n")
+
     audit_logger.info(
-        "Scan complete: %d resources, %d errors",
+        "Scan complete: %d resources, %d errors, %d tokens",
         len(resources),
         len(errors),
+        provider_totals.get("total_tokens", 0),
     )
 
     return 0
@@ -423,6 +540,14 @@ def _print_dry_run(providers: list, audit_logger) -> int:
     sys.stderr.write("DRY RUN - Scan Plan\n")
     sys.stderr.write(f"{'=' * 60}\n\n")
 
+    resource_types = [
+        "vpc", "subnet", "eni", "elastic-ip", "nat-gateway", "vpn-gateway",
+        "transit-gateway", "dhcp-option-set", "route53-zone", "route53-record",
+        "ec2-instance", "ecs-task", "eks-nodegroup", "lambda-function",
+        "alb", "nlb", "classic-elb", "rds-instance", "elasticache-cluster",
+        "redshift-cluster", "ebs-volume", "s3-bucket",
+    ]
+
     for provider in providers:
         provider_name = provider.provider_name.upper()
         sys.stderr.write(f"Provider: {provider_name}\n")
@@ -440,7 +565,9 @@ def _print_dry_run(providers: list, audit_logger) -> int:
                 for region in regions:
                     sys.stderr.write(f"    - {region}\n")
 
-            sys.stderr.write("  Resource types: (collectors not yet wired)\n")
+            sys.stderr.write(f"  Resource types ({len(resource_types)}):\n")
+            for rt in resource_types:
+                sys.stderr.write(f"    - {rt}\n")
         except Exception as exc:
             sys.stderr.write(f"  Error listing accounts: {exc}\n")
 

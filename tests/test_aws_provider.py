@@ -124,16 +124,20 @@ class TestListAccounts:
 
 
 class TestDiscoverAccount:
-    """Tests for AWSDiscoveryProvider.discover_account() skeleton."""
+    """Tests for AWSDiscoveryProvider.discover_account() with wired collectors."""
 
     @mock_aws
-    def test_discover_account_returns_empty_list(self) -> None:
-        """discover_account() returns empty list (skeleton until Plan 06)."""
+    def test_discover_account_returns_resources(self) -> None:
+        """discover_account() returns resources from all collectors."""
         session = boto3.Session(region_name="us-east-1")
         provider = AWSDiscoveryProvider(session=session)
         resources = provider.discover_account("123456789012")
 
-        assert resources == []
+        # moto creates default VPCs and subnets, so we should have resources
+        assert len(resources) > 0
+        # Verify we get at least VPCs (moto creates default VPC per region)
+        vpc_resources = [r for r in resources if r.resource_type == "vpc"]
+        assert len(vpc_resources) > 0
 
     @mock_aws
     def test_discover_account_cross_account(self) -> None:
@@ -141,11 +145,11 @@ class TestDiscoverAccount:
         session = boto3.Session(region_name="us-east-1")
         provider = AWSDiscoveryProvider(session=session)
 
-        # Different account triggers assume_role
+        # Different account triggers assume_role -- moto handles it
         resources = provider.discover_account("999888777666")
 
-        # Skeleton still returns empty list
-        assert resources == []
+        # Cross-account discovers resources in the assumed-role account
+        assert isinstance(resources, list)
 
 
 # -- Tests for AWSDiscoveryProvider properties --

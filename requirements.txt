@@ -19,11 +19,16 @@ google-auth>=2.17.0
 google-cloud-resource-manager>=1.12.0
 google-cloud-service-usage>=1.3.0
 
+# Output Dependencies
+xlsxwriter>=3.1.0
+
 # Common Dependencies
 tqdm>=4.64.0
 pandas>=1.5.0
 
 # Development Dependencies (optional)
 pytest>=8.0.0
+moto[all]>=5.0.0
+openpyxl>=3.1.0
 black>=25.0.0
-flake8>=7.0.0 
+flake8>=7.0.0
