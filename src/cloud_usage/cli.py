@@ -88,6 +88,38 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Ignore existing checkpoints and start a fresh scan",
     )
 
+    # AWS-specific options
+    parser.add_argument(
+        "--profile",
+        type=str,
+        default=None,
+        help="AWS profile name for boto3 session",
+    )
+    parser.add_argument(
+        "--role-name",
+        type=str,
+        default="OrganizationAccountAccessRole",
+        help="Cross-account role name for AWS Organizations mode (default: OrganizationAccountAccessRole)",
+    )
+    parser.add_argument(
+        "--include-accounts",
+        type=str,
+        default=None,
+        help="Comma-separated AWS account IDs to include (takes precedence over --exclude-accounts)",
+    )
+    parser.add_argument(
+        "--exclude-accounts",
+        type=str,
+        default=None,
+        help="Comma-separated AWS account IDs to exclude from scan",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Show scan plan (accounts, regions, resource types) without making discovery API calls",
+    )
+
     return parser.parse_args(argv)
 
 
@@ -195,7 +227,8 @@ def main(argv: list[str] | None = None) -> int:
     # Pre-flight auth check
     if not args.skip_auth_check:
         sys.stderr.write("\nPre-flight auth check:\n")
-        doctor = AuthDoctor(validators={})
+        validators = _get_auth_validators(selected, args)
+        doctor = AuthDoctor(validators=validators)
         results = doctor.check_all(selected)
         all_passed = doctor.report(results)
 
@@ -246,9 +279,8 @@ def main(argv: list[str] | None = None) -> int:
             else:
                 audit_logger.info("User declined checkpoint resume, starting fresh")
 
-    # Phase 1: No actual DiscoveryProvider implementations exist yet.
-    # Provider implementations will be added in Phases 2-4.
-    providers = _get_discovery_providers(selected)
+    # Create discovery providers for selected cloud platforms
+    providers = _get_discovery_providers(selected, args)
 
     if not providers:
         sys.stderr.write(
@@ -258,6 +290,10 @@ def main(argv: list[str] | None = None) -> int:
         audit_logger.info("No discovery providers available for selected providers: %s", ", ".join(selected))
         sys.stderr.write("Scan complete: 0 resources found across 0 providers\n")
         return 0
+
+    # Dry-run: show scan plan and exit
+    if args.dry_run:
+        return _print_dry_run(providers, audit_logger)
 
     # Create and run orchestrator
     progress_tracker = ProgressTracker()
@@ -296,22 +332,123 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _get_discovery_providers(selected: list[str]) -> list:
-    """Get discovery provider instances for selected providers.
+def _parse_account_list(value: str | None) -> list[str] | None:
+    """Parse a comma-separated account list into a list of stripped strings.
 
-    In Phase 1, no concrete DiscoveryProvider implementations exist.
-    This function returns an empty list. In Phases 2-4, it will be
-    updated to instantiate the appropriate provider classes.
+    Args:
+        value: Comma-separated string or None.
+
+    Returns:
+        List of account ID strings, or None if input is None.
+    """
+    if value is None:
+        return None
+    return [a.strip() for a in value.split(",") if a.strip()]
+
+
+def _get_auth_validators(
+    selected: list[str], args: argparse.Namespace
+) -> dict:
+    """Build auth validators dict for the selected providers.
 
     Args:
         selected: List of selected provider names.
+        args: Parsed CLI arguments.
 
     Returns:
-        List of DiscoveryProvider instances (empty in Phase 1).
+        Dict mapping provider name to AuthValidator instance.
     """
-    # Phase 1 stub: no providers available yet.
-    # Phases 2-4 will register concrete providers here.
-    return []
+    from cloud_usage.providers.aws.auth import AWSAuthValidator
+
+    validators: dict = {}
+    if "aws" in selected:
+        validators["aws"] = AWSAuthValidator(profile=args.profile)
+    # Azure and GCP validators will be added in Phases 3-4
+    return validators
+
+
+def _get_discovery_providers(selected: list[str], args: argparse.Namespace) -> list:
+    """Get discovery provider instances for selected providers.
+
+    Creates and returns concrete DiscoveryProvider instances for each
+    selected cloud platform.
+
+    Args:
+        selected: List of selected provider names.
+        args: Parsed CLI arguments.
+
+    Returns:
+        List of DiscoveryProvider instances.
+    """
+    import boto3
+
+    from cloud_usage.providers.aws.provider import AWSDiscoveryProvider
+
+    providers: list = []
+
+    if "aws" in selected:
+        session = boto3.Session(profile_name=args.profile)
+        include = _parse_account_list(args.include_accounts)
+        exclude = _parse_account_list(args.exclude_accounts)
+        providers.append(
+            AWSDiscoveryProvider(
+                session=session,
+                role_name=args.role_name,
+                include_accounts=include,
+                exclude_accounts=exclude,
+            )
+        )
+
+    # Azure and GCP providers will be added in Phases 3-4
+
+    return providers
+
+
+def _print_dry_run(providers: list, audit_logger) -> int:
+    """Print scan plan without making discovery API calls.
+
+    Shows the accounts, regions, and resource types that would be scanned
+    for each provider.
+
+    Args:
+        providers: List of DiscoveryProvider instances.
+        audit_logger: Audit logger for recording the dry-run.
+
+    Returns:
+        Exit code 0.
+    """
+    from cloud_usage.providers.aws.regions import get_enabled_regions
+
+    sys.stderr.write(f"\n{'=' * 60}\n")
+    sys.stderr.write("DRY RUN - Scan Plan\n")
+    sys.stderr.write(f"{'=' * 60}\n\n")
+
+    for provider in providers:
+        provider_name = provider.provider_name.upper()
+        sys.stderr.write(f"Provider: {provider_name}\n")
+
+        try:
+            accounts = provider.list_accounts()
+            sys.stderr.write(f"  Accounts ({len(accounts)}):\n")
+            for acct in accounts:
+                sys.stderr.write(f"    - {acct}\n")
+
+            # Show regions for the first account (regions are typically same)
+            if accounts and hasattr(provider, "_session"):
+                regions = get_enabled_regions(provider._session)
+                sys.stderr.write(f"  Regions ({len(regions)}):\n")
+                for region in regions:
+                    sys.stderr.write(f"    - {region}\n")
+
+            sys.stderr.write("  Resource types: (collectors not yet wired)\n")
+        except Exception as exc:
+            sys.stderr.write(f"  Error listing accounts: {exc}\n")
+
+        sys.stderr.write("\n")
+
+    audit_logger.info("Dry run completed")
+    sys.stderr.write("Dry run complete. No discovery API calls were made.\n")
+    return 0
 
 
 if __name__ == "__main__":
