@@ -22,7 +22,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **DISC-03**: User can discover cloud resources across all accessible GCP projects and regions
 - [ ] **DISC-04**: Discovery runs concurrently across multiple accounts/subscriptions/projects (scales to 100+)
 - [ ] **DISC-05**: Discovery handles API rate limiting with adaptive retry and exponential backoff with jitter
-- [ ] **DISC-06**: One failed account/subscription/project does not abort the entire scan — errors are logged and scan continues
+- [x] **DISC-06**: One failed account/subscription/project does not abort the entire scan — errors are logged and scan continues
 - [ ] **DISC-07**: User can filter which accounts/subscriptions/projects to include or exclude from discovery
 - [ ] **DISC-08**: User sees consistent progress indication during scan (`[N/total]` per provider)
 
@@ -74,7 +74,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **PLAT-02**: Web dashboard (FastAPI + HTML) shows discovery progress in real-time via SSE
 - [ ] **PLAT-03**: Web dashboard displays results with filtering and token calculation summary
 - [ ] **PLAT-04**: PowerShell setup scripts are provided and signed (self-signed certificate)
-- [ ] **PLAT-05**: Codebase is single-language Python for customer auditability — no compiled dependencies, no obfuscation, no telemetry
+- [x] **PLAT-05**: Codebase is single-language Python for customer auditability — no compiled dependencies, no obfuscation, no telemetry
 
 ### Validated Reference
 
@@ -130,7 +130,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISC-03 | Phase 4 | Pending |
 | DISC-04 | Phase 1 | Pending |
 | DISC-05 | Phase 1 | Pending |
-| DISC-06 | Phase 1 | Pending |
+| DISC-06 | Phase 1 | Complete |
 | DISC-07 | Phase 2 | Pending |
 | DISC-08 | Phase 1 | Pending |
 | DDI-01 | Phase 2 | Pending |
@@ -161,7 +161,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAT-02 | Phase 5 | Pending |
 | PLAT-03 | Phase 5 | Pending |
 | PLAT-04 | Phase 6 | Pending |
-| PLAT-05 | Phase 1 | Pending |
+| PLAT-05 | Phase 1 | Complete |
 | REF-01 | Phase 4 | Pending |
 
 **Coverage:**
