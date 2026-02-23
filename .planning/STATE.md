@@ -10,32 +10,33 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 2 of 6 (AWS Provider and End-to-End Pipeline)
-Plan: 2 of 6 in current phase
+Plan: 3 of 6 in current phase
 Status: In Progress
-Last activity: 2026-02-23 -- Completed 02-02-PLAN.md (counting, categorization, token calculation TDD)
+Last activity: 2026-02-23 -- Completed 02-03-PLAN.md (DDI resource collectors)
 
-Progress: [██████░░░░] 25%
+Progress: [███████░░░] 30%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Average duration: 4min
-- Total execution time: 0.35 hours
+- Total execution time: 0.47 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-core-infrastructure | 4 | 15min | 4min |
-| 02-aws-provider-and-end-to-end-pipeline | 2 | 10min | 5min |
+| 02-aws-provider-and-end-to-end-pipeline | 3 | 17min | 6min |
 
 **Recent Trend:**
-- Last 5 plans: 01-03 (3min), 01-04 (4min), 02-01 (5min), 02-02 (5min)
+- Last 5 plans: 01-04 (4min), 02-01 (5min), 02-02 (5min), 02-03 (7min)
 - Trend: Stable
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
+| Phase 02 P03 | 7min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -69,6 +70,10 @@ Recent decisions affecting current work:
 - [Phase 02]: AWS Organizations API returns 'Id' not 'AccountId' -- code uses actual API field names
 - [Phase 02]: Auth validator keeps account_count=1 fallback when Organizations returns 0 accounts
 - [Phase 02]: SSOTokenLoadError handled via exception class name check since import path varies across botocore versions
+- [02-03]: Route53 collectors set region="global" and omit region parameter since Route53 is account-global
+- [02-03]: All ENIs collected regardless of attachment status -- asset_dedup module handles folding
+- [02-03]: DHCP orphan detection uses set membership check against VPC-extracted DhcpOptionsId values
+- [02-03]: Record resource_id format is zone_id/name/type for uniqueness across zones
 
 ### Pending Todos
 
@@ -82,5 +87,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-23
-Stopped at: Completed 02-02-PLAN.md (counting, categorization, token calculation TDD)
+Stopped at: Completed 02-03-PLAN.md (DDI resource collectors)
 Resume file: None

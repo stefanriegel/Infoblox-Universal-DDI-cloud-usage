@@ -28,10 +28,10 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### DDI Object Counting
 
-- [ ] **DDI-01**: Tool counts DNS zones per cloud provider (Route53 hosted zones, Azure DNS zones, Cloud DNS managed zones)
-- [ ] **DDI-02**: Tool counts DNS records within discovered zones per cloud provider
-- [ ] **DDI-03**: Tool counts subnets per cloud provider (VPC subnets, VNet subnets, GCP subnets)
-- [ ] **DDI-04**: Tool counts DHCP option sets per cloud provider (AWS DHCP option sets, Azure DHCP configs)
+- [x] **DDI-01**: Tool counts DNS zones per cloud provider (Route53 hosted zones, Azure DNS zones, Cloud DNS managed zones)
+- [x] **DDI-02**: Tool counts DNS records within discovered zones per cloud provider
+- [x] **DDI-03**: Tool counts subnets per cloud provider (VPC subnets, VNet subnets, GCP subnets)
+- [x] **DDI-04**: Tool counts DHCP option sets per cloud provider (AWS DHCP option sets, Azure DHCP configs)
 
 ### Active IP Counting
 
@@ -133,10 +133,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISC-06 | Phase 1 | Complete |
 | DISC-07 | Phase 2 | Complete |
 | DISC-08 | Phase 1 | Complete |
-| DDI-01 | Phase 2 | Pending |
-| DDI-02 | Phase 2 | Pending |
-| DDI-03 | Phase 2 | Pending |
-| DDI-04 | Phase 2 | Pending |
+| DDI-01 | Phase 2 | Complete |
+| DDI-02 | Phase 2 | Complete |
+| DDI-03 | Phase 2 | Complete |
+| DDI-04 | Phase 2 | Complete |
 | IP-01 | Phase 2 | Complete |
 | IP-02 | Phase 2 | Complete |
 | IP-03 | Phase 2 | Complete |
