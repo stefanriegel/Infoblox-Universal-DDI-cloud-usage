@@ -166,8 +166,8 @@ base/
 *.pdf
 *.xlsx 
 
-# Project-specific
-output/
+# Project-specific -- runtime output directory (not src/cloud_usage/output/)
+/output/
 *.json
 *.csv
 *.txt
