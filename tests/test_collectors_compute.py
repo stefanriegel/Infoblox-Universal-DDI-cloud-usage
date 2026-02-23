@@ -27,6 +27,15 @@ from cloud_usage.providers.aws.collectors.compute import (
     collect_lambda_functions,
     collect_load_balancers_v2,
 )
+from cloud_usage.providers.aws.collectors.database import (
+    collect_elasticache_clusters,
+    collect_rds_instances,
+    collect_redshift_clusters,
+)
+from cloud_usage.providers.aws.collectors.token_free import (
+    collect_ebs_volumes,
+    collect_s3_buckets,
+)
 
 ACCOUNT_ID = "123456789012"
 REGION = "us-east-1"
@@ -700,4 +709,328 @@ class TestCollectClassicLoadBalancers:
         """Returns empty list when no CLBs exist."""
         elb = boto3.client("elb", region_name=REGION)
         resources = collect_classic_load_balancers(elb, ACCOUNT_ID, REGION)
+        assert resources == []
+
+
+# -- RDS Instance Tests --
+
+
+class TestCollectRDSInstances:
+    """Tests for RDS instance collector."""
+
+    @mock_aws
+    def test_rds_instance_discovery(self) -> None:
+        """Discovers RDS instances with endpoint details."""
+        ec2 = boto3.client("ec2", region_name=REGION)
+        rds = boto3.client("rds", region_name=REGION)
+
+        # Create VPC/subnets and subnet group for RDS
+        vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+        vpc_id = vpc["Vpc"]["VpcId"]
+        subnet1 = ec2.create_subnet(
+            VpcId=vpc_id, CidrBlock="10.0.1.0/24", AvailabilityZone="us-east-1a"
+        )
+        subnet2 = ec2.create_subnet(
+            VpcId=vpc_id, CidrBlock="10.0.2.0/24", AvailabilityZone="us-east-1b"
+        )
+
+        rds.create_db_subnet_group(
+            DBSubnetGroupName="test-subnet-group",
+            DBSubnetGroupDescription="Test",
+            SubnetIds=[
+                subnet1["Subnet"]["SubnetId"],
+                subnet2["Subnet"]["SubnetId"],
+            ],
+        )
+
+        rds.create_db_instance(
+            DBInstanceIdentifier="test-db",
+            DBInstanceClass="db.t3.micro",
+            Engine="mysql",
+            MasterUsername="admin",
+            MasterUserPassword="password123",
+            DBSubnetGroupName="test-subnet-group",
+        )
+
+        resources = collect_rds_instances(rds, ACCOUNT_ID, REGION)
+
+        assert len(resources) == 1
+        r = resources[0]
+        assert r.resource_type == "rds-instance"
+        assert r.provider == "aws"
+        assert r.name == "test-db"
+        assert r.ip_addresses == []
+        assert r.details["engine"] == "mysql"
+        assert r.details["db_instance_class"] == "db.t3.micro"
+        assert r.details["status"] == "available"
+        assert r.details["endpoint"]  # moto provides an endpoint address
+
+    @mock_aws
+    def test_rds_no_instances(self) -> None:
+        """Returns empty list when no RDS instances exist."""
+        rds = boto3.client("rds", region_name=REGION)
+        resources = collect_rds_instances(rds, ACCOUNT_ID, REGION)
+        assert resources == []
+
+    @mock_aws
+    def test_rds_instance_details_populated(self) -> None:
+        """RDS instance details include all required fields."""
+        ec2 = boto3.client("ec2", region_name=REGION)
+        rds = boto3.client("rds", region_name=REGION)
+
+        vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+        vpc_id = vpc["Vpc"]["VpcId"]
+        subnet1 = ec2.create_subnet(
+            VpcId=vpc_id, CidrBlock="10.0.1.0/24", AvailabilityZone="us-east-1a"
+        )
+        subnet2 = ec2.create_subnet(
+            VpcId=vpc_id, CidrBlock="10.0.2.0/24", AvailabilityZone="us-east-1b"
+        )
+
+        rds.create_db_subnet_group(
+            DBSubnetGroupName="test-subnet-group",
+            DBSubnetGroupDescription="Test",
+            SubnetIds=[
+                subnet1["Subnet"]["SubnetId"],
+                subnet2["Subnet"]["SubnetId"],
+            ],
+        )
+
+        rds.create_db_instance(
+            DBInstanceIdentifier="test-db",
+            DBInstanceClass="db.r5.large",
+            Engine="postgres",
+            EngineVersion="15.3",
+            MasterUsername="admin",
+            MasterUserPassword="password123",
+            MultiAZ=True,
+            DBSubnetGroupName="test-subnet-group",
+        )
+
+        resources = collect_rds_instances(rds, ACCOUNT_ID, REGION)
+
+        assert len(resources) == 1
+        details = resources[0].details
+        assert details["db_instance_class"] == "db.r5.large"
+        assert details["engine"] == "postgres"
+        assert details["multi_az"] is True
+        assert "port" in details
+
+
+# -- ElastiCache Tests --
+
+
+class TestCollectElastiCacheClusters:
+    """Tests for ElastiCache cluster collector."""
+
+    @mock_aws
+    def test_elasticache_cluster_discovery(self) -> None:
+        """Discovers ElastiCache clusters with cache node info."""
+        ec = boto3.client("elasticache", region_name=REGION)
+
+        ec.create_cache_cluster(
+            CacheClusterId="test-redis",
+            Engine="redis",
+            CacheNodeType="cache.t3.micro",
+            NumCacheNodes=1,
+        )
+
+        resources = collect_elasticache_clusters(ec, ACCOUNT_ID, REGION)
+
+        assert len(resources) == 1
+        r = resources[0]
+        assert r.resource_type == "elasticache-cluster"
+        assert r.provider == "aws"
+        assert r.name == "test-redis"
+        assert r.details["engine"] == "redis"
+        assert r.details["cache_node_type"] == "cache.t3.micro"
+        assert r.details["num_cache_nodes"] == 1
+
+    @mock_aws
+    def test_elasticache_no_clusters(self) -> None:
+        """Returns empty list when no ElastiCache clusters exist."""
+        ec = boto3.client("elasticache", region_name=REGION)
+        resources = collect_elasticache_clusters(ec, ACCOUNT_ID, REGION)
+        assert resources == []
+
+
+# -- Redshift Tests --
+
+
+class TestCollectRedshiftClusters:
+    """Tests for Redshift cluster collector."""
+
+    @mock_aws
+    def test_redshift_cluster_discovery(self) -> None:
+        """Discovers Redshift clusters with endpoint details."""
+        rs = boto3.client("redshift", region_name=REGION)
+
+        rs.create_cluster(
+            ClusterIdentifier="test-cluster",
+            NodeType="dc2.large",
+            MasterUsername="admin",
+            MasterUserPassword="Password123!",
+            NumberOfNodes=2,
+            ClusterType="multi-node",
+        )
+
+        resources = collect_redshift_clusters(rs, ACCOUNT_ID, REGION)
+
+        assert len(resources) == 1
+        r = resources[0]
+        assert r.resource_type == "redshift-cluster"
+        assert r.provider == "aws"
+        assert r.name == "test-cluster"
+        assert r.details["node_type"] == "dc2.large"
+        assert r.details["number_of_nodes"] == 2
+        assert r.details["endpoint"]  # moto provides endpoint address
+
+    @mock_aws
+    def test_redshift_no_clusters(self) -> None:
+        """Returns empty list when no Redshift clusters exist."""
+        rs = boto3.client("redshift", region_name=REGION)
+        resources = collect_redshift_clusters(rs, ACCOUNT_ID, REGION)
+        assert resources == []
+
+
+# -- EBS Volume Tests --
+
+
+class TestCollectEBSVolumes:
+    """Tests for EBS volume collector."""
+
+    @mock_aws
+    def test_ebs_volume_discovery(self) -> None:
+        """Discovers EBS volumes with correct details and no IPs."""
+        ec2 = boto3.client("ec2", region_name=REGION)
+
+        ec2.create_volume(
+            AvailabilityZone="us-east-1a",
+            Size=100,
+            VolumeType="gp3",
+            Encrypted=True,
+        )
+
+        resources = collect_ebs_volumes(ec2, ACCOUNT_ID, REGION)
+
+        assert len(resources) >= 1
+        # Find our gp3 volume (there may be other volumes from moto setup)
+        gp3_vols = [r for r in resources if r.details["volume_type"] == "gp3"]
+        assert len(gp3_vols) == 1
+        r = gp3_vols[0]
+        assert r.resource_type == "ebs-volume"
+        assert r.provider == "aws"
+        assert r.ip_addresses == []
+        assert r.details["size_gb"] == 100
+        assert r.details["encrypted"] is True
+
+    @mock_aws
+    def test_ebs_volume_no_ips(self) -> None:
+        """EBS volumes always have empty ip_addresses."""
+        ec2 = boto3.client("ec2", region_name=REGION)
+
+        ec2.create_volume(
+            AvailabilityZone="us-east-1a",
+            Size=50,
+            VolumeType="gp2",
+        )
+
+        resources = collect_ebs_volumes(ec2, ACCOUNT_ID, REGION)
+
+        for r in resources:
+            assert r.ip_addresses == []
+
+    @mock_aws
+    def test_ebs_attached_volume(self) -> None:
+        """EBS volumes record attached instance IDs."""
+        ec2 = boto3.client("ec2", region_name=REGION)
+
+        vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+        vpc_id = vpc["Vpc"]["VpcId"]
+        subnet = ec2.create_subnet(VpcId=vpc_id, CidrBlock="10.0.1.0/24")
+        subnet_id = subnet["Subnet"]["SubnetId"]
+
+        instances = ec2.run_instances(
+            ImageId="ami-12345678",
+            MinCount=1,
+            MaxCount=1,
+            InstanceType="t2.micro",
+            SubnetId=subnet_id,
+        )
+        instance_id = instances["Instances"][0]["InstanceId"]
+
+        vol = ec2.create_volume(
+            AvailabilityZone="us-east-1a",
+            Size=50,
+            VolumeType="gp3",
+        )
+        vol_id = vol["VolumeId"]
+
+        ec2.attach_volume(
+            VolumeId=vol_id,
+            InstanceId=instance_id,
+            Device="/dev/sdf",
+        )
+
+        resources = collect_ebs_volumes(ec2, ACCOUNT_ID, REGION)
+
+        attached_vol = [r for r in resources if r.resource_id == vol_id]
+        assert len(attached_vol) == 1
+        assert instance_id in attached_vol[0].details["attached_instance_ids"]
+
+
+# -- S3 Bucket Tests --
+
+
+class TestCollectS3Buckets:
+    """Tests for S3 bucket collector."""
+
+    @mock_aws
+    def test_s3_bucket_discovery(self) -> None:
+        """Discovers S3 buckets with correct details and no IPs."""
+        s3 = boto3.client("s3", region_name=REGION)
+
+        s3.create_bucket(Bucket="test-bucket-123")
+
+        resources = collect_s3_buckets(s3, ACCOUNT_ID, REGION)
+
+        assert len(resources) == 1
+        r = resources[0]
+        assert r.resource_type == "s3-bucket"
+        assert r.provider == "aws"
+        assert r.name == "test-bucket-123"
+        assert r.resource_id == "test-bucket-123"
+        assert r.ip_addresses == []
+        assert r.details["creation_date"]  # Non-empty ISO datetime
+
+    @mock_aws
+    def test_s3_bucket_no_ips(self) -> None:
+        """S3 buckets always have empty ip_addresses."""
+        s3 = boto3.client("s3", region_name=REGION)
+        s3.create_bucket(Bucket="bucket-a")
+        s3.create_bucket(Bucket="bucket-b")
+
+        resources = collect_s3_buckets(s3, ACCOUNT_ID, REGION)
+
+        assert len(resources) == 2
+        for r in resources:
+            assert r.ip_addresses == []
+
+    @mock_aws
+    def test_s3_bucket_region_detection(self) -> None:
+        """S3 buckets in us-east-1 have region set to us-east-1."""
+        s3 = boto3.client("s3", region_name=REGION)
+        s3.create_bucket(Bucket="us-bucket")
+
+        resources = collect_s3_buckets(s3, ACCOUNT_ID, REGION)
+
+        assert len(resources) == 1
+        # S3 in us-east-1 has LocationConstraint=None -> region="us-east-1"
+        assert resources[0].region == "us-east-1"
+
+    @mock_aws
+    def test_s3_no_buckets(self) -> None:
+        """Returns empty list when no S3 buckets exist."""
+        s3 = boto3.client("s3", region_name=REGION)
+        resources = collect_s3_buckets(s3, ACCOUNT_ID, REGION)
         assert resources == []
