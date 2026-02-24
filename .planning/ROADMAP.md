@@ -117,10 +117,13 @@ Plans:
   1. Web dashboard (FastAPI + HTML) shows real-time discovery progress via SSE -- user sees per-provider account completion counts updating live during a scan
   2. Dashboard displays results with filtering by provider, account, resource type, and counted/skipped status, with token calculation summary visible
   3. Dashboard requires no JavaScript build toolchain -- HTMX and CSS are vendored, no npm/Node.js dependency
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md -- FastAPI app factory, vendored static assets, base template, EventBridge, ScanManager
+- [ ] 05-02-PLAN.md -- HTMX tab navigation, SSE progress endpoint, DashboardProgressTracker
+- [ ] 05-03-PLAN.md -- Results table with filtering/pagination, Summary tab with token cards
+- [ ] 05-04-PLAN.md -- Scan wizard, download endpoints, CLI --web flag
 
 ### Phase 6: Platform Hardening
 **Goal**: Tool runs reliably on all target platforms (Windows 11, WSL, macOS) with signed PowerShell setup scripts for Windows onboarding
@@ -161,6 +164,6 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 2.1. Wire RateLimiter (Gap Closure) | 2/2 | Complete | 2026-02-24 |
 | 3. Azure Provider | 4/4 | Complete | 2026-02-24 |
 | 4. GCP Provider | 4/4 | Complete    | 2026-02-24 |
-| 5. Web Dashboard | 0/TBD | Not started | - |
+| 5. Web Dashboard | 0/4 | Not started | - |
 | 6. Platform Hardening | 0/TBD | Not started | - |
 | 7. Integration Gap Closure | 0/TBD | Not started | - |
