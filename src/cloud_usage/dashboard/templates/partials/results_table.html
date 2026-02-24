@@ -1,0 +1,42 @@
+{% include "partials/filter_chips.html" %}
+
+{% if total_results == 0 %}
+<p>No resources match the current filters.</p>
+{% else %}
+<p><small>Showing {{ start_row }}-{{ end_row }} of {{ total_results }} results</small></p>
+
+<figure>
+<table role="grid">
+    <thead>
+        <tr>
+            <th><a hx-get="/partials/results-table?sort_by=resource_id&sort_dir={{ 'desc' if sort_by == 'resource_id' and sort_dir == 'asc' else 'asc' }}" hx-target="#results-body" hx-include="[name^='filter_']">Resource ID {{ '&#9650;' if sort_by == 'resource_id' and sort_dir == 'asc' else ('&#9660;' if sort_by == 'resource_id' and sort_dir == 'desc' else '') }}</a></th>
+            <th><a hx-get="/partials/results-table?sort_by=resource_type&sort_dir={{ 'desc' if sort_by == 'resource_type' and sort_dir == 'asc' else 'asc' }}" hx-target="#results-body" hx-include="[name^='filter_']">Type {{ '&#9650;' if sort_by == 'resource_type' and sort_dir == 'asc' else ('&#9660;' if sort_by == 'resource_type' and sort_dir == 'desc' else '') }}</a></th>
+            <th><a hx-get="/partials/results-table?sort_by=provider&sort_dir={{ 'desc' if sort_by == 'provider' and sort_dir == 'asc' else 'asc' }}" hx-target="#results-body" hx-include="[name^='filter_']">Provider {{ '&#9650;' if sort_by == 'provider' and sort_dir == 'asc' else ('&#9660;' if sort_by == 'provider' and sort_dir == 'desc' else '') }}</a></th>
+            <th><a hx-get="/partials/results-table?sort_by=account_id&sort_dir={{ 'desc' if sort_by == 'account_id' and sort_dir == 'asc' else 'asc' }}" hx-target="#results-body" hx-include="[name^='filter_']">Account {{ '&#9650;' if sort_by == 'account_id' and sort_dir == 'asc' else ('&#9660;' if sort_by == 'account_id' and sort_dir == 'desc' else '') }}</a></th>
+            <th><a hx-get="/partials/results-table?sort_by=region&sort_dir={{ 'desc' if sort_by == 'region' and sort_dir == 'asc' else 'asc' }}" hx-target="#results-body" hx-include="[name^='filter_']">Region {{ '&#9650;' if sort_by == 'region' and sort_dir == 'asc' else ('&#9660;' if sort_by == 'region' and sort_dir == 'desc' else '') }}</a></th>
+            <th><a hx-get="/partials/results-table?sort_by=category&sort_dir={{ 'desc' if sort_by == 'category' and sort_dir == 'asc' else 'asc' }}" hx-target="#results-body" hx-include="[name^='filter_']">Category {{ '&#9650;' if sort_by == 'category' and sort_dir == 'asc' else ('&#9660;' if sort_by == 'category' and sort_dir == 'desc' else '') }}</a></th>
+            <th>Counted</th>
+            <th>IPs</th>
+            <th>Skip Reason</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in resources %}
+        <tr>
+            <td><small>{{ r.resource_id }}</small></td>
+            <td>{{ r.resource_type }}</td>
+            <td>{{ r.provider }}</td>
+            <td>{{ r.account_id }}</td>
+            <td>{{ r.region }}</td>
+            <td>{{ (r.category or '')|upper }}</td>
+            <td>{{ 'Yes' if r.counted else 'No' }}</td>
+            <td>{{ r.ip_addresses|join(', ') }}</td>
+            <td>{{ r.skip_reason or '' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</figure>
+
+{% include "components/pagination.html" %}
+{% endif %}

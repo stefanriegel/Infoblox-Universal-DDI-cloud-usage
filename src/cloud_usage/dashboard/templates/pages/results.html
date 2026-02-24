@@ -1,13 +1,92 @@
-{# Results tab -- placeholder until Plan 03 adds results table.
-   Variables: active_tab, scan_state, resource_count #}
+{# Results tab -- filterable data table with pagination and summary cards.
+   Swapped into #tab-container via HTMX.
+   Variables: active_tab, scan_state, resource_count, filter_options,
+   active_filters, resources, page, total_pages, total_results,
+   sort_by, sort_dir, page_size, start_row, end_row,
+   total_tokens, ddi_count, ip_count, asset_count, provider_breakdown #}
 <div id="tab-container">
   {% include "partials/tab_bar.html" %}
 
   <div id="tab-content">
-    {% if resource_count is defined and resource_count > 0 %}
-      <p>Results table with {{ resource_count }} resources will be displayed here.</p>
+    {% include "partials/summary_cards.html" %}
+
+    {% if resource_count == 0 %}
+    <article>
+      <p>No results yet. Run a scan from the Progress tab.</p>
+    </article>
     {% else %}
-      <p>Results will appear after a scan completes.</p>
+    <section id="filter-bar">
+      <div class="grid">
+        <label>
+          Provider
+          <select name="filter_provider"
+                  hx-get="/partials/results-table"
+                  hx-target="#results-body"
+                  hx-trigger="change"
+                  hx-include="[name^='filter_']">
+            <option value="">All Providers</option>
+            {% for p in filter_options.providers %}
+            <option value="{{ p }}" {% if active_filters.get('filter_provider') == p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Account
+          <select name="filter_account"
+                  hx-get="/partials/results-table"
+                  hx-target="#results-body"
+                  hx-trigger="change"
+                  hx-include="[name^='filter_']">
+            <option value="">All Accounts</option>
+            {% for a in filter_options.accounts %}
+            <option value="{{ a }}" {% if active_filters.get('filter_account') == a %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Resource Type
+          <select name="filter_resource_type"
+                  hx-get="/partials/results-table"
+                  hx-target="#results-body"
+                  hx-trigger="change"
+                  hx-include="[name^='filter_']">
+            <option value="">All Types</option>
+            {% for t in filter_options.resource_types %}
+            <option value="{{ t }}" {% if active_filters.get('filter_resource_type') == t %}selected{% endif %}>{{ t }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Category
+          <select name="filter_category"
+                  hx-get="/partials/results-table"
+                  hx-target="#results-body"
+                  hx-trigger="change"
+                  hx-include="[name^='filter_']">
+            <option value="">All Categories</option>
+            {% for c in filter_options.categories %}
+            <option value="{{ c }}" {% if active_filters.get('filter_category') == c %}selected{% endif %}>{{ c|upper }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Status
+          <select name="filter_status"
+                  hx-get="/partials/results-table"
+                  hx-target="#results-body"
+                  hx-trigger="change"
+                  hx-include="[name^='filter_']">
+            <option value="">All Statuses</option>
+            <option value="counted" {% if active_filters.get('filter_status') == 'counted' %}selected{% endif %}>Counted</option>
+            <option value="skipped" {% if active_filters.get('filter_status') == 'skipped' %}selected{% endif %}>Skipped</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <div id="results-body">
+      {% include "partials/results_table.html" %}
+    </div>
     {% endif %}
   </div>
 </div>

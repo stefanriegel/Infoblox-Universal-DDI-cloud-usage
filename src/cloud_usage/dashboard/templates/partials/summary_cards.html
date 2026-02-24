@@ -1,0 +1,37 @@
+{% if total_tokens is defined and (total_tokens > 0 or ddi_count > 0 or ip_count > 0 or asset_count > 0) %}
+<div class="summary-cards">
+    <article>
+        <h3>{{ total_tokens }}</h3>
+        <p>Total Tokens</p>
+    </article>
+    <article>
+        <h3>{{ ddi_count }}</h3>
+        <p>DDI Objects</p>
+    </article>
+    <article>
+        <h3>{{ ip_count }}</h3>
+        <p>Active IPs</p>
+    </article>
+    <article>
+        <h3>{{ asset_count }}</h3>
+        <p>Managed Assets</p>
+    </article>
+</div>
+{% if provider_breakdown is defined and provider_breakdown %}
+<details style="margin-bottom: 1rem;">
+    <summary>Per-Provider Breakdown</summary>
+    <div class="summary-cards" style="margin-top: 0.5rem;">
+        {% for provider_name, token_count in provider_breakdown.items() %}
+        <article>
+            <h3>{{ token_count }}</h3>
+            <p>{{ provider_name|upper }} Tokens</p>
+        </article>
+        {% endfor %}
+    </div>
+</details>
+{% endif %}
+{% elif total_tokens is defined %}
+<article>
+    <p>No scan data available</p>
+</article>
+{% endif %}

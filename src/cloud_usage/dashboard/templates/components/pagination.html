@@ -1,0 +1,23 @@
+{% if total_pages > 1 %}
+<nav aria-label="Pagination" style="text-align: center; margin-top: 1rem;">
+    <div role="group">
+        {% if page > 1 %}
+        <button hx-get="/partials/results-table?page={{ page - 1 }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&page_size={{ page_size }}{% for k, v in active_filters.items() %}&{{ k }}={{ v }}{% endfor %}"
+                hx-target="#results-body"
+                class="outline">Previous</button>
+        {% else %}
+        <button disabled class="outline">Previous</button>
+        {% endif %}
+
+        <button disabled class="outline secondary">Page {{ page }} of {{ total_pages }}</button>
+
+        {% if page < total_pages %}
+        <button hx-get="/partials/results-table?page={{ page + 1 }}&sort_by={{ sort_by }}&sort_dir={{ sort_dir }}&page_size={{ page_size }}{% for k, v in active_filters.items() %}&{{ k }}={{ v }}{% endfor %}"
+                hx-target="#results-body"
+                class="outline">Next</button>
+        {% else %}
+        <button disabled class="outline">Next</button>
+        {% endif %}
+    </div>
+</nav>
+{% endif %}

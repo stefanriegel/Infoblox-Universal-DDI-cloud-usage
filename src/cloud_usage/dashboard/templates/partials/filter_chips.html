@@ -1,0 +1,11 @@
+{% if active_filters %}
+<div class="filter-chips" style="margin-bottom: 0.75rem;">
+    {% for key, value in active_filters.items() %}
+    <span class="chip">{{ key.replace('filter_', '')|replace('_', ' ')|title }}: {{ value }}
+        <a hx-get="/partials/results-table?clear_{{ key }}=1{% for k, v in active_filters.items() %}{% if k != key %}&{{ k }}={{ v }}{% endif %}{% endfor %}"
+           hx-target="#results-body"
+           title="Remove filter">&times;</a>
+    </span>
+    {% endfor %}
+</div>
+{% endif %}

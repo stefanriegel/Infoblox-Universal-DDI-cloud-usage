@@ -1,13 +1,85 @@
-{# Summary tab -- placeholder until Plan 03 adds summary view.
-   Variables: active_tab, scan_state, resource_count #}
+{# Summary tab -- token summary cards and per-provider/per-account breakdowns.
+   Swapped into #tab-container via HTMX.
+   Variables: active_tab, scan_state, resource_count,
+   total_tokens, ddi_count, ip_count, asset_count, provider_breakdown,
+   per_provider_details, per_account_details #}
 <div id="tab-container">
   {% include "partials/tab_bar.html" %}
 
   <div id="tab-content">
-    {% if scan_state == 'complete' %}
-      <p>Summary with token calculations will be displayed here.</p>
-    {% else %}
-      <p>Summary will appear after a scan completes.</p>
+    {% include "partials/summary_cards.html" %}
+
+    {% if per_provider_details %}
+    <h3>Per-Provider Breakdown</h3>
+    <figure>
+    <table role="grid">
+      <thead>
+        <tr>
+          <th>Provider</th>
+          <th>Accounts Scanned</th>
+          <th>DDI Objects</th>
+          <th>Active IPs</th>
+          <th>Managed Assets</th>
+          <th>Tokens</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for provider_name, data in per_provider_details.items()|sort %}
+        <tr>
+          <td>{{ provider_name|upper }}</td>
+          <td>{{ data.accounts }}</td>
+          <td>{{ data.ddi }}</td>
+          <td>{{ data.ips }}</td>
+          <td>{{ data.assets }}</td>
+          <td><strong>{{ data.tokens }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </figure>
     {% endif %}
+
+    {% if per_account_details %}
+    <h3>Per-Account Breakdown</h3>
+    <figure>
+    <table role="grid">
+      <thead>
+        <tr>
+          <th>Account ID</th>
+          <th>Provider</th>
+          <th>DDI</th>
+          <th>IPs</th>
+          <th>Assets</th>
+          <th>Tokens</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for acct in per_account_details %}
+        <tr>
+          <td><small>{{ acct.account_id }}</small></td>
+          <td>{{ acct.provider }}</td>
+          <td>{{ acct.ddi_count }}</td>
+          <td>{{ acct.ip_count }}</td>
+          <td>{{ acct.asset_count }}</td>
+          <td><strong>{{ acct.total_tokens }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </figure>
+    {% endif %}
+
+    {% if not per_provider_details and not per_account_details %}
+    <article>
+      <p>No scan data available. Run a scan from the Progress tab to see token summaries.</p>
+    </article>
+    {% endif %}
+
+    <h3>Download Reports</h3>
+    <article>
+      <p>Report downloads will be available after scan completion.</p>
+      <button disabled class="outline">Download XLSX</button>
+      <button disabled class="outline">Download JSON</button>
+    </article>
   </div>
 </div>
