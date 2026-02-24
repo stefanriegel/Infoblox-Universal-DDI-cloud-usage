@@ -12,6 +12,7 @@ from __future__ import annotations
 import functools
 import logging
 import random
+import threading
 import time
 from typing import Callable
 
@@ -20,6 +21,27 @@ from cloud_usage.errors.taxonomy import ErrorCategory, classify_error
 logger = logging.getLogger(__name__)
 
 _DEFAULT_RETRYABLE = frozenset({ErrorCategory.RATE_LIMIT, ErrorCategory.NETWORK})
+
+_retry_context = threading.local()
+
+
+def set_rate_limit_callback(callback: Callable[[int, Exception, float], None]) -> None:
+    """Set a rate-limit callback for the current thread.
+
+    The retry decorator will call this callback on each retry in addition
+    to any static on_retry parameter. Used by the orchestrator to inject
+    provider-scoped RateLimiter callbacks without modifying the 20+
+    collector decorator applications.
+
+    Args:
+        callback: Function receiving (attempt, exception, sleep_time).
+    """
+    _retry_context.on_retry = callback
+
+
+def clear_rate_limit_callback() -> None:
+    """Clear the rate-limit callback for the current thread."""
+    _retry_context.on_retry = None
 
 
 def retry_with_backoff(
@@ -80,6 +102,10 @@ def retry_with_backoff(
 
                     if on_retry is not None:
                         on_retry(attempt + 1, exc, sleep_time)
+
+                    runtime_callback = getattr(_retry_context, "on_retry", None)
+                    if runtime_callback is not None:
+                        runtime_callback(attempt + 1, exc, sleep_time)
 
                     time.sleep(sleep_time)
 

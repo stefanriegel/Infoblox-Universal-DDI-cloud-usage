@@ -377,3 +377,58 @@ class TestGetSummary:
         tracker = ProgressTracker()
         summary = tracker.get_summary()
         assert summary == {}
+
+
+# -- Tests for throttle reporting --
+
+
+class TestReportThrottle:
+    """Tests for ProgressTracker.report_throttle()."""
+
+    def test_report_throttle_writes_to_stderr(self) -> None:
+        """report_throttle writes throttle message to stderr."""
+        tracker = ProgressTracker()
+        tracker._is_tty = False
+
+        stderr_capture = io.StringIO()
+        with patch("sys.stderr", stderr_capture):
+            tracker.report_throttle("AWS", 3.2)
+
+        output = stderr_capture.getvalue()
+        assert "AWS: rate limited, backing off 3.2s" in output
+
+    def test_report_throttle_tty_uses_carriage_return(self) -> None:
+        """report_throttle uses carriage return on TTY."""
+        tracker = ProgressTracker()
+        tracker._is_tty = True
+
+        stderr_capture = io.StringIO()
+        with patch("sys.stderr", stderr_capture):
+            tracker.report_throttle("AWS", 1.5)
+
+        output = stderr_capture.getvalue()
+        assert output.startswith("\r")
+        assert "AWS: rate limited, backing off 1.5s" in output
+
+
+class TestRecordThrottleEvent:
+    """Tests for ProgressTracker.record_throttle_event()."""
+
+    def test_record_throttle_event_tracks_counts(self) -> None:
+        """record_throttle_event tracks events and throttle_summary returns correct info."""
+        tracker = ProgressTracker()
+        tracker.record_throttle_event("AWS", 2.0)
+        tracker.record_throttle_event("AWS", 5.1)
+        tracker.record_throttle_event("AWS", 3.0)
+        tracker.record_throttle_event("AZURE", 1.5)
+
+        summary = tracker.throttle_summary()
+        assert summary is not None
+        assert "AWS throttled 3 times (max delay 5.1s)" in summary
+        assert "AZURE throttled 1 times (max delay 1.5s)" in summary
+        assert summary.startswith("Rate limiting: ")
+
+    def test_throttle_summary_returns_none_when_empty(self) -> None:
+        """throttle_summary returns None when no throttle events occurred."""
+        tracker = ProgressTracker()
+        assert tracker.throttle_summary() is None

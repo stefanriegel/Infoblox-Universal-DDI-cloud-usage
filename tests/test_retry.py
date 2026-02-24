@@ -10,7 +10,12 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from cloud_usage.errors.taxonomy import ErrorCategory
-from cloud_usage.resilience.retry import retry_with_backoff
+from cloud_usage.resilience.retry import (
+    _retry_context,
+    clear_rate_limit_callback,
+    retry_with_backoff,
+    set_rate_limit_callback,
+)
 
 
 # -- Custom exception classes for testing retry behavior --
@@ -376,3 +381,103 @@ class TestRetryPreservesFunctionMetadata:
             return 42
 
         assert my_function.__doc__ == "My docstring."
+
+
+class TestThreadLocalCallback:
+    """Tests for thread-local rate-limit callback injection."""
+
+    @patch("cloud_usage.resilience.retry.time.sleep")
+    def test_thread_local_callback_called_on_retry(self, mock_sleep):
+        """Thread-local callback is called on each retry with correct args."""
+        callback = MagicMock()
+        set_rate_limit_callback(callback)
+        try:
+            call_count = 0
+
+            @retry_with_backoff(max_retries=3, base_delay=1.0)
+            def fails_once():
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
+                    raise RateLimitError()
+                return "ok"
+
+            result = fails_once()
+
+            assert result == "ok"
+            assert callback.call_count == 1
+            first_call = callback.call_args_list[0]
+            assert first_call[0][0] == 1  # attempt number
+            assert isinstance(first_call[0][1], RateLimitError)  # exception
+            assert isinstance(first_call[0][2], float)  # sleep_time
+        finally:
+            clear_rate_limit_callback()
+
+    @patch("cloud_usage.resilience.retry.time.sleep")
+    def test_thread_local_callback_cleared(self, mock_sleep):
+        """After clearing, thread-local callback is not called on retry."""
+        callback = MagicMock()
+        set_rate_limit_callback(callback)
+        clear_rate_limit_callback()
+
+        call_count = 0
+
+        @retry_with_backoff(max_retries=3, base_delay=1.0)
+        def fails_once():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise RateLimitError()
+            return "ok"
+
+        result = fails_once()
+
+        assert result == "ok"
+        callback.assert_not_called()
+
+    @patch("cloud_usage.resilience.retry.time.sleep")
+    def test_thread_local_and_static_both_called(self, mock_sleep):
+        """Both static on_retry and thread-local callback are called on each retry."""
+        static_callback = MagicMock()
+        thread_local_callback = MagicMock()
+        set_rate_limit_callback(thread_local_callback)
+        try:
+            call_count = 0
+
+            @retry_with_backoff(max_retries=3, base_delay=1.0, on_retry=static_callback)
+            def fails_once():
+                nonlocal call_count
+                call_count += 1
+                if call_count == 1:
+                    raise RateLimitError()
+                return "ok"
+
+            fails_once()
+
+            assert static_callback.call_count == 1
+            assert thread_local_callback.call_count == 1
+        finally:
+            clear_rate_limit_callback()
+
+    @patch("cloud_usage.resilience.retry.time.sleep")
+    def test_thread_local_isolated_per_thread(self, mock_sleep):
+        """Setting a callback in one thread does not affect another thread."""
+        import threading
+
+        callback = MagicMock()
+        set_rate_limit_callback(callback)
+        try:
+            other_thread_value = []
+
+            def check_other_thread():
+                val = getattr(_retry_context, "on_retry", None)
+                other_thread_value.append(val)
+
+            t = threading.Thread(target=check_other_thread)
+            t.start()
+            t.join()
+
+            # The other thread should not see our callback
+            assert other_thread_value[0] is None
+        finally:
+            clear_rate_limit_callback()
