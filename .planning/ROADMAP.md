@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Core Infrastructure** - Foundation abstractions: resource schema, error taxonomy, rate limiter, result collector, checkpoint engine, progress tracking
 - [x] **Phase 2: AWS Provider and End-to-End Pipeline** - First complete vertical slice: AWS discovery through counting, token calculation, and CSV/XLS report output
-- [ ] **Phase 2.1: Wire RateLimiter into Discovery Pipeline** - INSERTED: Gap closure from v1.0 audit — activate RateLimiter coordination in orchestrator and collector decorators, remove dead code
+- [x] **Phase 2.1: Wire RateLimiter into Discovery Pipeline** - INSERTED: Gap closure from v1.0 audit — activate RateLimiter coordination in orchestrator and collector decorators, remove dead code
 - [ ] **Phase 3: Azure Provider** - Azure subscription discovery plugged into the proven pipeline with tenant-level rate limiting
 - [ ] **Phase 4: GCP Provider** - GCP project discovery plugged into the proven pipeline, validated against 87-project reference environment
 - [ ] **Phase 5: Web Dashboard** - FastAPI + HTMX dashboard with real-time SSE progress and results browsing
@@ -71,7 +71,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 02.1-01-PLAN.md -- Wire RateLimiter into retry decorator and orchestrator dispatch loop
+- [x] 02.1-01-PLAN.md -- Wire RateLimiter into retry decorator and orchestrator dispatch loop
 - [x] 02.1-02-PLAN.md -- Remove orphaned count_ips() dead code from counting module
 
 ### Phase 3: Azure Provider
@@ -139,7 +139,7 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 |-------|----------------|--------|-----------|
 | 1. Core Infrastructure | 4/4 | Complete    | 2026-02-23 |
 | 2. AWS Provider and End-to-End Pipeline | 6/6 | Complete | 2026-02-23 |
-| 2.1. Wire RateLimiter (Gap Closure) | 1/2 | In Progress | - |
+| 2.1. Wire RateLimiter (Gap Closure) | 2/2 | Complete | 2026-02-24 |
 | 3. Azure Provider | 0/TBD | Not started | - |
 | 4. GCP Provider | 0/TBD | Not started | - |
 | 5. Web Dashboard | 0/TBD | Not started | - |

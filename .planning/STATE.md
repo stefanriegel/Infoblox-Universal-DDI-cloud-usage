@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Accurate, auditable UDDI token estimation from cloud discovery -- customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Phase 2.1: Wire RateLimiter into Discovery Pipeline (Gap Closure)
+**Current focus:** Phase 2.1: Wire RateLimiter into Discovery Pipeline (Gap Closure) -- COMPLETE
 
 ## Current Position
 
-Phase: 2.1 of 6 (Wire RateLimiter into Discovery Pipeline)
+Phase: 2.1 of 6 (Wire RateLimiter into Discovery Pipeline) -- COMPLETE
 Plan: 2 of 2 in current phase (all plans complete)
 Status: Phase Complete
-Last activity: 2026-02-24 -- Completed 02.1-02-PLAN.md (dead code cleanup, count_ips removal)
+Last activity: 2026-02-24 -- Completed 02.1-01-PLAN.md (RateLimiter wiring into orchestrator and retry decorator)
 
 Progress: [██████████] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Average duration: 7min
-- Total execution time: 1.17 hours
+- Total execution time: 1.32 hours
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [██████████] 50%
 |-------|-------|-------|----------|
 | 01-core-infrastructure | 4 | 15min | 4min |
 | 02-aws-provider-and-end-to-end-pipeline | 6 | 51min | 9min |
-| 02.1-wire-ratelimiter-into-discovery-pipeline | 1 | 8min | 8min |
+| 02.1-wire-ratelimiter-into-discovery-pipeline | 2 | 17min | 9min |
 
 **Recent Trend:**
-- Last 5 plans: 02-03 (7min), 02-04 (7min), 02-05 (5min), 02-06 (22min), 02.1-02 (8min)
-- Trend: Stable execution times for focused cleanup tasks
+- Last 5 plans: 02-04 (7min), 02-05 (5min), 02-06 (22min), 02.1-02 (8min), 02.1-01 (9min)
+- Trend: Stable execution times for focused integration and cleanup tasks
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
@@ -42,6 +42,7 @@ Progress: [██████████] 50%
 | Phase 02 P05 | 5min | 2 tasks | 6 files |
 | Phase 02 P06 | 22min | 3 tasks | 7 files (+15 deleted) |
 | Phase 02.1 P02 | 8min | 1 task | 2 files |
+| Phase 02.1 P01 | 9min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,10 @@ Recent decisions affecting current work:
 - [02-06]: Legacy code (aws_discovery/, shared/, main.py) deleted after integration tests confirm Phase 2 works
 - [02.1-02]: Removed import ipaddress from ip_counter.py -- only needed by deleted count_ips(), not by deduplicate_ips_per_vpc()
 - [02.1-02]: Updated ip_counter module docstring to reflect per-VPC deduplication scope only (removed "IP extraction" reference)
+- [02.1-01]: Thread-local _retry_context for runtime on_retry injection (zero changes to 20+ collector decorators)
+- [02.1-01]: classify_error() called twice per retry (once in decorator, once in callback) -- acceptable for pure string matching
+- [02.1-01]: Non-rate-limit transient errors (network, 503) do NOT affect RateLimiter state
+- [02.1-01]: Dispatch loop refactored from dict comprehension to sequential for-loop for delay injection
 
 ### Pending Todos
 
@@ -105,5 +110,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 02.1-02-PLAN.md (dead code cleanup, count_ips removal)
+Stopped at: Completed 02.1-01-PLAN.md (RateLimiter wiring, Phase 2.1 complete)
 Resume file: None
