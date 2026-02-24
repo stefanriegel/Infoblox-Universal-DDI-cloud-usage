@@ -11,17 +11,39 @@ from cloud_usage.schema.resource import CloudResource
 
 # Resource types that are DDI objects (counted toward DDI token bucket)
 DDI_TYPES: set[str] = {
+    # AWS DDI types
     "vpc",
     "subnet",
     "route53-zone",
     "route53-record",
     "dhcp-option-set",
+    # Azure DDI types
+    "azure-vnet",
+    "azure-subnet",
+    "azure-dns-zone",
+    "azure-private-dns-zone",
+    "azure-dns-record",
+    "azure-private-dns-record",
+    "azure-dhcp-config",
 }
 
 # Resource types that are discovered but not counted (token-free)
 TOKEN_FREE_TYPES: dict[str, str] = {
+    # AWS token-free types
     "ebs-volume": "token-free: EBS Volume",
     "s3-bucket": "token-free: S3 Bucket",
+    # Azure token-free types (per ASSET-04)
+    "azure-disk": "token-free: Azure VM Disk",
+    "azure-management-group": "token-free: Azure Management Group",
+    "azure-monitoring-stats": "token-free: Azure VM Monitoring Stats",
+    "azure-flow-log": "token-free: Azure Network Watcher Flow Log",
+    "azure-network-watcher": "token-free: Azure Network Watcher",
+    "azure-storage-account": "token-free: Azure Storage Account",
+    "azure-storage-container": "token-free: Azure Storage Container",
+    "azure-subscription-tenant": "token-free: Azure Subscription Tenant",
+    "azure-traffic-manager": "token-free: Azure Traffic Manager Profile",
+    "azure-resource-group": "token-free: Azure Resource Group",
+    "azure-nsg": "token-free: Azure Network Security Group",
 }
 
 

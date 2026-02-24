@@ -198,3 +198,164 @@ class TestCategorizePreservesExistingFields:
         assert result.tags == {"env": "prod"}
         assert result.details["instance_type"] == "t3.medium"
         assert result.ip_addresses == ["10.0.1.5"]
+
+
+# --- Azure DDI type tests ---
+
+
+def _make_azure_resource(
+    resource_type: str = "azure-vnet",
+    ip_addresses: list[str] | None = None,
+    details: dict | None = None,
+    account_id: str = "00000000-0000-0000-0000-000000000001",
+    region: str = "eastus",
+) -> CloudResource:
+    """Helper to create an Azure CloudResource with sensible defaults."""
+    return CloudResource(
+        resource_id=f"/subscriptions/{account_id}/resourceGroups/rg/{resource_type}/test",
+        resource_type=resource_type,
+        provider="azure",
+        account_id=account_id,
+        region=region,
+        name=f"test-{resource_type}",
+        ip_addresses=ip_addresses or [],
+        details=details or {},
+        tags={},
+        discovered_at="2026-02-24T10:00:00",
+    )
+
+
+class TestCategorizeAzureDDIResources:
+    """Azure DDI resource types are categorized as category='ddi', counted=True."""
+
+    def test_azure_vnet_is_ddi(self):
+        resources = categorize_resources([_make_azure_resource("azure-vnet")])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+        assert resources[0].skip_reason is None
+
+    def test_azure_subnet_is_ddi(self):
+        resources = categorize_resources([_make_azure_resource("azure-subnet")])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+    def test_azure_dns_zone_is_ddi(self):
+        resources = categorize_resources([_make_azure_resource("azure-dns-zone")])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+    def test_azure_private_dns_zone_is_ddi(self):
+        resources = categorize_resources([_make_azure_resource("azure-private-dns-zone")])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+    def test_azure_dns_record_is_ddi(self):
+        resources = categorize_resources([_make_azure_resource("azure-dns-record")])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+    def test_azure_private_dns_record_is_ddi(self):
+        resources = categorize_resources([_make_azure_resource("azure-private-dns-record")])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+    def test_azure_dhcp_config_is_ddi(self):
+        resources = categorize_resources([_make_azure_resource("azure-dhcp-config")])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+
+class TestCategorizeAzureTokenFreeResources:
+    """Azure token-free resources are excluded with specific skip reasons."""
+
+    def test_azure_disk_is_token_free(self):
+        resources = categorize_resources([_make_azure_resource("azure-disk")])
+        assert resources[0].counted is False
+        assert resources[0].category is None
+        assert resources[0].skip_reason == "token-free: Azure VM Disk"
+
+    def test_azure_nsg_is_token_free(self):
+        resources = categorize_resources([_make_azure_resource("azure-nsg")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: Azure Network Security Group"
+
+    def test_azure_storage_account_is_token_free(self):
+        resources = categorize_resources([_make_azure_resource("azure-storage-account")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: Azure Storage Account"
+
+    def test_azure_storage_container_is_token_free(self):
+        resources = categorize_resources([_make_azure_resource("azure-storage-container")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: Azure Storage Container"
+
+    def test_azure_management_group_is_token_free(self):
+        resources = categorize_resources([_make_azure_resource("azure-management-group")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: Azure Management Group"
+
+    def test_azure_resource_group_is_token_free(self):
+        resources = categorize_resources([_make_azure_resource("azure-resource-group")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: Azure Resource Group"
+
+    def test_azure_traffic_manager_is_token_free(self):
+        resources = categorize_resources([_make_azure_resource("azure-traffic-manager")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: Azure Traffic Manager Profile"
+
+    def test_azure_network_watcher_is_token_free(self):
+        resources = categorize_resources([_make_azure_resource("azure-network-watcher")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: Azure Network Watcher"
+
+    def test_azure_flow_log_is_token_free(self):
+        resources = categorize_resources([_make_azure_resource("azure-flow-log")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: Azure Network Watcher Flow Log"
+
+    def test_azure_monitoring_stats_is_token_free(self):
+        resources = categorize_resources([_make_azure_resource("azure-monitoring-stats")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: Azure VM Monitoring Stats"
+
+    def test_azure_subscription_tenant_is_token_free(self):
+        resources = categorize_resources([_make_azure_resource("azure-subscription-tenant")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: Azure Subscription Tenant"
+
+
+class TestCategorizeAzureAssetResources:
+    """Azure resources with IPs are categorized as managed assets."""
+
+    def test_azure_nic_with_ips_is_asset(self):
+        r = _make_azure_resource("azure-nic", ip_addresses=["10.0.1.5"])
+        resources = categorize_resources([r])
+        assert resources[0].counted is True
+        assert resources[0].category == "asset"
+
+    def test_azure_public_ip_with_ips_is_asset(self):
+        r = _make_azure_resource("azure-public-ip", ip_addresses=["52.168.1.1"])
+        resources = categorize_resources([r])
+        assert resources[0].counted is True
+        assert resources[0].category == "asset"
+
+
+class TestCategorizeAzureMixedBatch:
+    """Categorizing a batch of mixed Azure and AWS resources."""
+
+    def test_mixed_azure_aws_batch(self):
+        resources = [
+            _make_resource("vpc"),  # AWS DDI
+            _make_azure_resource("azure-vnet"),  # Azure DDI
+            _make_resource("ebs-volume"),  # AWS token-free
+            _make_azure_resource("azure-disk"),  # Azure token-free
+            _make_azure_resource("azure-nic", ip_addresses=["10.0.1.5"]),  # Azure asset
+        ]
+        result = categorize_resources(resources)
+
+        assert result[0].category == "ddi"  # VPC
+        assert result[1].category == "ddi"  # azure-vnet
+        assert result[2].skip_reason == "token-free: EBS Volume"  # EBS
+        assert result[3].skip_reason == "token-free: Azure VM Disk"  # azure-disk
+        assert result[4].category == "asset"  # azure-nic with IP
