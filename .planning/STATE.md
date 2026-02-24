@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 3 of 6 (Azure Provider)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: Executing
-Last activity: 2026-02-24 -- Completed 03-02-PLAN.md (Azure DDI & DNS collectors)
+Last activity: 2026-02-24 -- Completed 03-03-PLAN.md (Azure compute, database, PaaS, hybrid networking)
 
-Progress: [██████████████] 58%
+Progress: [███████████████] 62%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
-- Average duration: 7min
-- Total execution time: 1.54 hours
+- Total plans completed: 15
+- Average duration: 8min
+- Total execution time: 1.77 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [██████████████] 58%
 | 01-core-infrastructure | 4 | 15min | 4min |
 | 02-aws-provider-and-end-to-end-pipeline | 6 | 51min | 9min |
 | 02.1-wire-ratelimiter-into-discovery-pipeline | 2 | 17min | 9min |
-| 03-azure-provider | 2 | 13min | 7min |
+| 03-azure-provider | 3 | 27min | 9min |
 
 **Recent Trend:**
-- Last 5 plans: 02-06 (22min), 02.1-02 (8min), 02.1-01 (9min), 03-01 (7min), 03-02 (6min)
-- Trend: Stable execution times for focused collector tasks
+- Last 5 plans: 02.1-02 (8min), 02.1-01 (9min), 03-01 (7min), 03-02 (6min), 03-03 (14min)
+- Trend: Larger collector plans take longer but remain reasonable
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
@@ -46,6 +46,7 @@ Progress: [██████████████] 58%
 | Phase 02.1 P01 | 9min | 2 tasks | 6 files |
 | Phase 03 P01 | 7min | 2 tasks | 10 files |
 | Phase 03 P02 | 6min | 2 tasks | 5 files |
+| Phase 03 P03 | 14min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,13 @@ Recent decisions affecting current work:
 - [03-02]: DNS record type parsed from full ARM type path via split('/')[-1] (e.g., Microsoft.Network/dnszones/A -> A)
 - [03-02]: Per-zone error isolation in DNS record collectors (try/except per zone, log warning, continue)
 - [03-02]: NIC private IPs extracted from ip_configurations; public IPs collected separately per Pitfall 4
+- [03-03]: VMs set ip_addresses=[] with NIC IDs in details -- NICs collected separately as standalone assets
+- [03-03]: VMSS instances enumerated individually per scale set with per-instance NIC IP extraction
+- [03-03]: All PaaS databases set ip_addresses=[] -- IPs attributed via private endpoints per CONTEXT.md
+- [03-03]: Redis includes static_ip in ip_addresses when set, otherwise empty
+- [03-03]: App Services/Functions parse comma-separated inbound+outbound IPs with deduplication
+- [03-03]: Container Apps uses collect_azure_container_apps_with_client pattern for graceful SDK fallback
+- [03-03]: VPN gateways iterated per unique resource group from VNet discovery (no subscription-level API)
 
 ### Pending Todos
 
@@ -122,5 +130,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 03-02-PLAN.md (Azure DDI & DNS collectors)
+Stopped at: Completed 03-03-PLAN.md (Azure compute, database, PaaS, hybrid networking)
 Resume file: None
