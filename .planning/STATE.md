@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 3 of 6 (Azure Provider)
-Plan: 3 of 4 in current phase
-Status: Executing
-Last activity: 2026-02-24 -- Completed 03-03-PLAN.md (Azure compute, database, PaaS, hybrid networking)
+Phase: 3 of 6 (Azure Provider) -- COMPLETE
+Plan: 4 of 4 in current phase (all complete)
+Status: Phase Complete
+Last activity: 2026-02-24 -- Completed 03-04-PLAN.md (Azure integration, token-free, legacy cleanup)
 
-Progress: [███████████████] 62%
+Progress: [████████████████] 67%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 15
+- Total plans completed: 16
 - Average duration: 8min
-- Total execution time: 1.77 hours
+- Total execution time: 1.99 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [███████████████] 62%
 | 01-core-infrastructure | 4 | 15min | 4min |
 | 02-aws-provider-and-end-to-end-pipeline | 6 | 51min | 9min |
 | 02.1-wire-ratelimiter-into-discovery-pipeline | 2 | 17min | 9min |
-| 03-azure-provider | 3 | 27min | 9min |
+| 03-azure-provider | 4 | 40min | 10min |
 
 **Recent Trend:**
-- Last 5 plans: 02.1-02 (8min), 02.1-01 (9min), 03-01 (7min), 03-02 (6min), 03-03 (14min)
-- Trend: Larger collector plans take longer but remain reasonable
+- Last 5 plans: 02.1-01 (9min), 03-01 (7min), 03-02 (6min), 03-03 (14min), 03-04 (13min)
+- Trend: Integration plans (03-03, 03-04) take 13-14min, consistent for scope
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
@@ -47,6 +47,7 @@ Progress: [███████████████] 62%
 | Phase 03 P01 | 7min | 2 tasks | 10 files |
 | Phase 03 P02 | 6min | 2 tasks | 5 files |
 | Phase 03 P03 | 14min | 2 tasks | 8 files |
+| Phase 03 P04 | 13min | 3 tasks | 14 files (+6 deleted) |
 
 ## Accumulated Context
 
@@ -117,6 +118,13 @@ Recent decisions affecting current work:
 - [03-03]: App Services/Functions parse comma-separated inbound+outbound IPs with deduplication
 - [03-03]: Container Apps uses collect_azure_container_apps_with_client pattern for graceful SDK fallback
 - [03-03]: VPN gateways iterated per unique resource group from VNet discovery (no subscription-level API)
+- [03-04]: Token-free collectors use @retry_with_backoff(max_retries=3) consistent with all other Azure collectors
+- [03-04]: Management groups attributed to the scanning subscription (tenant-level API)
+- [03-04]: Storage containers collected per-account with try/except for blob-access-disabled accounts
+- [03-04]: discover_account() collects VNets first for dependency ordering (subnets, DHCP, peerings, VPN gateways)
+- [03-04]: 429 throttle detection in _safe_collect checks exc.status_code and emits visible WARNING per CONTEXT.md
+- [03-04]: Azure XLS detail sheet dynamically adds Resource Group column based on provider parameter
+- [03-04]: Legacy azure_discovery/ and root test_checkpoint.py deleted after all 653 tests pass
 
 ### Pending Todos
 
@@ -130,5 +138,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 03-03-PLAN.md (Azure compute, database, PaaS, hybrid networking)
+Stopped at: Completed 03-04-PLAN.md -- Phase 3 (Azure Provider) fully complete
 Resume file: None

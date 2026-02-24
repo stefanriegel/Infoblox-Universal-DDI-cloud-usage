@@ -44,7 +44,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **ASSET-01**: Tool counts resources with at least one associated IP address as managed assets (VMs, load balancers, gateways, firewalls, NICs, etc.)
 - [x] **ASSET-02**: Resources without IP addresses are discovered but not counted toward tokens (security groups, S3 buckets, subnets-as-objects, projects)
 - [x] **ASSET-03**: Token-free resources are explicitly excluded even if they have IPs — AWS: EBS Volumes, S3 Buckets
-- [ ] **ASSET-04**: Token-free resources are explicitly excluded — Azure: VM Disks, Management Groups, VM Monitoring Stats, Network Watcher Flow Logs, Network Watchers, Storage Accounts, Storage Containers, Subscription Tenants, Traffic Manager Profiles
+- [x] **ASSET-04**: Token-free resources are explicitly excluded — Azure: VM Disks, Management Groups, VM Monitoring Stats, Network Watcher Flow Logs, Network Watchers, Storage Accounts, Storage Containers, Subscription Tenants, Traffic Manager Profiles
 - [ ] **ASSET-05**: Token-free resources are explicitly excluded — GCP: Compute Persistent Disks, Instance Groups, URL Maps, Cloud Monitoring Metric Stats, Network Connectivity Locations, Cloud Storage Bucket Policies, Cloud Storage Buckets
 - [x] **ASSET-06**: Assets are de-duplicated across sources so the same asset from multiple discovery paths counts once
 
@@ -143,7 +143,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ASSET-01 | Phase 2 | Complete |
 | ASSET-02 | Phase 2 | Complete |
 | ASSET-03 | Phase 2 | Complete |
-| ASSET-04 | Phase 3 | Pending |
+| ASSET-04 | Phase 3 | Complete |
 | ASSET-05 | Phase 4 | Pending |
 | ASSET-06 | Phase 2 | Complete |
 | TOKEN-01 | Phase 2 | Complete |
