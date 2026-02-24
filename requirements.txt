@@ -41,6 +41,14 @@ xlsxwriter>=3.1.0
 tqdm>=4.64.0
 pandas>=1.5.0
 
+# Dashboard Dependencies
+fastapi>=0.115.0
+uvicorn>=0.34.0
+jinja2>=3.1.0
+python-multipart>=0.0.5
+janus>=2.0.0
+httpx>=0.24.0
+
 # Development Dependencies (optional)
 pytest>=8.0.0
 moto[all]>=5.0.0
