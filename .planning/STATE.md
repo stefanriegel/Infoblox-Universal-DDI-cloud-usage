@@ -19,9 +19,9 @@ Progress: [███████████████████████
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
+- Total plans completed: 24
 - Average duration: 8min
-- Total execution time: 2.88 hours
+- Total execution time: 3.10 hours
 
 **By Phase:**
 
@@ -32,10 +32,10 @@ Progress: [███████████████████████
 | 02.1-wire-ratelimiter-into-discovery-pipeline | 2 | 17min | 9min |
 | 03-azure-provider | 4 | 40min | 10min |
 | 04-gcp-provider | 4 | 33min | 8min |
-| 05-web-dashboard | 3/4 | 21min | 7min |
+| 05-web-dashboard | 3/4 | 34min | 11min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (9min), 04-04 (6min), 05-01 (8min), 05-02 (est), 05-03 (13min)
+- Last 5 plans: 04-03 (9min), 04-04 (6min), 05-01 (8min), 05-02 (13min), 05-03 (13min)
 - Trend: Foundation plans take 8-11min, collector plans 7-9min, integration plans 13min, dashboard tabs 8-13min
 
 *Updated after each plan completion*
@@ -55,6 +55,7 @@ Progress: [███████████████████████
 | Phase 04 P03 | 9min | 2 tasks | 4 files |
 | Phase 04 P04 | 6min | 4 tasks | 8 files (+5 deleted) |
 | Phase 05 P01 | 8min | 2 tasks | 14 files |
+| Phase 05 P02 | 13min | 2 tasks | 13 files |
 | Phase 05 P03 | 13min | 2 tasks | 10 files |
 
 ## Accumulated Context
@@ -155,6 +156,10 @@ Recent decisions affecting current work:
 - [05-01]: EventBridge uses per-subscriber fan-out queues (not single shared queue) for multi-client SSE support
 - [05-01]: TemplateResponse uses new API with request as first parameter (avoids deprecation warning)
 - [05-01]: ScanManager accepts config_path parameter for testable config persistence via tmp_path
+- [05-02]: SSE endpoint tests use threaded emit_done() to avoid blocking the streaming response
+- [05-02]: DashboardProgressTracker emits progress_{provider_lower} event names for HTMX sse-swap matching
+- [05-02]: Tab endpoints return full #tab-container div (tab bar + content) for HTMX HATEOAS pattern
+- [05-02]: Base.html uses hx-get=/tab/progress hx-trigger=load for initial tab content load
 - [05-03]: Partials router uses /partials prefix for all HTMX fragment endpoints
 - [05-03]: Filter options built from ALL resources (not filtered subset) for consistent dropdown population
 - [05-03]: Summary calculation reuses counting pipeline (calculate_account_tokens, deduplicate_ips_per_vpc) for CLI-consistent output

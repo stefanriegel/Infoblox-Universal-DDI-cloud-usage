@@ -120,9 +120,9 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 05-01-PLAN.md -- FastAPI app factory, vendored static assets, base template, EventBridge, ScanManager
-- [ ] 05-02-PLAN.md -- HTMX tab navigation, SSE progress endpoint, DashboardProgressTracker
-- [ ] 05-03-PLAN.md -- Results table with filtering/pagination, Summary tab with token cards
+- [x] 05-01-PLAN.md -- FastAPI app factory, vendored static assets, base template, EventBridge, ScanManager
+- [x] 05-02-PLAN.md -- HTMX tab navigation, SSE progress endpoint, DashboardProgressTracker
+- [x] 05-03-PLAN.md -- Results table with filtering/pagination, Summary tab with token cards
 - [ ] 05-04-PLAN.md -- Scan wizard, download endpoints, CLI --web flag
 
 ### Phase 6: Platform Hardening
@@ -164,6 +164,6 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 2.1. Wire RateLimiter (Gap Closure) | 2/2 | Complete | 2026-02-24 |
 | 3. Azure Provider | 4/4 | Complete | 2026-02-24 |
 | 4. GCP Provider | 4/4 | Complete    | 2026-02-24 |
-| 5. Web Dashboard | 0/4 | Not started | - |
+| 5. Web Dashboard | 3/4 | In progress | - |
 | 6. Platform Hardening | 0/TBD | Not started | - |
 | 7. Integration Gap Closure | 0/TBD | Not started | - |
