@@ -136,6 +136,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Show scan plan (accounts, regions, resource types) without making discovery API calls",
     )
 
+    # Azure-specific options
+    parser.add_argument(
+        "--include-subscriptions",
+        type=str,
+        default=None,
+        help="Comma-separated Azure subscription IDs or display names to include (takes precedence over --exclude-subscriptions)",
+    )
+    parser.add_argument(
+        "--exclude-subscriptions",
+        type=str,
+        default=None,
+        help="Comma-separated Azure subscription IDs or display names to exclude from scan",
+    )
+
     return parser.parse_args(argv)
 
 
@@ -476,11 +490,14 @@ def _get_auth_validators(
         Dict mapping provider name to AuthValidator instance.
     """
     from cloud_usage.providers.aws.auth import AWSAuthValidator
+    from cloud_usage.providers.azure.auth import AzureAuthValidator
 
     validators: dict = {}
     if "aws" in selected:
         validators["aws"] = AWSAuthValidator(profile=args.profile)
-    # Azure and GCP validators will be added in Phases 3-4
+    if "azure" in selected:
+        validators["azure"] = AzureAuthValidator()
+    # GCP validator will be added in Phase 4
     return validators
 
 
@@ -500,6 +517,8 @@ def _get_discovery_providers(selected: list[str], args: argparse.Namespace) -> l
     import boto3
 
     from cloud_usage.providers.aws.provider import AWSDiscoveryProvider
+    from cloud_usage.providers.azure.provider import AzureDiscoveryProvider
+    from cloud_usage.providers.azure.subscriptions import list_subscriptions
 
     providers: list = []
 
@@ -516,7 +535,32 @@ def _get_discovery_providers(selected: list[str], args: argparse.Namespace) -> l
             )
         )
 
-    # Azure and GCP providers will be added in Phases 3-4
+    if "azure" in selected:
+        from azure.identity import DefaultAzureCredential
+
+        credential = DefaultAzureCredential()
+        subscriptions = list_subscriptions(credential)
+
+        # Pre-scan display: show tenant ID and subscription count
+        if subscriptions:
+            tenant_id = subscriptions[0].get("tenant_id", "unknown")
+            sys.stderr.write(
+                f"\nAzure: Tenant {tenant_id}, "
+                f"{len(subscriptions)} enabled subscription(s)\n"
+            )
+
+        include_subs = _parse_account_list(args.include_subscriptions)
+        exclude_subs = _parse_account_list(args.exclude_subscriptions)
+        providers.append(
+            AzureDiscoveryProvider(
+                credential=credential,
+                subscriptions=subscriptions,
+                include_subscriptions=include_subs,
+                exclude_subscriptions=exclude_subs,
+            )
+        )
+
+    # GCP provider will be added in Phase 4
 
     return providers
 
