@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 5 of 6 (Web Dashboard)
-Plan: 1 of 4 in current phase
-Status: Plan 05-01 complete
-Last activity: 2026-02-24 -- Plan 05-01 complete
+Plan: 3 of 4 in current phase
+Status: Plan 05-03 complete
+Last activity: 2026-02-24 -- Plan 05-03 complete
 
-Progress: [█████████████████████] 88%
+Progress: [████████████████████████] 96%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
+- Total plans completed: 23
 - Average duration: 8min
-- Total execution time: 2.66 hours
+- Total execution time: 2.88 hours
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [█████████████████████] 88%
 | 02.1-wire-ratelimiter-into-discovery-pipeline | 2 | 17min | 9min |
 | 03-azure-provider | 4 | 40min | 10min |
 | 04-gcp-provider | 4 | 33min | 8min |
-| 05-web-dashboard | 1/4 | 8min | 8min |
+| 05-web-dashboard | 3/4 | 21min | 7min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (11min), 04-02 (7min), 04-03 (9min), 04-04 (6min), 05-01 (8min)
-- Trend: Foundation plans take 8-11min, collector plans 7-9min, integration plans 13min, dashboard foundation 8min
+- Last 5 plans: 04-03 (9min), 04-04 (6min), 05-01 (8min), 05-02 (est), 05-03 (13min)
+- Trend: Foundation plans take 8-11min, collector plans 7-9min, integration plans 13min, dashboard tabs 8-13min
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
@@ -55,6 +55,7 @@ Progress: [█████████████████████] 88%
 | Phase 04 P03 | 9min | 2 tasks | 4 files |
 | Phase 04 P04 | 6min | 4 tasks | 8 files (+5 deleted) |
 | Phase 05 P01 | 8min | 2 tasks | 14 files |
+| Phase 05 P03 | 13min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -154,6 +155,10 @@ Recent decisions affecting current work:
 - [05-01]: EventBridge uses per-subscriber fan-out queues (not single shared queue) for multi-client SSE support
 - [05-01]: TemplateResponse uses new API with request as first parameter (avoids deprecation warning)
 - [05-01]: ScanManager accepts config_path parameter for testable config persistence via tmp_path
+- [05-03]: Partials router uses /partials prefix for all HTMX fragment endpoints
+- [05-03]: Filter options built from ALL resources (not filtered subset) for consistent dropdown population
+- [05-03]: Summary calculation reuses counting pipeline (calculate_account_tokens, deduplicate_ips_per_vpc) for CLI-consistent output
+- [05-03]: Results/Summary templates follow Plan 02 tab-container HTMX swap pattern (not base.html extensions)
 
 ### Pending Todos
 
@@ -167,5 +172,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 05-01-PLAN.md
-Resume file: .planning/phases/05-web-dashboard/05-01-SUMMARY.md
+Stopped at: Completed 05-03-PLAN.md
+Resume file: .planning/phases/05-web-dashboard/05-03-SUMMARY.md
