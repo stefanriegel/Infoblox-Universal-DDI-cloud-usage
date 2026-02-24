@@ -100,11 +100,13 @@ Plans:
   2. GCP-specific token-free resources (Compute Persistent Disks, Instance Groups, URL Maps, Cloud Monitoring Metric Stats, Network Connectivity Locations, Cloud Storage Bucket Policies, Cloud Storage Buckets) are correctly excluded from token calculation
   3. GCP discovery uses aggregatedList endpoints where available, reducing API call volume compared to per-region listing
   4. GCP discovery results match expected counts when validated against a production environment with 87 projects (REF-01 reference implementation)
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- GCP auth validator, project enumeration, client factory, provider skeleton, CLI integration
+- [ ] 04-02-PLAN.md -- DDI collectors (VPCs, subnets) + DNS collectors (zones, records) + networking (reserved IPs)
+- [ ] 04-03-PLAN.md -- Compute (VMs, forwarding rules) + database (Cloud SQL) collectors
+- [ ] 04-04-PLAN.md -- Token-free collectors, categorizer extension, provider wiring, integration tests, legacy deletion
 
 ### Phase 5: Web Dashboard
 **Goal**: Users can monitor discovery progress in real-time and browse results through a browser-based dashboard without CLI expertise
