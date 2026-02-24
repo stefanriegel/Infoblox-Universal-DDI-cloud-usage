@@ -62,6 +62,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--web",
+        action="store_true",
+        default=False,
+        help="Launch web dashboard instead of CLI scan",
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8080,
+        help="Port for web dashboard (default: 8080)",
+    )
+    parser.add_argument(
         "--aws",
         action="store_true",
         default=False,
@@ -259,6 +271,26 @@ def main(argv: list[str] | None = None) -> int:
         Exit code: 0 on success, 1 on failure.
     """
     args = parse_args(argv)
+
+    # Web dashboard mode
+    if args.web:
+        try:
+            import uvicorn
+
+            from cloud_usage.dashboard.app import create_app
+        except ImportError:
+            sys.stderr.write(
+                "Dashboard dependencies not installed. Run:\n"
+                "  pip install fastapi uvicorn jinja2 janus python-multipart\n"
+            )
+            return 1
+
+        sys.stderr.write(
+            f"\nStarting UDDI Cloud Usage Estimator dashboard at "
+            f"http://localhost:{args.port}\n"
+        )
+        uvicorn.run(create_app(), host="0.0.0.0", port=args.port)
+        return 0
 
     # Determine selected providers
     if args.aws or args.azure or args.gcp:

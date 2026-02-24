@@ -77,9 +77,18 @@
 
     <h3>Download Reports</h3>
     <article>
-      <p>Report downloads will be available after scan completion.</p>
-      <button disabled class="outline">Download XLSX</button>
-      <button disabled class="outline">Download JSON</button>
+      {% if downloads and downloads|length > 0 %}
+        <p>Download scan reports:</p>
+        {% for d in downloads %}
+          <a href="{{ d.url }}" class="outline" role="button" style="margin-right: 0.5rem; margin-bottom: 0.5rem;">
+            {{ d.filename }}
+          </a>
+        {% endfor %}
+      {% else %}
+        <p>Report downloads will be available after scan completion.</p>
+        <button disabled class="outline">Download XLSX</button>
+        <button disabled class="outline">Download JSON</button>
+      {% endif %}
     </article>
   </div>
 </div>

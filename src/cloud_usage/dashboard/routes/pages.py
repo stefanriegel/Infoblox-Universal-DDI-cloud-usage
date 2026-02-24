@@ -246,6 +246,7 @@ async def tab_summary(request: Request) -> HTMLResponse:
 
     Calculates summary data from scan_manager resources using the
     counting pipeline functions for consistency with CLI output.
+    Includes download links for generated output files.
 
     Args:
         request: The incoming HTTP request.
@@ -258,9 +259,22 @@ async def tab_summary(request: Request) -> HTMLResponse:
 
     summary = _compute_summary(all_resources)
 
+    # Build download list from output paths
+    import os
+
+    downloads = []
+    for file_type, file_path in scan_manager.output_paths.items():
+        filename = os.path.basename(file_path)
+        downloads.append({
+            "type": file_type,
+            "filename": filename,
+            "url": f"/download/{filename}",
+        })
+
     templates = request.app.state.templates
     context = _get_tab_context(request, "summary")
     context.update(summary)
+    context["downloads"] = downloads
     return templates.TemplateResponse(
         request, "pages/summary.html", context
     )

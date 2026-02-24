@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from cloud_usage.dashboard.routes.download import router as download_router
 from cloud_usage.dashboard.routes.pages import router as pages_router
 from cloud_usage.dashboard.routes.partials import router as partials_router
 from cloud_usage.dashboard.routes.scan import router as scan_router
@@ -79,6 +80,7 @@ def create_app() -> FastAPI:
     )
 
     # Include route modules
+    app.include_router(download_router)
     app.include_router(pages_router)
     app.include_router(partials_router)
     app.include_router(scan_router)
