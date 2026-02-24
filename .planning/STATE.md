@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 3 of 6 (Azure Provider)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: Executing
-Last activity: 2026-02-24 -- Completed 03-01-PLAN.md (Azure provider foundation)
+Last activity: 2026-02-24 -- Completed 03-02-PLAN.md (Azure DDI & DNS collectors)
 
-Progress: [█████████████] 54%
+Progress: [██████████████] 58%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 14
 - Average duration: 7min
-- Total execution time: 1.44 hours
+- Total execution time: 1.54 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [█████████████] 54%
 | 01-core-infrastructure | 4 | 15min | 4min |
 | 02-aws-provider-and-end-to-end-pipeline | 6 | 51min | 9min |
 | 02.1-wire-ratelimiter-into-discovery-pipeline | 2 | 17min | 9min |
-| 03-azure-provider | 1 | 7min | 7min |
+| 03-azure-provider | 2 | 13min | 7min |
 
 **Recent Trend:**
-- Last 5 plans: 02-05 (5min), 02-06 (22min), 02.1-02 (8min), 02.1-01 (9min), 03-01 (7min)
-- Trend: Stable execution times for focused integration and cleanup tasks
+- Last 5 plans: 02-06 (22min), 02.1-02 (8min), 02.1-01 (9min), 03-01 (7min), 03-02 (6min)
+- Trend: Stable execution times for focused collector tasks
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
@@ -45,6 +45,7 @@ Progress: [█████████████] 54%
 | Phase 02.1 P02 | 8min | 1 task | 2 files |
 | Phase 02.1 P01 | 9min | 2 tasks | 6 files |
 | Phase 03 P01 | 7min | 2 tasks | 10 files |
+| Phase 03 P02 | 6min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -104,6 +105,10 @@ Recent decisions affecting current work:
 - [03-01]: _extract_resource_group uses case-insensitive segment matching per Azure ARM behavior
 - [03-01]: Subscription filtering uses case-insensitive matching for display names
 - [03-01]: PostgreSQL uses PostgreSQLFlexibleManagementClient (flexible servers API, not legacy single server)
+- [03-02]: DHCP configs extracted from VNet details as separate CloudResource (resource_id={vnet_id}/dhcpOptions, no SDK call)
+- [03-02]: DNS record type parsed from full ARM type path via split('/')[-1] (e.g., Microsoft.Network/dnszones/A -> A)
+- [03-02]: Per-zone error isolation in DNS record collectors (try/except per zone, log warning, continue)
+- [03-02]: NIC private IPs extracted from ip_configurations; public IPs collected separately per Pitfall 4
 
 ### Pending Todos
 
@@ -117,5 +122,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 03-01-PLAN.md (Azure provider foundation)
+Stopped at: Completed 03-02-PLAN.md (Azure DDI & DNS collectors)
 Resume file: None
