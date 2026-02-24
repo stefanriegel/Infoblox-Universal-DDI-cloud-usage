@@ -71,8 +71,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Platform & UX
 
 - [ ] **PLAT-01**: Tool runs on Windows 11, WSL on Windows 11, and macOS
-- [ ] **PLAT-02**: Web dashboard (FastAPI + HTML) shows discovery progress in real-time via SSE
-- [ ] **PLAT-03**: Web dashboard displays results with filtering and token calculation summary
+- [x] **PLAT-02**: Web dashboard (FastAPI + HTML) shows discovery progress in real-time via SSE
+- [x] **PLAT-03**: Web dashboard displays results with filtering and token calculation summary
 - [ ] **PLAT-04**: PowerShell setup scripts are provided and signed (self-signed certificate)
 - [x] **PLAT-05**: Codebase is single-language Python for customer auditability — no compiled dependencies, no obfuscation, no telemetry
 
@@ -158,8 +158,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RESIL-02 | Phase 1 | Complete |
 | RESIL-03 | Phase 1 | Complete |
 | PLAT-01 | Phase 6 | Pending |
-| PLAT-02 | Phase 5 | Pending |
-| PLAT-03 | Phase 5 | Pending |
+| PLAT-02 | Phase 5 | Complete |
+| PLAT-03 | Phase 5 | Complete |
 | PLAT-04 | Phase 6 | Pending |
 | PLAT-05 | Phase 1 | Complete |
 | REF-01 | Phase 4 | Pending (human validation) |

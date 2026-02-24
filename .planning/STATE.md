@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Accurate, auditable UDDI token estimation from cloud discovery -- customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Phase 4: GCP Provider
+**Current focus:** Phase 5: Web Dashboard
 
 ## Current Position
 
-Phase: 4 of 6 (GCP Provider) -- Complete
-Plan: 4 of 4 in current phase
-Status: Phase 4 complete
-Last activity: 2026-02-24 -- Plan 04-04 complete
+Phase: 5 of 6 (Web Dashboard)
+Plan: 1 of 4 in current phase
+Status: Plan 05-01 complete
+Last activity: 2026-02-24 -- Plan 05-01 complete
 
-Progress: [████████████████████] 83%
+Progress: [█████████████████████] 88%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
+- Total plans completed: 21
 - Average duration: 8min
-- Total execution time: 2.53 hours
+- Total execution time: 2.66 hours
 
 **By Phase:**
 
@@ -32,10 +32,11 @@ Progress: [████████████████████] 83%
 | 02.1-wire-ratelimiter-into-discovery-pipeline | 2 | 17min | 9min |
 | 03-azure-provider | 4 | 40min | 10min |
 | 04-gcp-provider | 4 | 33min | 8min |
+| 05-web-dashboard | 1/4 | 8min | 8min |
 
 **Recent Trend:**
-- Last 5 plans: 03-04 (13min), 04-01 (11min), 04-02 (7min), 04-03 (9min), 04-04 (6min)
-- Trend: Foundation plans (04-01) take 11min, collector plans (04-02, 04-03) take 7-9min, integration plans (03-04) take 13min, legacy cleanup (04-04) takes 6min
+- Last 5 plans: 04-01 (11min), 04-02 (7min), 04-03 (9min), 04-04 (6min), 05-01 (8min)
+- Trend: Foundation plans take 8-11min, collector plans 7-9min, integration plans 13min, dashboard foundation 8min
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
@@ -53,6 +54,7 @@ Progress: [████████████████████] 83%
 | Phase 04 P02 | 7min | 2 tasks | 4 files |
 | Phase 04 P03 | 9min | 2 tasks | 4 files |
 | Phase 04 P04 | 6min | 4 tasks | 8 files (+5 deleted) |
+| Phase 05 P01 | 8min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -149,6 +151,9 @@ Recent decisions affecting current work:
 - [04-04]: Storage buckets use optional google-cloud-storage import with graceful ImportError fallback (not added to requirements.txt)
 - [04-04]: API enablement flags (compute_enabled, dns_enabled, sqladmin_enabled, container_enabled) control collector skip per project
 - [04-04]: Legacy gcp_discovery/ deleted after 853 tests confirm zero regressions (consistent with 03-04 azure_discovery/ deletion)
+- [05-01]: EventBridge uses per-subscriber fan-out queues (not single shared queue) for multi-client SSE support
+- [05-01]: TemplateResponse uses new API with request as first parameter (avoids deprecation warning)
+- [05-01]: ScanManager accepts config_path parameter for testable config persistence via tmp_path
 
 ### Pending Todos
 
@@ -162,5 +167,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 04-04-PLAN.md -- Phase 4 (GCP Provider) fully complete
-Resume file: .planning/phases/04-gcp-provider/04-04-SUMMARY.md
+Stopped at: Completed 05-01-PLAN.md
+Resume file: .planning/phases/05-web-dashboard/05-01-SUMMARY.md
