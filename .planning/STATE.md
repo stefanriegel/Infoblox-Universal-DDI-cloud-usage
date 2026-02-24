@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Accurate, auditable UDDI token estimation from cloud discovery -- customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Phase 2.1: Wire RateLimiter into Discovery Pipeline (Gap Closure) -- COMPLETE
+**Current focus:** Phase 3: Azure Provider
 
 ## Current Position
 
-Phase: 2.1 of 6 (Wire RateLimiter into Discovery Pipeline) -- COMPLETE
-Plan: 2 of 2 in current phase (all plans complete)
-Status: Phase Complete
-Last activity: 2026-02-24 -- Completed 02.1-01-PLAN.md (RateLimiter wiring into orchestrator and retry decorator)
+Phase: 3 of 6 (Azure Provider)
+Plan: 1 of 4 in current phase
+Status: Executing
+Last activity: 2026-02-24 -- Completed 03-01-PLAN.md (Azure provider foundation)
 
-Progress: [██████████] 50%
+Progress: [█████████████] 54%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Average duration: 7min
-- Total execution time: 1.32 hours
+- Total execution time: 1.44 hours
 
 **By Phase:**
 
@@ -30,9 +30,10 @@ Progress: [██████████] 50%
 | 01-core-infrastructure | 4 | 15min | 4min |
 | 02-aws-provider-and-end-to-end-pipeline | 6 | 51min | 9min |
 | 02.1-wire-ratelimiter-into-discovery-pipeline | 2 | 17min | 9min |
+| 03-azure-provider | 1 | 7min | 7min |
 
 **Recent Trend:**
-- Last 5 plans: 02-04 (7min), 02-05 (5min), 02-06 (22min), 02.1-02 (8min), 02.1-01 (9min)
+- Last 5 plans: 02-05 (5min), 02-06 (22min), 02.1-02 (8min), 02.1-01 (9min), 03-01 (7min)
 - Trend: Stable execution times for focused integration and cleanup tasks
 
 *Updated after each plan completion*
@@ -43,6 +44,7 @@ Progress: [██████████] 50%
 | Phase 02 P06 | 22min | 3 tasks | 7 files (+15 deleted) |
 | Phase 02.1 P02 | 8min | 1 task | 2 files |
 | Phase 02.1 P01 | 9min | 2 tasks | 6 files |
+| Phase 03 P01 | 7min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -97,6 +99,11 @@ Recent decisions affecting current work:
 - [02.1-01]: classify_error() called twice per retry (once in decorator, once in callback) -- acceptable for pure string matching
 - [02.1-01]: Non-rate-limit transient errors (network, 503) do NOT affect RateLimiter state
 - [02.1-01]: Dispatch loop refactored from dict comprehension to sequential for-loop for delay injection
+- [03-01]: Auth validator uses exception class name matching for Azure SDK exceptions since SDK may not be installed
+- [03-01]: Client factory uses _try_create wrapper so missing optional SDK packages set client to None
+- [03-01]: _extract_resource_group uses case-insensitive segment matching per Azure ARM behavior
+- [03-01]: Subscription filtering uses case-insensitive matching for display names
+- [03-01]: PostgreSQL uses PostgreSQLFlexibleManagementClient (flexible servers API, not legacy single server)
 
 ### Pending Todos
 
@@ -110,5 +117,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 02.1-01-PLAN.md (RateLimiter wiring, Phase 2.1 complete)
+Stopped at: Completed 03-01-PLAN.md (Azure provider foundation)
 Resume file: None

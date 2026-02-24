@@ -86,7 +86,7 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- Azure auth validator, subscription enumeration, client factory, provider skeleton, CLI integration
+- [x] 03-01-PLAN.md -- Azure auth validator, subscription enumeration, client factory, provider skeleton, CLI integration
 - [ ] 03-02-PLAN.md -- DDI collectors (VNets, subnets, DHCP) + DNS collectors (public/private zones/records) + core networking (NICs, public IPs)
 - [ ] 03-03-PLAN.md -- Compute (VMs, VMSS) + database (SQL, Cosmos, MySQL, PostgreSQL, Redis) + PaaS + hybrid networking collectors
 - [ ] 03-04-PLAN.md -- Token-free collectors, categorizer extension, provider wiring, integration tests, legacy deletion
@@ -142,7 +142,7 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 1. Core Infrastructure | 4/4 | Complete    | 2026-02-23 |
 | 2. AWS Provider and End-to-End Pipeline | 6/6 | Complete | 2026-02-23 |
 | 2.1. Wire RateLimiter (Gap Closure) | 2/2 | Complete | 2026-02-24 |
-| 3. Azure Provider | 0/TBD | Not started | - |
+| 3. Azure Provider | 1/4 | In Progress | - |
 | 4. GCP Provider | 0/TBD | Not started | - |
 | 5. Web Dashboard | 0/TBD | Not started | - |
 | 6. Platform Hardening | 0/TBD | Not started | - |
