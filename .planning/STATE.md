@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 5 of 6 (Web Dashboard)
-Plan: 3 of 4 in current phase
-Status: Plan 05-03 complete
-Last activity: 2026-02-24 -- Plan 05-03 complete
+Phase: 5 of 6 (Web Dashboard) -- COMPLETE
+Plan: 4 of 4 in current phase
+Status: Phase 05 complete
+Last activity: 2026-02-24 -- Plan 05-04 complete
 
-Progress: [████████████████████████] 96%
+Progress: [█████████████████████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 24
+- Total plans completed: 25
 - Average duration: 8min
-- Total execution time: 3.10 hours
+- Total execution time: 3.23 hours
 
 **By Phase:**
 
@@ -32,11 +32,11 @@ Progress: [███████████████████████
 | 02.1-wire-ratelimiter-into-discovery-pipeline | 2 | 17min | 9min |
 | 03-azure-provider | 4 | 40min | 10min |
 | 04-gcp-provider | 4 | 33min | 8min |
-| 05-web-dashboard | 3/4 | 34min | 11min |
+| 05-web-dashboard | 4/4 | 42min | 11min |
 
 **Recent Trend:**
-- Last 5 plans: 04-03 (9min), 04-04 (6min), 05-01 (8min), 05-02 (13min), 05-03 (13min)
-- Trend: Foundation plans take 8-11min, collector plans 7-9min, integration plans 13min, dashboard tabs 8-13min
+- Last 5 plans: 04-04 (6min), 05-01 (8min), 05-02 (13min), 05-03 (13min), 05-04 (8min)
+- Trend: Foundation plans take 8-11min, collector plans 7-9min, integration plans 13min, dashboard plans 8-13min
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
@@ -57,6 +57,7 @@ Progress: [███████████████████████
 | Phase 05 P01 | 8min | 2 tasks | 14 files |
 | Phase 05 P02 | 13min | 2 tasks | 13 files |
 | Phase 05 P03 | 13min | 2 tasks | 10 files |
+| Phase 05 P04 | 8min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -164,6 +165,11 @@ Recent decisions affecting current work:
 - [05-03]: Filter options built from ALL resources (not filtered subset) for consistent dropdown population
 - [05-03]: Summary calculation reuses counting pipeline (calculate_account_tokens, deduplicate_ips_per_vpc) for CLI-consistent output
 - [05-03]: Results/Summary templates follow Plan 02 tab-container HTMX swap pattern (not base.html extensions)
+- [05-04]: Auth check runs all 3 providers via asyncio.to_thread to avoid blocking async loop
+- [05-04]: Scan pipeline runs in executor thread, reuses full CLI counting pipeline for consistency
+- [05-04]: Download endpoint validates basename==filename and extension whitelist for path traversal prevention
+- [05-04]: CLI --web flag early-exits before provider selection, handles ImportError gracefully
+- [05-04]: Wizard steps use HTMX hx-post/hx-target for server-controlled step progression
 
 ### Pending Todos
 
@@ -177,5 +183,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 05-03-PLAN.md
-Resume file: .planning/phases/05-web-dashboard/05-03-SUMMARY.md
+Stopped at: Completed 05-04-PLAN.md -- Phase 05 complete
+Resume file: .planning/phases/05-web-dashboard/05-04-SUMMARY.md
