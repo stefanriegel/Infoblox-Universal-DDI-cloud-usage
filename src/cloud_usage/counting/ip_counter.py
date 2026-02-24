@@ -1,55 +1,15 @@
 """
-IP extraction and per-VPC de-duplication.
+Per-VPC IP de-duplication for cloud resource counting.
 
-Extracts private and public IP addresses from CloudResource instances,
-de-duplicates per VPC IP space, and provides per-account breakdowns.
+De-duplicates IP addresses per VPC IP space and provides per-account
+breakdowns for token calculation.
 """
 
 from __future__ import annotations
 
-import ipaddress
 from collections import defaultdict
 
 from cloud_usage.schema.resource import CloudResource
-
-
-def count_ips(resources: list[CloudResource]) -> dict:
-    """Count private, public, and total unique IPs from counted resources.
-
-    Only considers resources where counted=True. IPs are classified as
-    private (RFC 1918/loopback/link-local) or public. IPv6 addresses
-    are also classified.
-
-    Args:
-        resources: List of CloudResource instances (already categorized).
-
-    Returns:
-        Dict with keys: private_ips, public_ips, total_unique_ips.
-    """
-    private_set: set[str] = set()
-    public_set: set[str] = set()
-
-    for resource in resources:
-        if not resource.counted:
-            continue
-
-        for ip_str in resource.ip_addresses:
-            try:
-                addr = ipaddress.ip_address(ip_str)
-            except ValueError:
-                # Skip malformed addresses
-                continue
-
-            if addr.is_private or addr.is_loopback or addr.is_link_local:
-                private_set.add(ip_str)
-            else:
-                public_set.add(ip_str)
-
-    return {
-        "private_ips": len(private_set),
-        "public_ips": len(public_set),
-        "total_unique_ips": len(private_set) + len(public_set),
-    }
 
 
 def deduplicate_ips_per_vpc(resources: list[CloudResource]) -> dict:

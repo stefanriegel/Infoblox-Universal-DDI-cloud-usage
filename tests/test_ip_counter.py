@@ -1,8 +1,8 @@
 """
-Tests for IP extraction and per-VPC de-duplication.
+Tests for per-VPC IP de-duplication.
 
-Validates that private and public IPs are extracted from CloudResource
-instances and de-duplicated per VPC IP space.
+Validates that IP addresses are de-duplicated per VPC IP space and
+per-account breakdowns are correct.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from cloud_usage.schema.resource import CloudResource
-from cloud_usage.counting.ip_counter import count_ips, deduplicate_ips_per_vpc
+from cloud_usage.counting.ip_counter import deduplicate_ips_per_vpc
 
 
 def _make_resource(
@@ -39,75 +39,6 @@ def _make_resource(
         counted=counted,
         category=category,
     )
-
-
-class TestCountIps:
-    """Test count_ips for basic IP counting."""
-
-    def test_empty_list_returns_zero(self):
-        result = count_ips([])
-        assert result["private_ips"] == 0
-        assert result["public_ips"] == 0
-        assert result["total_unique_ips"] == 0
-
-    def test_single_private_ip(self):
-        r = _make_resource(ip_addresses=["10.0.1.5"])
-        result = count_ips([r])
-        assert result["private_ips"] == 1
-        assert result["public_ips"] == 0
-        assert result["total_unique_ips"] == 1
-
-    def test_single_public_ip(self):
-        r = _make_resource(ip_addresses=["54.23.100.50"])
-        result = count_ips([r])
-        assert result["private_ips"] == 0
-        assert result["public_ips"] == 1
-        assert result["total_unique_ips"] == 1
-
-    def test_both_private_and_public_counted_separately(self):
-        r = _make_resource(ip_addresses=["10.0.1.5", "54.23.100.50"])
-        result = count_ips([r])
-        assert result["private_ips"] == 1
-        assert result["public_ips"] == 1
-        assert result["total_unique_ips"] == 2
-
-    def test_multiple_resources_different_ips(self):
-        r1 = _make_resource(
-            ip_addresses=["10.0.1.5"],
-            details={"vpc_id": "vpc-aaa"},
-        )
-        r2 = _make_resource(
-            ip_addresses=["10.0.1.6"],
-            details={"vpc_id": "vpc-aaa"},
-        )
-        result = count_ips([r1, r2])
-        assert result["total_unique_ips"] == 2
-
-    def test_eni_with_multiple_secondary_ips(self):
-        """ENI with 3 secondary IPs -> all 3 counted."""
-        r = _make_resource(
-            resource_type="eni",
-            ip_addresses=["10.0.1.10", "10.0.1.11", "10.0.1.12"],
-            details={"vpc_id": "vpc-aaa"},
-        )
-        result = count_ips([r])
-        assert result["total_unique_ips"] == 3
-        assert result["private_ips"] == 3
-
-    def test_ipv6_addresses_counted(self):
-        """IPv6 addresses are counted alongside IPv4."""
-        r = _make_resource(
-            ip_addresses=["10.0.1.5", "2001:db8::1"],
-            details={"vpc_id": "vpc-aaa"},
-        )
-        result = count_ips([r])
-        assert result["total_unique_ips"] == 2
-
-    def test_uncounted_resources_excluded(self):
-        """Resources with counted=False are not counted for IPs."""
-        r = _make_resource(ip_addresses=["10.0.1.5"], counted=False)
-        result = count_ips([r])
-        assert result["total_unique_ips"] == 0
 
 
 class TestDeduplicateIpsPerVpc:
