@@ -4,6 +4,10 @@ Manages the lifecycle of a cloud discovery scan for the dashboard.
 Tracks scan state (idle/running/complete/cancelled/error), discovered
 resources, errors, output file paths, and scan configuration.
 
+Also provides DashboardProgressTracker, a ProgressTracker subclass
+that emits SSE events via EventBridge when accounts complete,
+bridging the sync orchestrator to the async SSE stream.
+
 All state access is protected by a threading lock for safe concurrent
 access from both async route handlers and sync worker threads.
 """
@@ -16,6 +20,12 @@ import threading
 from dataclasses import asdict, dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+from cloud_usage.discovery.progress import ProgressTracker
+
+if TYPE_CHECKING:
+    from cloud_usage.dashboard.services.event_bridge import EventBridge
 
 
 class ScanState(Enum):
@@ -220,3 +230,53 @@ class ScanManager:
         with open(self._last_config_path) as f:
             data = json.load(f)
         return ScanConfig(**data)
+
+
+class DashboardProgressTracker(ProgressTracker):
+    """ProgressTracker subclass that emits SSE events via EventBridge.
+
+    Bridges the synchronous discovery orchestrator to the async SSE
+    stream. When complete_account() is called by worker threads, this
+    class calls super() to maintain existing behavior (stderr output,
+    state tracking) and then emits a progress event via EventBridge
+    for real-time dashboard updates.
+
+    Args:
+        event_bridge: The EventBridge instance for SSE event delivery.
+    """
+
+    def __init__(self, event_bridge: EventBridge) -> None:
+        super().__init__()
+        self._event_bridge = event_bridge
+
+    def complete_account(self, provider: str, resources_found: int) -> None:
+        """Record account completion and emit SSE progress event.
+
+        Calls super() to maintain existing ProgressTracker behavior
+        (thread-safe state update, stderr output), then emits a
+        progress event to EventBridge with current provider state.
+
+        Args:
+            provider: Provider display name (must match register_provider name).
+            resources_found: Number of resources discovered in this account.
+        """
+        super().complete_account(provider, resources_found)
+        summary = self.get_summary()
+        state = summary.get(provider)
+        if state:
+            self._event_bridge.emit(f"progress_{provider.lower()}", {
+                "completed": state.completed,
+                "total": state.total,
+                "resources": state.resources,
+                "unit_label": state.unit_label,
+            })
+
+    def finish(self) -> None:
+        """Write completion summary and emit scan_complete SSE event.
+
+        Calls super() to maintain existing finish behavior (stderr
+        output), then signals scan completion to all SSE subscribers
+        via EventBridge.emit_done().
+        """
+        super().finish()
+        self._event_bridge.emit_done()
