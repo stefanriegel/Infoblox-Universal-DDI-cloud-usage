@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 4 of 6 (GCP Provider) -- In Progress
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: Executing plans
-Last activity: 2026-02-24 -- Plan 04-01 complete
+Last activity: 2026-02-24 -- Plan 04-02 complete
 
-Progress: [█████████████████] 71%
+Progress: [██████████████████] 75%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
+- Total plans completed: 18
 - Average duration: 8min
-- Total execution time: 2.17 hours
+- Total execution time: 2.28 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [█████████████████] 71%
 | 02-aws-provider-and-end-to-end-pipeline | 6 | 51min | 9min |
 | 02.1-wire-ratelimiter-into-discovery-pipeline | 2 | 17min | 9min |
 | 03-azure-provider | 4 | 40min | 10min |
-| 04-gcp-provider | 1 | 11min | 11min |
+| 04-gcp-provider | 2 | 18min | 9min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (7min), 03-02 (6min), 03-03 (14min), 03-04 (13min), 04-01 (11min)
-- Trend: Foundation plans (03-01, 04-01) take 7-11min, integration plans (03-03, 03-04) take 13-14min
+- Last 5 plans: 03-02 (6min), 03-03 (14min), 03-04 (13min), 04-01 (11min), 04-02 (7min)
+- Trend: Foundation plans (04-01) take 11min, collector plans (04-02) take 7min, integration plans (03-03, 03-04) take 13-14min
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
@@ -50,6 +50,7 @@ Progress: [█████████████████] 71%
 | Phase 03 P03 | 14min | 2 tasks | 8 files |
 | Phase 03 P04 | 13min | 3 tasks | 14 files (+6 deleted) |
 | Phase 04 P01 | 11min | 2 tasks | 10 files |
+| Phase 04 P02 | 7min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,12 @@ Recent decisions affecting current work:
 - [04-01]: Include/exclude glob filtering uses fnmatch.fnmatch -- include takes precedence over exclude
 - [04-01]: API pre-checks use batch_get_services for 4 APIs -- PermissionDenied treats all as unavailable, transient errors assume enabled
 - [04-01]: GCPClients wraps 11 clients (9 compute, 1 container, 1 sqladmin) -- all project-agnostic
+- [04-02]: VPC networks use global list() (no aggregatedList for networks) with self_link as resource_id
+- [04-02]: Subnets use aggregatedList with empty scoped list skip per Pitfall 2
+- [04-02]: Reserved IPs combine regional aggregatedList + global list in a single collector function
+- [04-02]: DNS records enumerate all types (SOA, NS, A, AAAA, CNAME, MX, TXT, etc.) per CONTEXT.md decision
+- [04-02]: A/AAAA record IP addresses extracted from rrdatas into ip_addresses field
+- [04-02]: Per-zone error isolation wraps each zone's record enumeration in try/except (consistent with Azure DNS pattern)
 
 ### Pending Todos
 
@@ -146,5 +153,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 04-01-PLAN.md
-Resume file: .planning/phases/04-gcp-provider/04-01-SUMMARY.md
+Stopped at: Completed 04-02-PLAN.md
+Resume file: .planning/phases/04-gcp-provider/04-02-SUMMARY.md
