@@ -89,8 +89,10 @@ def _make_orchestrator(
         checkpoint_engine = mock.MagicMock(spec=CheckpointEngine)
     if progress_tracker is None:
         progress_tracker = mock.MagicMock(spec=ProgressTracker)
+        progress_tracker.throttle_summary.return_value = None
     if rate_limiter is None:
         rate_limiter = mock.MagicMock(spec=RateLimiter)
+        rate_limiter.get_delay.return_value = 0.0
 
     return DiscoveryOrchestrator(
         providers=providers,
@@ -419,3 +421,119 @@ class TestGracefulShutdown:
 
         assert signal.SIGINT in registered_signals
         assert signal.SIGTERM in registered_signals
+
+
+class TestRateLimiterIntegration:
+    """Tests for RateLimiter wiring into the orchestrator."""
+
+    def test_dispatch_applies_rate_limit_delay(self):
+        """Orchestrator applies delay from RateLimiter before dispatching workers."""
+        rate_limiter = RateLimiter()
+        # Pre-load a delay by recording rate limits
+        rate_limiter.record_rate_limit("aws")  # Sets delay to 1.0s
+
+        aws = MockDiscoveryProvider("aws", ["acc1"], resources_per_account=1)
+        progress = mock.MagicMock(spec=ProgressTracker)
+        progress.throttle_summary.return_value = None
+        orchestrator = _make_orchestrator(
+            [aws],
+            rate_limiter=rate_limiter,
+            progress_tracker=progress,
+        )
+
+        start = time.monotonic()
+        with mock.patch("cloud_usage.discovery.orchestrator.time.sleep") as mock_sleep:
+            mock_sleep.side_effect = lambda d: None  # Don't actually sleep
+            resources, errors = orchestrator.run()
+
+        # get_delay should have been consulted and time.sleep called with the delay
+        assert mock_sleep.call_count >= 1
+        delay_arg = mock_sleep.call_args_list[0][0][0]
+        assert delay_arg > 0  # Should have applied the rate limiter delay
+
+        assert len(resources) == 1
+        assert len(errors) == 0
+
+    def test_thread_local_callback_set_during_discovery(self):
+        """Thread-local on_retry callback is set inside _discover_account."""
+        from cloud_usage.resilience.retry import _retry_context
+
+        callback_was_set = []
+
+        class InspectingProvider(MockDiscoveryProvider):
+            def discover_account(self, account_id):
+                # Check that the thread-local callback is set
+                val = getattr(_retry_context, "on_retry", None)
+                callback_was_set.append(val is not None)
+                return super().discover_account(account_id)
+
+        aws = InspectingProvider("aws", ["acc1"], resources_per_account=1)
+        rate_limiter = RateLimiter()
+        progress = ProgressTracker()
+        progress._is_tty = False
+
+        orchestrator = _make_orchestrator(
+            [aws],
+            rate_limiter=rate_limiter,
+            progress_tracker=progress,
+        )
+
+        orchestrator.run()
+
+        assert len(callback_was_set) == 1
+        assert callback_was_set[0] is True
+
+    def test_throttle_callback_records_rate_limit(self):
+        """_make_throttle_callback records rate-limit errors with the RateLimiter."""
+        rate_limiter = RateLimiter()
+        progress = mock.MagicMock(spec=ProgressTracker)
+
+        callback = DiscoveryOrchestrator._make_throttle_callback(
+            rate_limiter, "aws", progress
+        )
+
+        # Simulate a rate-limit exception (429 keyword triggers RATE_LIMIT category)
+        exc = Exception("429 Too Many Requests")
+        callback(1, exc, 1.0)
+
+        assert rate_limiter.get_delay("aws") > 0
+
+    def test_throttle_callback_ignores_network_errors(self):
+        """_make_throttle_callback does NOT record network errors with RateLimiter."""
+        rate_limiter = RateLimiter()
+        progress = mock.MagicMock(spec=ProgressTracker)
+
+        callback = DiscoveryOrchestrator._make_throttle_callback(
+            rate_limiter, "aws", progress
+        )
+
+        # Simulate a network error (ConnectionError contains "connection" keyword)
+        exc = ConnectionError("Connection timed out")
+        callback(1, exc, 1.0)
+
+        assert rate_limiter.get_delay("aws") == 0.0
+
+    def test_throttle_summary_printed_after_scan(self):
+        """Throttle summary is written to stderr after scan when throttle events exist."""
+        import io
+
+        aws = MockDiscoveryProvider("aws", ["acc1"], resources_per_account=1)
+        rate_limiter = RateLimiter()
+        progress = ProgressTracker()
+        progress._is_tty = False
+
+        # Pre-load a throttle event
+        progress.record_throttle_event("AWS", 2.5)
+
+        orchestrator = _make_orchestrator(
+            [aws],
+            rate_limiter=rate_limiter,
+            progress_tracker=progress,
+        )
+
+        stderr_capture = io.StringIO()
+        with mock.patch("sys.stderr", stderr_capture):
+            orchestrator.run()
+
+        output = stderr_capture.getvalue()
+        assert "Rate limiting: AWS throttled 1 times (max delay 2.5s)" in output

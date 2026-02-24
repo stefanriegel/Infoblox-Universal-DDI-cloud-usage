@@ -11,20 +11,23 @@ from __future__ import annotations
 import logging
 import sys
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from datetime import datetime
+from typing import Callable
 
 from cloud_usage.discovery.progress import ProgressTracker
 from cloud_usage.discovery.provider import DiscoveryProvider
 from cloud_usage.discovery.shutdown import GracefulShutdown
-from cloud_usage.errors.taxonomy import ErrorRecord, create_error_record
+from cloud_usage.errors.taxonomy import ErrorCategory, ErrorRecord, classify_error, create_error_record
 from cloud_usage.resilience.checkpoint import (
     CheckpointData,
     CheckpointEngine,
     ProviderProgress,
 )
 from cloud_usage.resilience.rate_limiter import RateLimiter
+from cloud_usage.resilience.retry import clear_rate_limit_callback, set_rate_limit_callback
 from cloud_usage.schema.resource import CloudResource
 
 logger = logging.getLogger(__name__)
@@ -77,6 +80,35 @@ class DiscoveryOrchestrator:
             for p in providers
         }
 
+    @staticmethod
+    def _make_throttle_callback(
+        rate_limiter: RateLimiter,
+        provider_name: str,
+        progress: ProgressTracker,
+    ) -> Callable[[int, Exception, float], None]:
+        """Create a provider-scoped on_retry callback for rate-limit tracking.
+
+        Returns a closure that checks if the exception is a rate-limit error
+        and records it with the RateLimiter. Also reports throttle events
+        to the progress tracker.
+
+        Args:
+            rate_limiter: The adaptive rate limiter.
+            provider_name: Provider identifier (e.g., "aws").
+            progress: Progress tracker for throttle event display.
+
+        Returns:
+            Callback function for retry_with_backoff thread-local injection.
+        """
+        def _on_retry(attempt: int, exc: Exception, sleep_time: float) -> None:
+            category = classify_error(provider_name, exc)
+            if category == ErrorCategory.RATE_LIMIT:
+                rate_limiter.record_rate_limit(provider_name)
+                delay = rate_limiter.get_delay(provider_name)
+                progress.report_throttle(provider_name.upper(), delay)
+                progress.record_throttle_event(provider_name.upper(), delay)
+        return _on_retry
+
     def _discover_account(
         self,
         provider: DiscoveryProvider,
@@ -99,21 +131,29 @@ class DiscoveryOrchestrator:
         semaphore = self._semaphores[provider.provider_name]
         semaphore.acquire()
         try:
-            resources = provider.discover_account(account_id)
-            return (provider.provider_name, account_id, resources, None)
-        except Exception as exc:
-            error_record = create_error_record(provider.provider_name, account_id, exc)
-            sys.stderr.write(
-                f"WARNING: {provider.provider_name} account {account_id} failed "
-                f"({type(exc).__name__}). Continuing with remaining accounts.\n"
+            # Set thread-local rate-limit callback for this worker
+            callback = self._make_throttle_callback(
+                self._rate_limiter, provider.provider_name, self._progress
             )
-            logger.warning(
-                "Discovery failed for %s account %s: %s",
-                provider.provider_name,
-                account_id,
-                exc,
-            )
-            return (provider.provider_name, account_id, [], error_record)
+            set_rate_limit_callback(callback)
+            try:
+                resources = provider.discover_account(account_id)
+                return (provider.provider_name, account_id, resources, None)
+            except Exception as exc:
+                error_record = create_error_record(provider.provider_name, account_id, exc)
+                sys.stderr.write(
+                    f"WARNING: {provider.provider_name} account {account_id} failed "
+                    f"({type(exc).__name__}). Continuing with remaining accounts.\n"
+                )
+                logger.warning(
+                    "Discovery failed for %s account %s: %s",
+                    provider.provider_name,
+                    account_id,
+                    exc,
+                )
+                return (provider.provider_name, account_id, [], error_record)
+            finally:
+                clear_rate_limit_callback()
         finally:
             semaphore.release()
 
@@ -224,12 +264,18 @@ class DiscoveryOrchestrator:
         # Lock for thread-safe state updates
         state_lock = threading.Lock()
 
-        # Dispatch work to thread pool
+        # Dispatch work to thread pool (sequential with delay check)
         with ThreadPoolExecutor(max_workers=self._max_workers) as executor:
-            futures = {
-                executor.submit(self._discover_account, provider, account_id): (provider, account_id)
-                for provider, account_id in work_items
-            }
+            futures: dict = {}
+            for provider, account_id in work_items:
+                # Check rate limiter before dispatch (per CONTEXT.md decision)
+                delay = self._rate_limiter.get_delay(provider.provider_name)
+                if delay > 0:
+                    self._progress.report_throttle(provider.provider_name.upper(), delay)
+                    self._progress.record_throttle_event(provider.provider_name.upper(), delay)
+                    time.sleep(delay)
+                future = executor.submit(self._discover_account, provider, account_id)
+                futures[future] = (provider, account_id)
 
             for future in as_completed(futures):
                 provider_name, account_id, resources, error = future.result()
@@ -258,5 +304,10 @@ class DiscoveryOrchestrator:
 
         # Finish progress display
         self._progress.finish()
+
+        # Print throttle summary if any rate limiting occurred
+        throttle_summary = self._progress.throttle_summary()
+        if throttle_summary is not None:
+            sys.stderr.write(f"{throttle_summary}\n")
 
         return (all_resources, all_errors)
