@@ -45,7 +45,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **ASSET-02**: Resources without IP addresses are discovered but not counted toward tokens (security groups, S3 buckets, subnets-as-objects, projects)
 - [x] **ASSET-03**: Token-free resources are explicitly excluded even if they have IPs — AWS: EBS Volumes, S3 Buckets
 - [x] **ASSET-04**: Token-free resources are explicitly excluded — Azure: VM Disks, Management Groups, VM Monitoring Stats, Network Watcher Flow Logs, Network Watchers, Storage Accounts, Storage Containers, Subscription Tenants, Traffic Manager Profiles
-- [ ] **ASSET-05**: Token-free resources are explicitly excluded — GCP: Compute Persistent Disks, Instance Groups, URL Maps, Cloud Monitoring Metric Stats, Network Connectivity Locations, Cloud Storage Bucket Policies, Cloud Storage Buckets
+- [x] **ASSET-05**: Token-free resources are explicitly excluded — GCP: Compute Persistent Disks, Instance Groups, URL Maps, Cloud Monitoring Metric Stats, Network Connectivity Locations, Cloud Storage Bucket Policies, Cloud Storage Buckets
 - [x] **ASSET-06**: Assets are de-duplicated across sources so the same asset from multiple discovery paths counts once
 
 ### Token Calculation
@@ -78,7 +78,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Validated Reference
 
-- [ ] **REF-01**: GCP discovery logic validated against production environment with 87 projects — use existing GCP counting rules as reference implementation
+- [x] **REF-01**: GCP discovery logic validated against production environment with 87 projects — use existing GCP counting rules as reference implementation
 
 ## v2 Requirements
 
@@ -144,7 +144,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ASSET-02 | Phase 2 | Complete |
 | ASSET-03 | Phase 2 | Complete |
 | ASSET-04 | Phase 3 | Complete |
-| ASSET-05 | Phase 4 | Pending |
+| ASSET-05 | Phase 4 | Complete |
 | ASSET-06 | Phase 2 | Complete |
 | TOKEN-01 | Phase 2 | Complete |
 | TOKEN-02 | Phase 2 | Complete |
@@ -162,7 +162,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAT-03 | Phase 5 | Pending |
 | PLAT-04 | Phase 6 | Pending |
 | PLAT-05 | Phase 1 | Complete |
-| REF-01 | Phase 4 | Pending |
+| REF-01 | Phase 4 | Complete |
 
 **Coverage:**
 - v1 requirements: 43 total

@@ -89,7 +89,7 @@ Plans:
 - [x] 03-01-PLAN.md -- Azure auth validator, subscription enumeration, client factory, provider skeleton, CLI integration
 - [x] 03-02-PLAN.md -- DDI collectors (VNets, subnets, DHCP) + DNS collectors (public/private zones/records) + core networking (NICs, public IPs)
 - [x] 03-03-PLAN.md -- Compute (VMs, VMSS) + database (SQL, Cosmos, MySQL, PostgreSQL, Redis) + PaaS + hybrid networking collectors
-- [ ] 03-04-PLAN.md -- Token-free collectors, categorizer extension, provider wiring, integration tests, legacy deletion
+- [x] 03-04-PLAN.md -- Token-free collectors, categorizer extension, provider wiring, integration tests, legacy deletion
 
 ### Phase 4: GCP Provider
 **Goal**: Users can run a complete GCP scan across all projects, using aggregatedList endpoints for efficiency, validated against a known 87-project reference environment
@@ -104,9 +104,9 @@ Plans:
 
 Plans:
 - [x] 04-01-PLAN.md -- GCP auth validator, project enumeration, client factory, provider skeleton, CLI integration
-- [ ] 04-02-PLAN.md -- DDI collectors (VPCs, subnets) + DNS collectors (zones, records) + networking (reserved IPs)
-- [ ] 04-03-PLAN.md -- Compute (VMs, forwarding rules) + database (Cloud SQL) collectors
-- [ ] 04-04-PLAN.md -- Token-free collectors, categorizer extension, provider wiring, integration tests, legacy deletion
+- [x] 04-02-PLAN.md -- DDI collectors (VPCs, subnets) + DNS collectors (zones, records) + networking (reserved IPs)
+- [x] 04-03-PLAN.md -- Compute (VMs, forwarding rules) + database (Cloud SQL) collectors
+- [x] 04-04-PLAN.md -- Token-free collectors, categorizer extension, provider wiring, integration tests, legacy deletion
 
 ### Phase 5: Web Dashboard
 **Goal**: Users can monitor discovery progress in real-time and browse results through a browser-based dashboard without CLI expertise
@@ -144,7 +144,7 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 1. Core Infrastructure | 4/4 | Complete    | 2026-02-23 |
 | 2. AWS Provider and End-to-End Pipeline | 6/6 | Complete | 2026-02-23 |
 | 2.1. Wire RateLimiter (Gap Closure) | 2/2 | Complete | 2026-02-24 |
-| 3. Azure Provider | 3/4 | In Progress | - |
-| 4. GCP Provider | 1/4 | In Progress | - |
+| 3. Azure Provider | 4/4 | Complete | 2026-02-24 |
+| 4. GCP Provider | 4/4 | Complete | 2026-02-24 |
 | 5. Web Dashboard | 0/TBD | Not started | - |
 | 6. Platform Hardening | 0/TBD | Not started | - |

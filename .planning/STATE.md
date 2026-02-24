@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 
 ## Current Position
 
-Phase: 4 of 6 (GCP Provider) -- In Progress
-Plan: 3 of 4 in current phase
-Status: Executing plans
-Last activity: 2026-02-24 -- Plan 04-03 complete
+Phase: 4 of 6 (GCP Provider) -- Complete
+Plan: 4 of 4 in current phase
+Status: Phase 4 complete
+Last activity: 2026-02-24 -- Plan 04-04 complete
 
-Progress: [███████████████████] 79%
+Progress: [████████████████████] 83%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
+- Total plans completed: 20
 - Average duration: 8min
-- Total execution time: 2.43 hours
+- Total execution time: 2.53 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [███████████████████] 79%
 | 02-aws-provider-and-end-to-end-pipeline | 6 | 51min | 9min |
 | 02.1-wire-ratelimiter-into-discovery-pipeline | 2 | 17min | 9min |
 | 03-azure-provider | 4 | 40min | 10min |
-| 04-gcp-provider | 3 | 27min | 9min |
+| 04-gcp-provider | 4 | 33min | 8min |
 
 **Recent Trend:**
-- Last 5 plans: 03-03 (14min), 03-04 (13min), 04-01 (11min), 04-02 (7min), 04-03 (9min)
-- Trend: Foundation plans (04-01) take 11min, collector plans (04-02, 04-03) take 7-9min, integration plans (03-03, 03-04) take 13-14min
+- Last 5 plans: 03-04 (13min), 04-01 (11min), 04-02 (7min), 04-03 (9min), 04-04 (6min)
+- Trend: Foundation plans (04-01) take 11min, collector plans (04-02, 04-03) take 7-9min, integration plans (03-04) take 13min, legacy cleanup (04-04) takes 6min
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
@@ -52,6 +52,7 @@ Progress: [███████████████████] 79%
 | Phase 04 P01 | 11min | 2 tasks | 10 files |
 | Phase 04 P02 | 7min | 2 tasks | 4 files |
 | Phase 04 P03 | 9min | 2 tasks | 4 files |
+| Phase 04 P04 | 6min | 4 tasks | 8 files (+5 deleted) |
 
 ## Accumulated Context
 
@@ -144,6 +145,10 @@ Recent decisions affecting current work:
 - [04-03]: Forwarding rule IP uses getattr fallback chain (I_p_address, i_p_address, ip_address) for SDK attribute name resilience
 - [04-03]: Cloud SQL collector returns [] when sqladmin_service is None (graceful fallback when google-api-python-client not installed)
 - [04-03]: Instance network_i_p (private) and access_config nat_i_p (public) correctly extracted per Pitfall 6
+- [04-04]: GKE clusters registered as token-free (metadata only -- nodes already counted as gcp-vm)
+- [04-04]: Storage buckets use optional google-cloud-storage import with graceful ImportError fallback (not added to requirements.txt)
+- [04-04]: API enablement flags (compute_enabled, dns_enabled, sqladmin_enabled, container_enabled) control collector skip per project
+- [04-04]: Legacy gcp_discovery/ deleted after 853 tests confirm zero regressions (consistent with 03-04 azure_discovery/ deletion)
 
 ### Pending Todos
 
@@ -157,5 +162,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-24
-Stopped at: Completed 04-03-PLAN.md
-Resume file: .planning/phases/04-gcp-provider/04-03-SUMMARY.md
+Stopped at: Completed 04-04-PLAN.md -- Phase 4 (GCP Provider) fully complete
+Resume file: .planning/phases/04-gcp-provider/04-04-SUMMARY.md
