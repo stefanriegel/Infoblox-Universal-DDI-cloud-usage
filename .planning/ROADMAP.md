@@ -14,6 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Core Infrastructure** - Foundation abstractions: resource schema, error taxonomy, rate limiter, result collector, checkpoint engine, progress tracking
 - [x] **Phase 2: AWS Provider and End-to-End Pipeline** - First complete vertical slice: AWS discovery through counting, token calculation, and CSV/XLS report output
+- [ ] **Phase 2.1: Wire RateLimiter into Discovery Pipeline** - INSERTED: Gap closure from v1.0 audit — activate RateLimiter coordination in orchestrator and collector decorators, remove dead code
 - [ ] **Phase 3: Azure Provider** - Azure subscription discovery plugged into the proven pipeline with tenant-level rate limiting
 - [ ] **Phase 4: GCP Provider** - GCP project discovery plugged into the proven pipeline, validated against 87-project reference environment
 - [ ] **Phase 5: Web Dashboard** - FastAPI + HTMX dashboard with real-time SSE progress and results browsing
@@ -57,6 +58,21 @@ Plans:
 - [x] 02-04-PLAN.md -- AWS resource collectors: compute, database, and token-free resources
 - [x] 02-05-PLAN.md -- Output pipeline: XLS report, estimator CSV, proof manifest
 - [x] 02-06-PLAN.md -- End-to-end integration: wire pipeline and moto integration tests
+
+### Phase 2.1: Wire RateLimiter into Discovery Pipeline (INSERTED — Gap Closure)
+**Goal**: Activate the RateLimiter's adaptive per-provider tracking so concurrent workers coordinate throttle state, and clean up orphaned dead code from the counting module
+**Depends on**: Phase 2
+**Requirements**: DISC-05 (integration hardening)
+**Gap Closure**: Closes DISC-05 integration gap from v1.0 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. RateLimiter.record_rate_limit() is called by retry_with_backoff's on_retry callback when a collector hits a throttle error, updating per-provider backoff state
+  2. DiscoveryOrchestrator checks RateLimiter.get_delay() before dispatching each worker and applies the delay, coordinating backoff across concurrent workers
+  3. Orphaned count_ips() function is removed from ip_counter.py (dead code cleanup)
+**Plans**: 2 plans
+
+Plans:
+- [ ] 02.1-01-PLAN.md -- Wire RateLimiter into retry decorator and orchestrator dispatch loop
+- [ ] 02.1-02-PLAN.md -- Remove orphaned count_ips() dead code from counting module
 
 ### Phase 3: Azure Provider
 **Goal**: Users can run a complete Azure scan across all subscriptions, with tenant-level rate limiting preventing ARM throttling cascades, producing the same quality of output as AWS
@@ -116,13 +132,14 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
-Note: Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depends on all provider phases.
+Phases execute in numeric order: 1 -> 2 -> 2.1 -> 3 -> 4 -> 5 -> 6
+Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depends on all provider phases.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core Infrastructure | 4/4 | Complete    | 2026-02-23 |
-| 2. AWS Provider and End-to-End Pipeline | 2/6 | In Progress | - |
+| 2. AWS Provider and End-to-End Pipeline | 6/6 | Complete | 2026-02-23 |
+| 2.1. Wire RateLimiter (Gap Closure) | 0/2 | Not started | - |
 | 3. Azure Provider | 0/TBD | Not started | - |
 | 4. GCP Provider | 0/TBD | Not started | - |
 | 5. Web Dashboard | 0/TBD | Not started | - |
