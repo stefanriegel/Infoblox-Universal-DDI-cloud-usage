@@ -11,7 +11,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [x] **AUTH-01**: User can authenticate to AWS via existing SSO profiles (`aws sso login`) without storing credentials
 - [x] **AUTH-02**: User can authenticate to Azure via `az login` (browser-based) without storing credentials
-- [ ] **AUTH-03**: User can authenticate to GCP via `gcloud auth application-default login` without storing credentials
+- [x] **AUTH-03**: User can authenticate to GCP via `gcloud auth application-default login` without storing credentials
 - [x] **AUTH-04**: User can run pre-flight auth validation ("auth doctor") that checks credentials are valid before starting scan
 - [x] **AUTH-05**: Tool uses read-only cloud access only — never requests write permissions
 
@@ -122,7 +122,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | AUTH-01 | Phase 2 | Complete |
 | AUTH-02 | Phase 3 | Complete |
-| AUTH-03 | Phase 4 | Pending |
+| AUTH-03 | Phase 4 | Complete |
 | AUTH-04 | Phase 1 | Complete |
 | AUTH-05 | Phase 1 | Complete |
 | DISC-01 | Phase 2 | Complete |
