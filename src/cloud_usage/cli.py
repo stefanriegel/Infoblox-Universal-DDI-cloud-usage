@@ -383,10 +383,10 @@ def main(argv: list[str] | None = None) -> int:
         timestamp = scan_id
 
         # Determine provider name for output files
-        provider_name = "aws"  # Current phase supports AWS only
+        provider_name = "aws"
         for p in providers:
             provider_name = p.provider_name
-            break
+            break  # Use first provider's name for output file naming
 
         xlsx_path = f"{output_dir}/{provider_name}_discovery_{timestamp}.xlsx"
         csv_path = f"{output_dir}/{provider_name}_estimator_{timestamp}.csv"

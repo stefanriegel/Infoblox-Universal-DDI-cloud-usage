@@ -90,7 +90,8 @@ def write_xlsx_report(
     })
 
     _write_detail_sheet(workbook, resources, header_fmt, even_row_fmt, odd_row_fmt,
-                        number_fmt, number_even_fmt, counted_yes_fmt, counted_no_fmt)
+                        number_fmt, number_even_fmt, counted_yes_fmt, counted_no_fmt,
+                        provider)
     _write_summary_sheet(workbook, account_summaries, provider, header_fmt,
                          even_row_fmt, odd_row_fmt, number_fmt, number_even_fmt,
                          total_row_fmt, total_number_fmt)
@@ -110,16 +111,28 @@ def _write_detail_sheet(
     number_even_fmt: xlsxwriter.format.Format,
     counted_yes_fmt: xlsxwriter.format.Format,
     counted_no_fmt: xlsxwriter.format.Format,
+    provider: str = "aws",
 ) -> None:
-    """Write the Detail sheet with one row per discovered resource."""
+    """Write the Detail sheet with one row per discovered resource.
+
+    For Azure provider, includes an additional 'Resource Group' column
+    extracted from resource.details per CONTEXT.md.
+    """
     sheet = workbook.add_worksheet("Detail")
     sheet.freeze_panes(1, 0)
 
+    # Azure gets a Resource Group column per CONTEXT.md
+    include_rg = provider == "azure"
+
     headers = [
         "Resource ID", "Type", "Account", "Region", "Name",
+    ]
+    if include_rg:
+        headers.append("Resource Group")
+    headers.extend([
         "IP Addresses", "IP Count", "Counted", "Category",
         "Skip Reason", "Tags",
-    ]
+    ])
 
     # Write headers
     for col, header in enumerate(headers):
@@ -148,13 +161,18 @@ def _write_detail_sheet(
             (resource.account_id, text_fmt),
             (resource.region, text_fmt),
             (resource.name, text_fmt),
+        ]
+        if include_rg:
+            rg_value = resource.details.get("resource_group", "")
+            values.append((rg_value, text_fmt))
+        values.extend([
             (ip_str, text_fmt),
             (ip_count, num_fmt),
             (counted_str, counted_fmt),
             (category_str, text_fmt),
             (skip_str, text_fmt),
             (tags_str, text_fmt),
-        ]
+        ])
 
         for col, (value, fmt) in enumerate(values):
             sheet.write(row_idx, col, value, fmt)
