@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from cloud_usage.dashboard.routes.pages import router as pages_router
+from cloud_usage.dashboard.routes.sse import router as sse_router
 from cloud_usage.dashboard.services.event_bridge import EventBridge
 from cloud_usage.dashboard.services.scan_manager import ScanManager
 
@@ -77,5 +78,6 @@ def create_app() -> FastAPI:
 
     # Include route modules
     app.include_router(pages_router)
+    app.include_router(sse_router)
 
     return app

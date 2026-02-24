@@ -1,0 +1,13 @@
+{# Summary tab -- placeholder until Plan 03 adds summary view.
+   Variables: active_tab, scan_state, resource_count #}
+<div id="tab-container">
+  {% include "partials/tab_bar.html" %}
+
+  <div id="tab-content">
+    {% if scan_state == 'complete' %}
+      <p>Summary with token calculations will be displayed here.</p>
+    {% else %}
+      <p>Summary will appear after a scan completes.</p>
+    {% endif %}
+  </div>
+</div>

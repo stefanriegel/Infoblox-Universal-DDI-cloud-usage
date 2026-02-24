@@ -15,7 +15,10 @@
     </header>
     <main class="container" id="main-content">
         {% block content %}
-        <p>Dashboard loading...</p>
+        <div id="tab-container"
+             hx-get="/tab/progress" hx-trigger="load" hx-target="#tab-container">
+            <p>Loading...</p>
+        </div>
         {% endblock %}
     </main>
     <script src="{{ url_for('static', path='htmx.min.js') }}"></script>

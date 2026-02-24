@@ -1,0 +1,71 @@
+{# Progress tab -- full content including tab bar.
+   Shows per-provider progress via SSE when scanning,
+   idle message when not scanning, completion banner when done.
+   Variables: active_tab, scan_state, resource_count, providers (list of dicts),
+   total_resources (int), total_providers (int) #}
+<div id="tab-container">
+  {% include "partials/tab_bar.html" %}
+
+  <div id="tab-content">
+    {% if scan_state == 'running' %}
+      <div hx-ext="sse" sse-connect="/api/sse/progress" id="progress-container">
+        {% for p in providers %}
+          <div sse-swap="progress_{{ p.provider|lower }}" hx-swap="innerHTML">
+            {% with provider=p.provider, completed=p.completed, total=p.total, resources=p.resources, unit_label=p.unit_label, status=p.status, has_errors=p.has_errors %}
+              {% include "partials/progress_row.html" %}
+            {% endwith %}
+          </div>
+        {% endfor %}
+
+        {# Completion event triggers page refresh to show done state #}
+        <div sse-swap="scan_complete" hx-swap="none"
+             hx-trigger="sse:scan_complete"
+             hx-get="/tab/progress" hx-target="#tab-container">
+        </div>
+      </div>
+
+      <div class="progress-actions">
+        <button class="secondary outline" hx-post="/api/scan/cancel" hx-swap="none">
+          Cancel Scan
+        </button>
+      </div>
+
+    {% elif scan_state == 'complete' %}
+      <div id="progress-container">
+        {% include "components/error_banner.html" ignore missing %}
+        <article class="completion-banner">
+          <header>Scan Complete</header>
+          <p>Scan complete: {{ total_resources }} resources across {{ total_providers }} provider{{ 's' if total_providers != 1 else '' }}</p>
+        </article>
+
+        {% for p in providers %}
+          {% with provider=p.provider, completed=p.completed, total=p.total, resources=p.resources, unit_label=p.unit_label, status='complete', has_errors=p.has_errors %}
+            {% include "partials/progress_row.html" %}
+          {% endwith %}
+        {% endfor %}
+      </div>
+
+    {% elif scan_state == 'cancelled' %}
+      <div id="progress-container">
+        <article class="cancel-banner">
+          <header>Scan Cancelled</header>
+          <p>The scan was cancelled. Partial results may be available in the Results tab.</p>
+        </article>
+      </div>
+
+    {% elif scan_state == 'error' %}
+      <div id="progress-container">
+        <article class="error-banner-block">
+          <header>Scan Error</header>
+          <p>An error occurred during the scan. Check the Results tab for any partial results.</p>
+        </article>
+      </div>
+
+    {% else %}
+      {# IDLE state #}
+      <div id="progress-container">
+        <p>No scan running. Use the scan wizard to start a new discovery scan.</p>
+      </div>
+    {% endif %}
+  </div>
+</div>

@@ -1,0 +1,11 @@
+{# Reusable success/error/warning banner component.
+   Variables: banner_message (str), banner_type (str: success/warning/error) #}
+{% if banner_message is defined and banner_message %}
+<div class="banner banner-{{ banner_type|default('success') }}"
+     role="alert"
+     {% if banner_type is not defined or banner_type == 'success' %}
+       hx-trigger="load delay:5s" hx-get="/partials/empty" hx-swap="outerHTML"
+     {% endif %}>
+  {{ banner_message }}
+</div>
+{% endif %}

@@ -1,0 +1,45 @@
+{# Single provider progress row -- swapped by SSE events.
+   Variables: provider (str), completed (int), total (int),
+   resources (int), unit_label (str), status (str),
+   has_errors (bool, optional), accounts (list, optional) #}
+<article class="progress-row" id="provider-{{ provider|lower }}">
+  <header>
+    <div class="progress-row-header">
+      <strong>{{ provider }}</strong>
+      <span class="progress-text">{{ completed }}/{{ total }} {{ unit_label }}</span>
+      {% if has_errors is defined and has_errors %}
+        <span class="badge badge-warning" title="Some accounts had errors">!</span>
+      {% endif %}
+      {% if accounts is defined and accounts|length > 0 %}
+        <button class="toggle-details outline secondary" type="button"
+                onclick="this.closest('.progress-row').querySelector('.expandable-content').classList.toggle('open')">
+          Details
+        </button>
+      {% endif %}
+    </div>
+  </header>
+  <progress value="{{ completed }}" max="{{ total }}"></progress>
+  <small>{{ resources }} resources found{% if status %} -- {{ status }}{% endif %}</small>
+  {% if accounts is defined and accounts|length > 0 %}
+    <div class="expandable-content">
+      <table role="grid">
+        <thead>
+          <tr>
+            <th>Account</th>
+            <th>Status</th>
+            <th>Resources</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for acct in accounts %}
+          <tr>
+            <td>{{ acct.name }}</td>
+            <td>{{ acct.status }}</td>
+            <td>{{ acct.resources }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</article>

@@ -1,0 +1,38 @@
+{# Tab bar with HTMX HATEOAS pattern -- server controls active state.
+   Each tab uses hx-get to swap the full #tab-container div.
+   Variables: active_tab (str), scan_state (str), resource_count (int) #}
+<nav class="tab-bar" role="tablist">
+  <ul>
+    <li>
+      <a hx-get="/tab/progress" hx-target="#tab-container" hx-push-url="false"
+         role="tab" aria-selected="{{ 'true' if active_tab == 'progress' else 'false' }}"
+         class="{{ 'tab-active' if active_tab == 'progress' else '' }}">
+        Progress
+        {% if scan_state == 'running' %}
+          <span class="badge badge-warning">scanning...</span>
+        {% elif scan_state == 'complete' %}
+          <span class="badge badge-success">done</span>
+        {% else %}
+          <span class="badge">idle</span>
+        {% endif %}
+      </a>
+    </li>
+    <li>
+      <a hx-get="/tab/results" hx-target="#tab-container" hx-push-url="false"
+         role="tab" aria-selected="{{ 'true' if active_tab == 'results' else 'false' }}"
+         class="{{ 'tab-active' if active_tab == 'results' else '' }}">
+        Results
+        {% if resource_count is defined and resource_count > 0 %}
+          <span class="badge">{{ resource_count }}</span>
+        {% endif %}
+      </a>
+    </li>
+    <li>
+      <a hx-get="/tab/summary" hx-target="#tab-container" hx-push-url="false"
+         role="tab" aria-selected="{{ 'true' if active_tab == 'summary' else 'false' }}"
+         class="{{ 'tab-active' if active_tab == 'summary' else '' }}">
+        Summary
+      </a>
+    </li>
+  </ul>
+</nav>

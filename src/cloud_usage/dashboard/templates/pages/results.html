@@ -1,0 +1,13 @@
+{# Results tab -- placeholder until Plan 03 adds results table.
+   Variables: active_tab, scan_state, resource_count #}
+<div id="tab-container">
+  {% include "partials/tab_bar.html" %}
+
+  <div id="tab-content">
+    {% if resource_count is defined and resource_count > 0 %}
+      <p>Results table with {{ resource_count }} resources will be displayed here.</p>
+    {% else %}
+      <p>Results will appear after a scan completes.</p>
+    {% endif %}
+  </div>
+</div>
