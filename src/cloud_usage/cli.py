@@ -150,6 +150,32 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Comma-separated Azure subscription IDs or display names to exclude from scan",
     )
 
+    # GCP-specific options
+    parser.add_argument(
+        "--project",
+        type=str,
+        default=None,
+        help="GCP project ID for single-project mode (bypasses project enumeration)",
+    )
+    parser.add_argument(
+        "--org-id",
+        type=str,
+        default=None,
+        help="GCP organization ID to scope project enumeration",
+    )
+    parser.add_argument(
+        "--include-projects",
+        type=str,
+        default=None,
+        help="Comma-separated glob patterns for GCP project IDs to include (takes precedence over --exclude-projects)",
+    )
+    parser.add_argument(
+        "--exclude-projects",
+        type=str,
+        default=None,
+        help="Comma-separated glob patterns for GCP project IDs to exclude from scan",
+    )
+
     return parser.parse_args(argv)
 
 
@@ -491,13 +517,15 @@ def _get_auth_validators(
     """
     from cloud_usage.providers.aws.auth import AWSAuthValidator
     from cloud_usage.providers.azure.auth import AzureAuthValidator
+    from cloud_usage.providers.gcp.auth import GCPAuthValidator
 
     validators: dict = {}
     if "aws" in selected:
         validators["aws"] = AWSAuthValidator(profile=args.profile)
     if "azure" in selected:
         validators["azure"] = AzureAuthValidator()
-    # GCP validator will be added in Phase 4
+    if "gcp" in selected:
+        validators["gcp"] = GCPAuthValidator()
     return validators
 
 
@@ -560,7 +588,42 @@ def _get_discovery_providers(selected: list[str], args: argparse.Namespace) -> l
             )
         )
 
-    # GCP provider will be added in Phase 4
+    if "gcp" in selected:
+        from google.auth import default as gcp_default
+
+        from cloud_usage.providers.gcp.client_factory import create_shared_clients
+        from cloud_usage.providers.gcp.projects import enumerate_gcp_projects
+        from cloud_usage.providers.gcp.provider import GCPDiscoveryProvider
+
+        credentials, adc_project = gcp_default()
+        include_proj = _parse_account_list(args.include_projects)
+        exclude_proj = _parse_account_list(args.exclude_projects)
+
+        projects = enumerate_gcp_projects(
+            credentials,
+            adc_project,
+            args.project,
+            args.org_id,
+            include_proj,
+            exclude_proj,
+        )
+
+        # Pre-scan display: show project count and org-id (if scoped)
+        org_display = f", org: {args.org_id}" if args.org_id else ""
+        sys.stderr.write(
+            f"\nGCP: {len(projects)} project(s){org_display}\n"
+        )
+
+        shared_clients = create_shared_clients(credentials)
+        providers.append(
+            GCPDiscoveryProvider(
+                credentials=credentials,
+                projects=projects,
+                shared_clients=shared_clients,
+                include_projects=include_proj,
+                exclude_projects=exclude_proj,
+            )
+        )
 
     return providers
 
