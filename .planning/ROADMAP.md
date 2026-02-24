@@ -72,7 +72,7 @@ Plans:
 
 Plans:
 - [ ] 02.1-01-PLAN.md -- Wire RateLimiter into retry decorator and orchestrator dispatch loop
-- [ ] 02.1-02-PLAN.md -- Remove orphaned count_ips() dead code from counting module
+- [x] 02.1-02-PLAN.md -- Remove orphaned count_ips() dead code from counting module
 
 ### Phase 3: Azure Provider
 **Goal**: Users can run a complete Azure scan across all subscriptions, with tenant-level rate limiting preventing ARM throttling cascades, producing the same quality of output as AWS
@@ -139,7 +139,7 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 |-------|----------------|--------|-----------|
 | 1. Core Infrastructure | 4/4 | Complete    | 2026-02-23 |
 | 2. AWS Provider and End-to-End Pipeline | 6/6 | Complete | 2026-02-23 |
-| 2.1. Wire RateLimiter (Gap Closure) | 0/2 | Not started | - |
+| 2.1. Wire RateLimiter (Gap Closure) | 1/2 | In Progress | - |
 | 3. Azure Provider | 0/TBD | Not started | - |
 | 4. GCP Provider | 0/TBD | Not started | - |
 | 5. Web Dashboard | 0/TBD | Not started | - |

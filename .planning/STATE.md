@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Accurate, auditable UDDI token estimation from cloud discovery -- customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Phase 2: AWS Provider and End-to-End Pipeline
+**Current focus:** Phase 2.1: Wire RateLimiter into Discovery Pipeline (Gap Closure)
 
 ## Current Position
 
-Phase: 2 of 6 (AWS Provider and End-to-End Pipeline) -- COMPLETE
-Plan: 6 of 6 in current phase (all plans complete)
+Phase: 2.1 of 6 (Wire RateLimiter into Discovery Pipeline)
+Plan: 2 of 2 in current phase (all plans complete)
 Status: Phase Complete
-Last activity: 2026-02-23 -- Completed 02-06-PLAN.md (end-to-end pipeline integration, legacy code deletion)
+Last activity: 2026-02-24 -- Completed 02.1-02-PLAN.md (dead code cleanup, count_ips removal)
 
-Progress: [██████████] 42%
+Progress: [██████████] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Average duration: 7min
-- Total execution time: 1.03 hours
+- Total execution time: 1.17 hours
 
 **By Phase:**
 
@@ -29,10 +29,11 @@ Progress: [██████████] 42%
 |-------|-------|-------|----------|
 | 01-core-infrastructure | 4 | 15min | 4min |
 | 02-aws-provider-and-end-to-end-pipeline | 6 | 51min | 9min |
+| 02.1-wire-ratelimiter-into-discovery-pipeline | 1 | 8min | 8min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (5min), 02-03 (7min), 02-04 (7min), 02-05 (5min), 02-06 (22min)
-- Trend: 02-06 longer due to integration complexity and pipeline bug fixes
+- Last 5 plans: 02-03 (7min), 02-04 (7min), 02-05 (5min), 02-06 (22min), 02.1-02 (8min)
+- Trend: Stable execution times for focused cleanup tasks
 
 *Updated after each plan completion*
 | Phase 02 P01 | 6min | 2 tasks | 9 files |
@@ -40,6 +41,7 @@ Progress: [██████████] 42%
 | Phase 02 P04 | 7min | 2 tasks | 4 files |
 | Phase 02 P05 | 5min | 2 tasks | 6 files |
 | Phase 02 P06 | 22min | 3 tasks | 7 files (+15 deleted) |
+| Phase 02.1 P02 | 8min | 1 task | 2 files |
 
 ## Accumulated Context
 
@@ -88,6 +90,8 @@ Recent decisions affecting current work:
 - [02-06]: Categorizer respects prior pipeline exclusions: resources with counted=False and skip_reason are not re-categorized
 - [02-06]: Asset dedup and managed service exclusion check counted is False (explicit), not falsy None, to process uncategorized resources
 - [02-06]: Legacy code (aws_discovery/, shared/, main.py) deleted after integration tests confirm Phase 2 works
+- [02.1-02]: Removed import ipaddress from ip_counter.py -- only needed by deleted count_ips(), not by deduplicate_ips_per_vpc()
+- [02.1-02]: Updated ip_counter module docstring to reflect per-VPC deduplication scope only (removed "IP extraction" reference)
 
 ### Pending Todos
 
@@ -100,6 +104,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-23
-Stopped at: Completed 02-06-PLAN.md (end-to-end pipeline integration, Phase 2 complete)
+Last session: 2026-02-24
+Stopped at: Completed 02.1-02-PLAN.md (dead code cleanup, count_ips removal)
 Resume file: None
