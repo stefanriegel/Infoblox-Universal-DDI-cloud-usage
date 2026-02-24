@@ -78,7 +78,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Validated Reference
 
-- [x] **REF-01**: GCP discovery logic validated against production environment with 87 projects — use existing GCP counting rules as reference implementation
+- [ ] **REF-01**: GCP discovery logic validated against production environment with 87 projects — use existing GCP counting rules as reference implementation
 
 ## v2 Requirements
 
@@ -129,7 +129,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DISC-02 | Phase 3 | Complete |
 | DISC-03 | Phase 4 | Complete |
 | DISC-04 | Phase 1 | Complete |
-| DISC-05 | Phase 1 | Complete |
+| DISC-05 | Phase 1+7 | Complete |
 | DISC-06 | Phase 1 | Complete |
 | DISC-07 | Phase 2 | Complete |
 | DISC-08 | Phase 1 | Complete |
@@ -154,7 +154,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OUT-03 | Phase 2 | Complete |
 | OUT-04 | Phase 2 | Complete |
 | OUT-05 | Phase 2 | Complete |
-| RESIL-01 | Phase 1 | Complete |
+| RESIL-01 | Phase 1+7 | Complete |
 | RESIL-02 | Phase 1 | Complete |
 | RESIL-03 | Phase 1 | Complete |
 | PLAT-01 | Phase 6 | Pending |
@@ -162,12 +162,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PLAT-03 | Phase 5 | Pending |
 | PLAT-04 | Phase 6 | Pending |
 | PLAT-05 | Phase 1 | Complete |
-| REF-01 | Phase 4 | Complete |
+| REF-01 | Phase 4 | Pending (human validation) |
 
 **Coverage:**
 - v1 requirements: 43 total
 - Mapped to phases: 43
 - Unmapped: 0
+- Satisfied: 38, Pending: 4 (PLAT-01-04), Pending human validation: 1 (REF-01)
 
 ---
 *Requirements defined: 2026-02-23*

@@ -16,9 +16,10 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: AWS Provider and End-to-End Pipeline** - First complete vertical slice: AWS discovery through counting, token calculation, and CSV/XLS report output
 - [x] **Phase 2.1: Wire RateLimiter into Discovery Pipeline** - INSERTED: Gap closure from v1.0 audit — activate RateLimiter coordination in orchestrator and collector decorators, remove dead code
 - [ ] **Phase 3: Azure Provider** - Azure subscription discovery plugged into the proven pipeline with tenant-level rate limiting
-- [ ] **Phase 4: GCP Provider** - GCP project discovery plugged into the proven pipeline, validated against 87-project reference environment
+- [x] **Phase 4: GCP Provider** - GCP project discovery plugged into the proven pipeline, validated against 87-project reference environment (completed 2026-02-24)
 - [ ] **Phase 5: Web Dashboard** - FastAPI + HTMX dashboard with real-time SSE progress and results browsing
 - [ ] **Phase 6: Platform Hardening** - Cross-platform validation (Windows 11, WSL, macOS) and PowerShell setup scripts
+- [ ] **Phase 7: Integration Gap Closure** - Wire orphaned RateLimiter.record_success() and checkpoint_engine to Azure/GCP providers
 
 ## Phase Details
 
@@ -133,11 +134,25 @@ Plans:
 Plans:
 - [ ] 06-01: TBD
 
+### Phase 7: Integration Gap Closure
+**Goal**: Wire orphaned integration points so RateLimiter success tracking and Azure/GCP checkpoint resume are functional, closing dead code paths identified by v1.0 audit
+**Depends on**: Phase 2.1, Phase 3, Phase 4
+**Requirements**: DISC-05 (integration hardening), RESIL-01 (checkpoint hardening)
+**Gap Closure**: Closes 2 integration gaps from v1.0 milestone audit
+**Success Criteria** (what must be TRUE):
+  1. RateLimiter.record_success() is called by collectors on successful API responses, decaying backoff state after throttle recovery
+  2. checkpoint_engine is passed to AzureDiscoveryProvider and GCPDiscoveryProvider constructors, enabling per-subscription/per-project checkpoint skip logic
+  3. No orphaned methods or dead internal code paths remain for rate limiting or checkpointing
+**Plans**: TBD
+
+Plans:
+- [ ] 07-01: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 2.1 -> 3 -> 4 -> 5 -> 6
-Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depends on all provider phases.
+Phases execute in numeric order: 1 -> 2 -> 2.1 -> 3 -> 4 -> 5 -> 6 -> 7
+Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depends on all provider phases. Phase 7 is a gap closure phase from v1.0 audit.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -145,6 +160,7 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 2. AWS Provider and End-to-End Pipeline | 6/6 | Complete | 2026-02-23 |
 | 2.1. Wire RateLimiter (Gap Closure) | 2/2 | Complete | 2026-02-24 |
 | 3. Azure Provider | 4/4 | Complete | 2026-02-24 |
-| 4. GCP Provider | 4/4 | Complete | 2026-02-24 |
+| 4. GCP Provider | 4/4 | Complete    | 2026-02-24 |
 | 5. Web Dashboard | 0/TBD | Not started | - |
 | 6. Platform Hardening | 0/TBD | Not started | - |
+| 7. Integration Gap Closure | 0/TBD | Not started | - |
