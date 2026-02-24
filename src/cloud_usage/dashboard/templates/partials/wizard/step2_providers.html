@@ -1,0 +1,52 @@
+{# Wizard Step 2: Provider Selection
+   Shows checkboxes for authenticated providers.
+   Variables: steps, current_step, authenticated_providers (list of str),
+   saved_providers (list of str) #}
+<div id="wizard-content">
+  <h2>New Scan Wizard</h2>
+
+  {# Step indicator #}
+  <ul class="wizard-steps">
+    {% for s in steps %}
+    <li class="{{ s.state }}">
+      <span class="step-number">{{ s.number }}</span>
+      {{ s.label }}
+    </li>
+    {% endfor %}
+  </ul>
+
+  <h3>Step 2: Select Providers</h3>
+
+  <form hx-post="/wizard/accounts" hx-target="#wizard-content">
+    {% set provider_display = {"aws": "AWS", "azure": "Azure", "gcp": "GCP"} %}
+
+    <p>Select the cloud providers to include in this scan. Only providers with valid credentials are available.</p>
+
+    <fieldset>
+      {% for p in authenticated_providers %}
+      <label>
+        <input type="checkbox" name="providers" value="{{ p }}"
+               {% if saved_providers and p in saved_providers %}checked
+               {% elif not saved_providers %}checked{% endif %}>
+        {{ provider_display.get(p, p) }}
+      </label>
+      {% endfor %}
+    </fieldset>
+
+    {% if not authenticated_providers %}
+    <article>
+      <p>No providers have valid credentials. Please go back and authenticate at least one provider.</p>
+    </article>
+    {% endif %}
+
+    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+      <button type="button" class="secondary outline"
+              hx-post="/wizard/auth-check" hx-target="#wizard-content">
+        Back
+      </button>
+      <button type="submit" {% if not authenticated_providers %}disabled{% endif %}>
+        Next: Select Accounts
+      </button>
+    </div>
+  </form>
+</div>

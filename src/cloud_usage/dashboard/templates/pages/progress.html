@@ -43,6 +43,10 @@
             {% include "partials/progress_row.html" %}
           {% endwith %}
         {% endfor %}
+
+        <button hx-get="/wizard" hx-target="#tab-content" hx-swap="innerHTML" style="margin-top: 1rem;">
+          New Scan
+        </button>
       </div>
 
     {% elif scan_state == 'cancelled' %}
@@ -51,6 +55,9 @@
           <header>Scan Cancelled</header>
           <p>The scan was cancelled. Partial results may be available in the Results tab.</p>
         </article>
+        <button hx-get="/wizard" hx-target="#tab-content" hx-swap="innerHTML" style="margin-top: 1rem;">
+          New Scan
+        </button>
       </div>
 
     {% elif scan_state == 'error' %}
@@ -59,12 +66,18 @@
           <header>Scan Error</header>
           <p>An error occurred during the scan. Check the Results tab for any partial results.</p>
         </article>
+        <button hx-get="/wizard" hx-target="#tab-content" hx-swap="innerHTML" style="margin-top: 1rem;">
+          New Scan
+        </button>
       </div>
 
     {% else %}
       {# IDLE state #}
       <div id="progress-container">
         <p>No scan running. Use the scan wizard to start a new discovery scan.</p>
+        <button hx-get="/wizard" hx-target="#tab-content" hx-swap="innerHTML">
+          New Scan
+        </button>
       </div>
     {% endif %}
   </div>

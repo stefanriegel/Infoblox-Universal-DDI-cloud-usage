@@ -1,0 +1,64 @@
+{# Wizard Step 4: Review & Start
+   Shows scan configuration summary and Start Scan button.
+   Variables: steps, current_step, selected_providers (list of str),
+   selected_accounts (dict: provider -> list of account IDs),
+   provider_display (dict) #}
+<div id="wizard-content">
+  <h2>New Scan Wizard</h2>
+
+  {# Step indicator #}
+  <ul class="wizard-steps">
+    {% for s in steps %}
+    <li class="{{ s.state }}">
+      <span class="step-number">{{ s.number }}</span>
+      {{ s.label }}
+    </li>
+    {% endfor %}
+  </ul>
+
+  <h3>Step 4: Review & Start</h3>
+
+  <article>
+    <header><strong>Scan Configuration</strong></header>
+
+    <table role="grid">
+      <thead>
+        <tr>
+          <th>Provider</th>
+          <th>Accounts Selected</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in selected_providers %}
+        <tr>
+          <td>{{ provider_display.get(p, p) }}</td>
+          <td>{{ (selected_accounts.get(p, [])|length) }} account{{ 's' if (selected_accounts.get(p, [])|length) != 1 else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <p><small>All enabled regions will be scanned. Discovery is read-only.</small></p>
+  </article>
+
+  <form hx-post="/api/scan/start" hx-target="#main-content" hx-swap="innerHTML"
+        hx-on::after-request="if(event.detail.successful) { htmx.ajax('GET', '/tab/progress', {target:'#tab-container'}) }">
+    {# Pass config as hidden fields #}
+    {% for p in selected_providers %}
+    <input type="hidden" name="providers" value="{{ p }}">
+    {% for acct in selected_accounts.get(p, []) %}
+    <input type="hidden" name="accounts_{{ p }}" value="{{ acct }}">
+    {% endfor %}
+    {% endfor %}
+
+    <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+      <button type="button" class="secondary outline"
+              hx-post="/wizard/accounts" hx-target="#wizard-content">
+        Back
+      </button>
+      <button type="submit" class="primary">
+        Start Scan
+      </button>
+    </div>
+  </form>
+</div>

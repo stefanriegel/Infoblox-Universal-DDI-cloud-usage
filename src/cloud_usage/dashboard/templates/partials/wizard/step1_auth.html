@@ -1,0 +1,75 @@
+{# Wizard Step 1: Auth Check
+   Shows per-provider authentication status with green/red indicators.
+   Variables: steps, current_step, auth_results (list of dicts or None),
+   checking (bool), has_passing (bool) #}
+<div id="wizard-content">
+  <h2>New Scan Wizard</h2>
+
+  {# Step indicator #}
+  <ul class="wizard-steps">
+    {% for s in steps %}
+    <li class="{{ s.state }}">
+      <span class="step-number">{{ s.number }}</span>
+      {{ s.label }}
+    </li>
+    {% endfor %}
+  </ul>
+
+  <h3>Step 1: Check Authentication</h3>
+
+  {% if checking %}
+    {# Auto-trigger auth check on load #}
+    <div hx-post="/wizard/auth-check" hx-trigger="load" hx-target="#wizard-content" hx-indicator="#auth-loading">
+      <div id="auth-loading">
+        <progress></progress>
+        <p>Checking cloud provider credentials...</p>
+      </div>
+    </div>
+  {% else %}
+    {# Auth results #}
+    <form hx-post="/wizard/providers" hx-target="#wizard-content">
+      {% if auth_results %}
+        {% set auth_instructions = {
+          "aws": "Run <code>aws sso login --profile &lt;profile&gt;</code> in terminal",
+          "azure": "Run <code>az login</code> in terminal",
+          "gcp": "Run <code>gcloud auth application-default login</code> in terminal"
+        } %}
+        {% set provider_display = {"aws": "AWS", "azure": "Azure", "gcp": "GCP"} %}
+
+        <div class="auth-results">
+          {% for r in auth_results %}
+          <article class="auth-result-row" style="border-left: 4px solid {{ '#2ecc40' if r.success else '#ff4136' }}; margin-bottom: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 0.75rem;">
+              {% if r.success %}
+                <span style="color: #2ecc40; font-size: 1.5rem;">&#10003;</span>
+                <div>
+                  <strong>{{ provider_display.get(r.provider, r.provider) }}</strong>: Authenticated
+                  {% if r.identity %}<br><small>{{ r.identity }}{% if r.account_count %}, {{ r.account_count }} account{{ 's' if r.account_count != 1 else '' }}{% endif %}</small>{% endif %}
+                </div>
+                <input type="hidden" name="auth_{{ r.provider }}" value="true">
+              {% else %}
+                <span style="color: #ff4136; font-size: 1.5rem;">&#10007;</span>
+                <div>
+                  <strong>{{ provider_display.get(r.provider, r.provider) }}</strong>: Not authenticated
+                  {% if r.error_message %}<br><small style="color: #ff4136;">{{ r.error_message }}</small>{% endif %}
+                  {% if auth_instructions.get(r.provider) %}<br><small>Fix: {{ auth_instructions[r.provider]|safe }}</small>{% endif %}
+                </div>
+              {% endif %}
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+        <button type="button" class="secondary outline"
+                hx-post="/wizard/auth-check" hx-target="#wizard-content">
+          Re-check
+        </button>
+        <button type="submit" {% if not has_passing %}disabled{% endif %}>
+          Next: Select Providers
+        </button>
+      </div>
+    </form>
+  {% endif %}
+</div>
