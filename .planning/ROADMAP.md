@@ -83,11 +83,13 @@ Plans:
   2. Azure-specific token-free resources (VM Disks, Management Groups, VM Monitoring Stats, Network Watcher Flow Logs, Network Watchers, Storage Accounts, Storage Containers, Subscription Tenants, Traffic Manager Profiles) are correctly excluded from token calculation
   3. Tenant-level rate limiting prevents ARM 429 cascades -- scan of 50+ subscriptions completes without throttling-induced failures
   4. Azure results flow through the same counting, token calculation, and report pipeline as AWS, producing a provider-specific XLS with detail and summary sheets
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- Azure auth validator, subscription enumeration, client factory, provider skeleton, CLI integration
+- [ ] 03-02-PLAN.md -- DDI collectors (VNets, subnets, DHCP) + DNS collectors (public/private zones/records) + core networking (NICs, public IPs)
+- [ ] 03-03-PLAN.md -- Compute (VMs, VMSS) + database (SQL, Cosmos, MySQL, PostgreSQL, Redis) + PaaS + hybrid networking collectors
+- [ ] 03-04-PLAN.md -- Token-free collectors, categorizer extension, provider wiring, integration tests, legacy deletion
 
 ### Phase 4: GCP Provider
 **Goal**: Users can run a complete GCP scan across all projects, using aggregatedList endpoints for efficiency, validated against a known 87-project reference environment
