@@ -359,3 +359,158 @@ class TestCategorizeAzureMixedBatch:
         assert result[2].skip_reason == "token-free: EBS Volume"  # EBS
         assert result[3].skip_reason == "token-free: Azure VM Disk"  # azure-disk
         assert result[4].category == "asset"  # azure-nic with IP
+
+
+# --- GCP type tests ---
+
+
+def _make_gcp_resource(
+    resource_type: str = "gcp-vpc",
+    ip_addresses: list[str] | None = None,
+    details: dict | None = None,
+    account_id: str = "my-gcp-project",
+    region: str = "us-central1",
+) -> CloudResource:
+    """Helper to create a GCP CloudResource with sensible defaults."""
+    return CloudResource(
+        resource_id=f"projects/{account_id}/{resource_type}/test",
+        resource_type=resource_type,
+        provider="gcp",
+        account_id=account_id,
+        region=region,
+        name=f"test-{resource_type}",
+        ip_addresses=ip_addresses or [],
+        details=details or {},
+        tags={},
+        discovered_at="2026-02-24T19:00:00",
+    )
+
+
+class TestCategorizeGcpDDIResources:
+    """GCP DDI resource types are categorized as category='ddi', counted=True."""
+
+    def test_gcp_vpc_is_ddi(self):
+        resources = categorize_resources([_make_gcp_resource("gcp-vpc")])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+        assert resources[0].skip_reason is None
+
+    def test_gcp_subnet_is_ddi(self):
+        resources = categorize_resources([_make_gcp_resource("gcp-subnet")])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+    def test_gcp_dns_zone_is_ddi(self):
+        resources = categorize_resources([_make_gcp_resource("gcp-dns-zone")])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+    def test_gcp_dns_record_is_ddi(self):
+        resources = categorize_resources([_make_gcp_resource("gcp-dns-record")])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+
+class TestCategorizeGcpTokenFreeResources:
+    """GCP token-free resources are excluded with specific skip reasons."""
+
+    def test_gcp_disk_is_token_free(self):
+        resources = categorize_resources([_make_gcp_resource("gcp-disk")])
+        assert resources[0].counted is False
+        assert resources[0].category is None
+        assert resources[0].skip_reason == "token-free: GCP Compute Persistent Disk"
+
+    def test_gcp_instance_group_is_token_free(self):
+        resources = categorize_resources([_make_gcp_resource("gcp-instance-group")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: GCP Instance Group"
+
+    def test_gcp_gke_cluster_is_token_free(self):
+        resources = categorize_resources([_make_gcp_resource("gcp-gke-cluster")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: GCP GKE Cluster (metadata only)"
+
+    def test_gcp_url_map_is_token_free(self):
+        resources = categorize_resources([_make_gcp_resource("gcp-url-map")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: GCP URL Map"
+
+    def test_gcp_storage_bucket_is_token_free(self):
+        resources = categorize_resources([_make_gcp_resource("gcp-storage-bucket")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: GCP Cloud Storage Bucket"
+
+    def test_gcp_monitoring_stats_is_token_free(self):
+        resources = categorize_resources([_make_gcp_resource("gcp-monitoring-stats")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: GCP Cloud Monitoring Metric Stats"
+
+    def test_gcp_connectivity_location_is_token_free(self):
+        resources = categorize_resources([_make_gcp_resource("gcp-connectivity-location")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: GCP Network Connectivity Location"
+
+    def test_gcp_storage_bucket_policy_is_token_free(self):
+        resources = categorize_resources([_make_gcp_resource("gcp-storage-bucket-policy")])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "token-free: GCP Cloud Storage Bucket Policy"
+
+
+class TestCategorizeGcpAssetResources:
+    """GCP resources with IPs are categorized as managed assets."""
+
+    def test_gcp_vm_with_ips_is_asset(self):
+        r = _make_gcp_resource("gcp-vm", ip_addresses=["10.0.1.5", "34.123.45.67"])
+        resources = categorize_resources([r])
+        assert resources[0].counted is True
+        assert resources[0].category == "asset"
+
+    def test_gcp_vm_without_ips_excluded(self):
+        r = _make_gcp_resource("gcp-vm", ip_addresses=[])
+        resources = categorize_resources([r])
+        assert resources[0].counted is False
+        assert resources[0].skip_reason == "no IP addresses"
+
+    def test_gcp_forwarding_rule_with_ip_is_asset(self):
+        r = _make_gcp_resource("gcp-forwarding-rule", ip_addresses=["34.120.0.1"])
+        resources = categorize_resources([r])
+        assert resources[0].counted is True
+        assert resources[0].category == "asset"
+
+    def test_gcp_cloud_sql_with_ips_is_asset(self):
+        r = _make_gcp_resource("gcp-cloud-sql", ip_addresses=["10.0.2.1", "34.100.0.5"])
+        resources = categorize_resources([r])
+        assert resources[0].counted is True
+        assert resources[0].category == "asset"
+
+    def test_gcp_reserved_ip_with_ip_is_asset(self):
+        r = _make_gcp_resource("gcp-reserved-ip", ip_addresses=["34.100.0.10"])
+        resources = categorize_resources([r])
+        assert resources[0].counted is True
+        assert resources[0].category == "asset"
+
+
+class TestCategorizeGcpMixedBatch:
+    """Categorizing a batch of mixed GCP resources."""
+
+    def test_mixed_gcp_batch(self):
+        resources = [
+            _make_gcp_resource("gcp-vpc"),  # DDI
+            _make_gcp_resource("gcp-subnet"),  # DDI
+            _make_gcp_resource("gcp-dns-zone"),  # DDI
+            _make_gcp_resource("gcp-dns-record"),  # DDI
+            _make_gcp_resource("gcp-vm", ip_addresses=["10.0.1.5"]),  # asset
+            _make_gcp_resource("gcp-disk"),  # token-free
+            _make_gcp_resource("gcp-gke-cluster"),  # token-free
+            _make_gcp_resource("gcp-vm", ip_addresses=[]),  # no IPs
+        ]
+        result = categorize_resources(resources)
+
+        assert result[0].category == "ddi"  # gcp-vpc
+        assert result[1].category == "ddi"  # gcp-subnet
+        assert result[2].category == "ddi"  # gcp-dns-zone
+        assert result[3].category == "ddi"  # gcp-dns-record
+        assert result[4].category == "asset"  # gcp-vm with IP
+        assert "token-free" in result[5].skip_reason  # gcp-disk
+        assert "token-free" in result[6].skip_reason  # gcp-gke-cluster
+        assert result[7].counted is False  # gcp-vm no IPs

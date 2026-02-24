@@ -25,6 +25,11 @@ DDI_TYPES: set[str] = {
     "azure-dns-record",
     "azure-private-dns-record",
     "azure-dhcp-config",
+    # GCP DDI types
+    "gcp-vpc",
+    "gcp-subnet",
+    "gcp-dns-zone",
+    "gcp-dns-record",
 }
 
 # Resource types that are discovered but not counted (token-free)
@@ -44,6 +49,15 @@ TOKEN_FREE_TYPES: dict[str, str] = {
     "azure-traffic-manager": "token-free: Azure Traffic Manager Profile",
     "azure-resource-group": "token-free: Azure Resource Group",
     "azure-nsg": "token-free: Azure Network Security Group",
+    # GCP token-free types (per ASSET-05 + GKE clusters)
+    "gcp-disk": "token-free: GCP Compute Persistent Disk",
+    "gcp-instance-group": "token-free: GCP Instance Group",
+    "gcp-url-map": "token-free: GCP URL Map",
+    "gcp-monitoring-stats": "token-free: GCP Cloud Monitoring Metric Stats",
+    "gcp-connectivity-location": "token-free: GCP Network Connectivity Location",
+    "gcp-storage-bucket-policy": "token-free: GCP Cloud Storage Bucket Policy",
+    "gcp-storage-bucket": "token-free: GCP Cloud Storage Bucket",
+    "gcp-gke-cluster": "token-free: GCP GKE Cluster (metadata only)",
 }
 
 
