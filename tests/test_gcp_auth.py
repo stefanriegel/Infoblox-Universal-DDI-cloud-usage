@@ -666,19 +666,38 @@ class TestGCPClientsFactory:
         """Missing SDK packages result in None fields, not exceptions."""
         mock_creds = MagicMock()
 
-        # Reload to get fresh module state after previous test's reload
-        import importlib
-        import cloud_usage.providers.gcp.client_factory as cf_mod
-        importlib.reload(cf_mod)
+        # Remove mocked GCP modules that may have been installed by other
+        # test files (e.g. test_gcp_collectors_*.py) to simulate a clean
+        # environment where GCP SDK packages are not installed.
+        saved_modules: dict = {}
+        gcp_keys = [
+            k for k in sys.modules
+            if k.startswith("google") and k != "google"
+        ]
+        for k in gcp_keys:
+            saved_modules[k] = sys.modules.pop(k)
+        # Also remove the top-level google module if it's a mock
+        saved_google = sys.modules.pop("google", None)
 
-        clients = cf_mod.create_shared_clients(mock_creds)
+        try:
+            import importlib
+            import cloud_usage.providers.gcp.client_factory as cf_mod
+            importlib.reload(cf_mod)
 
-        # The result should be a GCPClients with all None fields
-        # since GCP SDK is not installed in test environment
-        assert isinstance(clients, cf_mod.GCPClients)
-        # All fields should be None since no GCP SDK installed
-        assert clients.instances is None
-        assert clients.sqladmin is None
+            clients = cf_mod.create_shared_clients(mock_creds)
+
+            # The result should be a GCPClients with all None fields
+            # since GCP SDK is not installed in test environment
+            assert isinstance(clients, cf_mod.GCPClients)
+            # All fields should be None since no GCP SDK installed
+            assert clients.instances is None
+            assert clients.sqladmin is None
+        finally:
+            # Restore all saved modules
+            for k, v in saved_modules.items():
+                sys.modules[k] = v
+            if saved_google is not None:
+                sys.modules["google"] = saved_google
 
     def test_gcp_clients_dataclass_defaults_to_none(self) -> None:
         """GCPClients defaults all fields to None."""

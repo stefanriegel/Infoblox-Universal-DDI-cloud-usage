@@ -14,6 +14,27 @@ import sys
 
 from cloud_usage.discovery.provider import DiscoveryProvider
 from cloud_usage.providers.gcp.client_factory import GCPClients
+from cloud_usage.providers.gcp.collectors.compute import (
+    collect_gcp_forwarding_rules,
+    collect_gcp_vms,
+)
+from cloud_usage.providers.gcp.collectors.database import collect_gcp_cloud_sql
+from cloud_usage.providers.gcp.collectors.dns import (
+    collect_gcp_dns_records,
+    collect_gcp_dns_zones,
+)
+from cloud_usage.providers.gcp.collectors.networking import (
+    collect_gcp_reserved_ips,
+    collect_gcp_subnets,
+    collect_gcp_vpcs,
+)
+from cloud_usage.providers.gcp.collectors.token_free import (
+    collect_gcp_disks,
+    collect_gcp_gke_clusters,
+    collect_gcp_instance_groups,
+    collect_gcp_storage_buckets,
+    collect_gcp_url_maps,
+)
 from cloud_usage.providers.gcp.projects import ProjectInfo
 from cloud_usage.schema.resource import CloudResource
 
@@ -97,8 +118,9 @@ class GCPDiscoveryProvider(DiscoveryProvider):
     def discover_account(self, account_id: str) -> list[CloudResource]:
         """Discover all resources in a single GCP project.
 
-        Skeleton implementation that returns an empty list. Plans 02-04
-        will wire resource collectors into this method.
+        Runs all resource collectors in dependency order with API
+        enablement checks. DNS records depend on DNS zones. Collectors
+        for disabled APIs are skipped per the project's ProjectInfo flags.
 
         Checkpoint integration: checks if project is already completed
         (key: "gcp:{project_id}:completed") and skips if so.
@@ -130,11 +152,99 @@ class GCPDiscoveryProvider(DiscoveryProvider):
                     )
                     return []
 
-        # Create per-project DNS client (Pitfall 1: dns.Client requires project= at init)
-        _dns_client = self._create_dns_client(account_id)
+        # Look up project API enablement flags
+        project_info = self._project_info.get(account_id)
+        compute_enabled = project_info.compute_enabled if project_info else True
+        dns_enabled = project_info.dns_enabled if project_info else True
+        sqladmin_enabled = project_info.sqladmin_enabled if project_info else True
+        container_enabled = project_info.container_enabled if project_info else True
 
-        # Plans 02-04 will add collector calls here
         all_resources: list[CloudResource] = []
+        clients = self._shared_clients
+
+        # ---- DDI: VPCs (global), Subnets (aggregatedList) ----
+        if compute_enabled:
+            all_resources.extend(self._safe_collect(
+                "VPCs", account_id, collect_gcp_vpcs,
+                clients.networks, account_id,
+            ))
+
+            all_resources.extend(self._safe_collect(
+                "Subnets", account_id, collect_gcp_subnets,
+                clients.subnetworks, account_id,
+            ))
+
+        # ---- DNS: Zones (per-project client), Records (depends on zones) ----
+        dns_zones: list[CloudResource] = []
+        if dns_enabled:
+            dns_client = self._create_dns_client(account_id)
+            if dns_client is not None:
+                dns_zones = self._safe_collect(
+                    "DNS Zones", account_id, collect_gcp_dns_zones,
+                    dns_client, account_id,
+                )
+                all_resources.extend(dns_zones)
+
+                dns_records = self._safe_collect(
+                    "DNS Records", account_id, collect_gcp_dns_records,
+                    dns_client, account_id, dns_zones,
+                )
+                all_resources.extend(dns_records)
+
+        # ---- Compute: VMs, Forwarding Rules ----
+        if compute_enabled:
+            all_resources.extend(self._safe_collect(
+                "VMs", account_id, collect_gcp_vms,
+                clients.instances, account_id,
+            ))
+
+            all_resources.extend(self._safe_collect(
+                "Forwarding Rules", account_id, collect_gcp_forwarding_rules,
+                clients.forwarding_rules, account_id,
+            ))
+
+        # ---- Networking: Reserved IPs (regional + global) ----
+        if compute_enabled:
+            all_resources.extend(self._safe_collect(
+                "Reserved IPs", account_id, collect_gcp_reserved_ips,
+                clients.addresses, clients.global_addresses, account_id,
+            ))
+
+        # ---- Database: Cloud SQL ----
+        if sqladmin_enabled:
+            all_resources.extend(self._safe_collect(
+                "Cloud SQL", account_id, collect_gcp_cloud_sql,
+                clients.sqladmin, account_id,
+            ))
+
+        # ---- Token-free: Disks, Instance Groups, GKE, URL Maps, Storage ----
+        if compute_enabled:
+            all_resources.extend(self._safe_collect(
+                "Disks", account_id, collect_gcp_disks,
+                clients.disks, account_id,
+            ))
+
+            all_resources.extend(self._safe_collect(
+                "Instance Groups", account_id, collect_gcp_instance_groups,
+                clients.instance_groups, account_id,
+            ))
+
+            all_resources.extend(self._safe_collect(
+                "URL Maps", account_id, collect_gcp_url_maps,
+                clients.url_maps, account_id,
+            ))
+
+        if container_enabled:
+            all_resources.extend(self._safe_collect(
+                "GKE Clusters", account_id, collect_gcp_gke_clusters,
+                clients.container, account_id,
+            ))
+
+        # Storage buckets take credentials + project_id (not a shared client)
+        all_resources.extend(self._safe_collect(
+            "Storage Buckets", account_id, collect_gcp_storage_buckets,
+            self._credentials, account_id,
+        ))
 
         logger.info(
             "Discovered %d resources in project %s",

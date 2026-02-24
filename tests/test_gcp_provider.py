@@ -97,13 +97,19 @@ class TestGCPDiscoveryProvider:
 
 
 class TestDiscoverAccount:
-    """Tests for discover_account skeleton."""
+    """Tests for discover_account with all collectors wired."""
 
-    def test_discover_account_returns_empty_list(self) -> None:
-        """discover_account skeleton returns empty list."""
+    def test_discover_account_returns_empty_with_none_clients(self) -> None:
+        """discover_account with all-None GCPClients returns empty list (errors caught by _safe_collect)."""
         provider = _make_provider()
+        # Patch storage collector to return [] since the storage SDK may be
+        # mocked in sys.modules by other test files.
         with patch.object(provider, "_create_dns_client", return_value=None):
-            result = provider.discover_account("proj-alpha")
+            with patch(
+                "cloud_usage.providers.gcp.provider.collect_gcp_storage_buckets",
+                return_value=[],
+            ):
+                result = provider.discover_account("proj-alpha")
         assert result == []
 
     def test_discover_account_skips_completed_project(self) -> None:
@@ -130,14 +136,22 @@ class TestDiscoverAccount:
 
         provider = _make_provider(checkpoint_engine=mock_checkpoint)
         with patch.object(provider, "_create_dns_client", return_value=None):
-            result = provider.discover_account("proj-alpha")
+            with patch(
+                "cloud_usage.providers.gcp.provider.collect_gcp_storage_buckets",
+                return_value=[],
+            ):
+                result = provider.discover_account("proj-alpha")
         assert result == []
 
     def test_discover_account_no_checkpoint_engine(self) -> None:
         """discover_account works without checkpoint engine."""
         provider = _make_provider(checkpoint_engine=None)
         with patch.object(provider, "_create_dns_client", return_value=None):
-            result = provider.discover_account("proj-alpha")
+            with patch(
+                "cloud_usage.providers.gcp.provider.collect_gcp_storage_buckets",
+                return_value=[],
+            ):
+                result = provider.discover_account("proj-alpha")
         assert result == []
 
     def test_discover_account_checkpoint_none_load(self) -> None:
@@ -147,7 +161,11 @@ class TestDiscoverAccount:
 
         provider = _make_provider(checkpoint_engine=mock_checkpoint)
         with patch.object(provider, "_create_dns_client", return_value=None):
-            result = provider.discover_account("proj-alpha")
+            with patch(
+                "cloud_usage.providers.gcp.provider.collect_gcp_storage_buckets",
+                return_value=[],
+            ):
+                result = provider.discover_account("proj-alpha")
         assert result == []
 
 
@@ -189,9 +207,19 @@ class TestCreateDNSClient:
     def test_returns_none_when_sdk_missing(self) -> None:
         """_create_dns_client returns None when google-cloud-dns not installed."""
         provider = _make_provider()
-        # google.cloud.dns is not installed in test env
-        client = provider._create_dns_client("proj-test")
-        assert client is None
+
+        # Other test files may have mocked google.cloud.dns in sys.modules.
+        # Temporarily remove it so _create_dns_client hits the ImportError path.
+        saved_modules = {}
+        for key in list(sys.modules.keys()):
+            if key.startswith("google"):
+                saved_modules[key] = sys.modules.pop(key)
+
+        try:
+            client = provider._create_dns_client("proj-test")
+            assert client is None
+        finally:
+            sys.modules.update(saved_modules)
 
 
 class TestSafeCollect:
