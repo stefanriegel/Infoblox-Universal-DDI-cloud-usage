@@ -1,1 +1,143 @@
-/* placeholder */
+/* UDDI Cloud Usage Estimator -- Custom CSS overrides
+   Pico CSS handles 90% of styling via semantic HTML.
+   These additions cover dashboard-specific UI patterns. */
+
+/* Tab bar styling */
+nav.tab-bar a {
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    color: var(--pico-color);
+    border-bottom: 3px solid transparent;
+    transition: border-color 0.2s ease;
+}
+
+nav.tab-bar a:hover {
+    border-bottom-color: var(--pico-muted-border-color);
+}
+
+/* Active tab underline accent */
+.tab-active {
+    border-bottom: 3px solid var(--pico-primary-color) !important;
+    font-weight: 600;
+}
+
+/* Status badge styling */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    background: var(--pico-muted-border-color);
+    color: var(--pico-color);
+    vertical-align: middle;
+    margin-left: 0.25rem;
+}
+
+.badge-success {
+    background: #2ecc40;
+    color: #fff;
+}
+
+.badge-warning {
+    background: #ff851b;
+    color: #fff;
+}
+
+.badge-error {
+    background: #ff4136;
+    color: #fff;
+}
+
+/* Summary card grid */
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.summary-cards article {
+    text-align: center;
+    margin: 0;
+}
+
+.summary-cards article h3 {
+    margin-bottom: 0.25rem;
+}
+
+/* Filter chip styling */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    background: var(--pico-muted-border-color);
+    font-size: 0.85rem;
+    margin: 0.15rem;
+}
+
+.chip a {
+    text-decoration: none;
+    color: var(--pico-color);
+    font-weight: bold;
+    margin-left: 0.2rem;
+}
+
+/* Progress row expand/collapse */
+.expandable-content {
+    display: none;
+    padding: 0.5rem 1rem;
+}
+
+.expandable-content.open {
+    display: block;
+}
+
+/* Wizard step indicator */
+.wizard-steps {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+    list-style: none;
+    padding: 0;
+}
+
+.wizard-steps li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--pico-muted-color);
+}
+
+.wizard-steps li.active {
+    color: var(--pico-primary-color);
+    font-weight: 600;
+}
+
+.wizard-steps li.completed {
+    color: var(--pico-primary-color);
+}
+
+.wizard-steps .step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 50%;
+    border: 2px solid currentColor;
+    font-size: 0.85rem;
+}
+
+.wizard-steps li.active .step-number {
+    background: var(--pico-primary-color);
+    color: #fff;
+    border-color: var(--pico-primary-color);
+}
+
+.wizard-steps li.completed .step-number {
+    background: var(--pico-primary-color);
+    color: #fff;
+    border-color: var(--pico-primary-color);
+}

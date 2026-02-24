@@ -23,4 +23,4 @@ async def index(request: Request) -> HTMLResponse:
         Rendered base.html template.
     """
     templates = request.app.state.templates
-    return templates.TemplateResponse("base.html", {"request": request})
+    return templates.TemplateResponse(request, "base.html")
