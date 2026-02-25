@@ -21,9 +21,10 @@ jobs:
       shell: powershell
       run: |
         Write-Host "Creating self-signed code signing certificate..."
-        $cert = New-SelfSignedCertificate -Subject "CN=Infoblox Universal DDI Setup" `
+        $cert = New-SelfSignedCertificate -Subject "CN=Infoblox UDDI Estimator" `
           -Type CodeSigningCert -CertStoreLocation Cert:\CurrentUser\My `
-          -NotAfter (Get-Date).AddYears(1)
+          -HashAlgorithm sha256 `
+          -NotAfter (Get-Date).AddYears(2)
         Write-Host "Certificate created with thumbprint: $($cert.Thumbprint)"
 
         # Export certificate for potential manual import
