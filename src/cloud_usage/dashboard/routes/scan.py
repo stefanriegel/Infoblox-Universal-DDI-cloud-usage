@@ -164,7 +164,7 @@ def _enumerate_accounts(providers: list[str]) -> dict[str, dict]:
                 "accounts": [
                     {
                         "id": s.get("id", ""),
-                        "display_name": s.get("display_name", s.get("id", "")),
+                        "display_name": s.get("display_name") or s.get("id", ""),
                     }
                     for s in subs
                 ],
