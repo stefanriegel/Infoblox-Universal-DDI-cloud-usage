@@ -147,10 +147,11 @@ Plans:
   1. RateLimiter.record_success() is called by collectors on successful API responses, decaying backoff state after throttle recovery
   2. checkpoint_engine is passed to AzureDiscoveryProvider and GCPDiscoveryProvider constructors, enabling per-subscription/per-project checkpoint skip logic
   3. No orphaned methods or dead internal code paths remain for rate limiting or checkpointing
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 07-01: TBD
+- [ ] 07-01-PLAN.md -- Wire record_success() immediate reset into orchestrator + thread checkpoint_engine into CLI and dashboard provider construction
+- [ ] 07-02-PLAN.md -- Update tests for immediate-reset semantics, remove dead constant references, add integration tests for wiring
 
 ## Progress
 
@@ -166,5 +167,5 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 3. Azure Provider | 4/4 | Complete | 2026-02-24 |
 | 4. GCP Provider | 4/4 | Complete    | 2026-02-24 |
 | 5. Web Dashboard | 4/4 | Complete    | 2026-02-24 |
-| 6. Platform Hardening | 2/2 | Complete   | 2026-02-25 |
-| 7. Integration Gap Closure | 0/TBD | Not started | - |
+| 6. Platform Hardening | 2/2 | Complete    | 2026-02-25 |
+| 7. Integration Gap Closure | 0/2 | Not started | - |
