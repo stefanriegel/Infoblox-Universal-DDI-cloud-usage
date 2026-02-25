@@ -166,5 +166,5 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 3. Azure Provider | 4/4 | Complete | 2026-02-24 |
 | 4. GCP Provider | 4/4 | Complete    | 2026-02-24 |
 | 5. Web Dashboard | 4/4 | Complete    | 2026-02-24 |
-| 6. Platform Hardening | 0/TBD | Not started | - |
+| 6. Platform Hardening | 1/2 | In Progress|  |
 | 7. Integration Gap Closure | 0/TBD | Not started | - |
