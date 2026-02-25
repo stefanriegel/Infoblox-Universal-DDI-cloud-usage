@@ -2,28 +2,29 @@ name: CI
 
 on:
   push:
-    branches: [ dev ]
+    branches: [ main, dev ]
   pull_request:
-    branches: [ dev ]
+    branches: [ main, dev ]
 
 jobs:
-  # Step 1: Test setup scripts work on all platforms
+  # Step 1: Test setup scripts work on all platforms with Python matrix
   setup-test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.10', '3.11', '3.12']
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: ${{ matrix.python-version }}
 
     - name: Test setup script (Linux/macOS)
       if: runner.os != 'Windows'
       run: |
-        echo "4" | bash setup_venv.sh
+        bash setup_venv.sh 4
         source venv/bin/activate
         python -c "import sys; print(f'Python {sys.version}'); print('Virtual environment created successfully')"
     - name: Test setup script (Windows)
@@ -32,6 +33,28 @@ jobs:
         & .\setup_venv.ps1 -ProviderChoice "4"
         & venv\Scripts\Activate.ps1
         python -c "import sys; print(f'Python {sys.version}'); print('Virtual environment created successfully')"
+
+    - name: Smoke test dashboard import
+      if: runner.os != 'Windows'
+      run: |
+        source venv/bin/activate
+        python -c "from cloud_usage.dashboard.app import create_app; app = create_app(); print('Dashboard import OK')"
+    - name: Smoke test dashboard import (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        & venv\Scripts\Activate.ps1
+        python -c "from cloud_usage.dashboard.app import create_app; app = create_app(); print('Dashboard import OK')"
+
+    - name: Smoke test preflight
+      if: runner.os != 'Windows'
+      run: |
+        source venv/bin/activate
+        python -c "from cloud_usage.preflight import check_platform; r = check_platform(); print(r); assert r['python_ok']"
+    - name: Smoke test preflight (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        & venv\Scripts\Activate.ps1
+        python -c "from cloud_usage.preflight import check_platform; r = check_platform(); print(r); assert r['python_ok']"
 
   # Step 2: Lint and format check (only on Ubuntu to save time)
   lint:
@@ -50,23 +73,24 @@ jobs:
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics --exclude=venv
         flake8 . --count --exit-zero --max-line-length=127 --statistics --exclude=venv
 
-  # Step 3: Unit tests with pytest
+  # Step 3: Unit tests with pytest across all platforms and Python versions
   unit-test:
     runs-on: ${{ matrix.os }}
     needs: lint
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.10', '3.11', '3.12']
     steps:
     - uses: actions/checkout@v4
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: ${{ matrix.python-version }}
     - name: Install dependencies (Linux/macOS)
       if: runner.os != 'Windows'
       run: |
-        echo "4" | bash setup_venv.sh
+        bash setup_venv.sh 4
         source venv/bin/activate
         pip install pytest
     - name: Install dependencies (Windows)
@@ -92,7 +116,7 @@ jobs:
     needs: unit-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     timeout-minutes: 30
-    
+
     strategy:
       matrix:
         provider: [aws, azure, gcp]
@@ -121,7 +145,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        echo "4" | bash setup_venv.sh
+        bash setup_venv.sh 4
         source venv/bin/activate
 
     - name: Create GCP credentials file
@@ -138,21 +162,21 @@ jobs:
       run: |
         source venv/bin/activate
         echo "Testing AWS discovery..."
-        python main.py aws --format txt
+        python -m cloud_usage.cli --aws --format txt
 
     - name: Test Azure discovery
       if: matrix.provider == 'azure' && env.AZURE_CLIENT_ID != ''
       run: |
         source venv/bin/activate
         echo "Testing Azure discovery..."
-        python main.py azure --format txt
+        python -m cloud_usage.cli --azure --format txt
 
     - name: Test GCP discovery
       if: matrix.provider == 'gcp' && env.GCP_SA_KEY != ''
       run: |
         source venv/bin/activate
         echo "Testing GCP discovery..."
-        python main.py gcp --format txt
+        python -m cloud_usage.cli --gcp --format txt
 
     - name: Check output files
       if: |
