@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Accurate, auditable UDDI token estimation from cloud discovery -- customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Phase 6: Platform Hardening
+**Current focus:** Phase 7: Integration Gap Closure
 
 ## Current Position
 
-Phase: 6 of 6 (Platform Hardening)
-Plan: 2 of 3 in current phase
-Status: Plan 06-02 complete
-Last activity: 2026-02-25 -- Plan 06-02 complete
+Phase: 7 of 7 (Integration Gap Closure)
+Plan: 1 of 2 in current phase
+Status: Plan 07-01 complete
+Last activity: 2026-02-25 -- Plan 07-01 complete
 
 Progress: [█████████████████████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
+- Total plans completed: 26
 - Average duration: 8min
-- Total execution time: 3.23 hours
+- Total execution time: 3.35 hours
 
 **By Phase:**
 
@@ -60,6 +60,7 @@ Progress: [███████████████████████
 | Phase 05 P04 | 8min | 2 tasks | 12 files |
 | Phase 06 P01 | 3min | 2 tasks | 8 files |
 | Phase 06 P02 | 2min | 2 tasks | 3 files |
+| Phase 07 P01 | 7min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -181,6 +182,9 @@ Recent decisions affecting current work:
 - [06-02]: Integration test commands updated from python main.py to python -m cloud_usage.cli (main.py deleted in Phase 2)
 - [06-02]: sign-ps1.yml: CN=Infoblox UDDI Estimator, 2-year expiry, -HashAlgorithm sha256 added
 - [06-02]: enterprise-resign.md covers both paths: enterprise CA signing and self-signed cert import
+- [07-01]: record_success() uses immediate reset (delay=0.0, consecutive_rate_limits=0) -- not gradual decay -- per CONTEXT.md locked decision
+- [07-01]: record_success() called at account granularity in orchestrator (once per successful discover_account()), not per individual collector
+- [07-01]: CheckpointEngine creation moved before _build_discovery_providers() in dashboard _run_scan_pipeline() to ensure it is in scope
 
 ### Pending Todos
 
@@ -194,5 +198,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 06-01-PLAN.md (executed out of order after 06-02)
-Resume file: .planning/phases/06-platform-hardening/06-01-SUMMARY.md
+Stopped at: Completed 07-01-PLAN.md
+Resume file: .planning/phases/07-integration-gap-closure/07-01-SUMMARY.md
