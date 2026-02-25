@@ -3,7 +3,7 @@ Tests for scan wizard, download endpoints, CLI --web flag, and scan lifecycle.
 
 Tests cover wizard auth check, provider selection, scan start/cancel lifecycle,
 download path traversal prevention, CLI argument parsing for --web/--port,
-and saved scan config round-trip.
+saved scan config round-trip, wizard error UX paths, and CLI-vs-dashboard parity.
 """
 
 from __future__ import annotations
@@ -384,3 +384,175 @@ class TestTabWithWizard:
         response = client.get("/tab/summary")
         assert response.status_code == 200
         assert "aws_discovery_20260224.xlsx" in response.text
+
+
+# -- Wizard error UX tests --
+
+
+class TestWizardErrorUX:
+    """Tests for wizard step 3 error display and blocking behavior."""
+
+    @patch("cloud_usage.dashboard.routes.scan._enumerate_accounts")
+    def test_wizard_accounts_shows_inline_error_for_failed_provider(
+        self, mock_enum, client
+    ) -> None:
+        """When GCP fails, its inline error is shown but AWS accounts still appear."""
+        mock_enum.return_value = {
+            "aws": {
+                "accounts": [{"id": "111", "display_name": "Acct 111"}],
+                "error": None,
+            },
+            "gcp": {
+                "accounts": [],
+                "error": "Permission denied: resourcemanager.projects.list",
+            },
+        }
+        response = client.post(
+            "/wizard/accounts",
+            data={"providers": ["aws", "gcp"]},
+        )
+        assert response.status_code == 200
+        # GCP inline error must appear
+        assert "Permission denied" in response.text
+        # AWS accounts must still be shown
+        assert "111" in response.text
+
+    @patch("cloud_usage.dashboard.routes.scan._enumerate_accounts")
+    def test_wizard_accounts_shows_blocking_when_all_fail(
+        self, mock_enum, client
+    ) -> None:
+        """When all providers fail, the blocking message is rendered."""
+        mock_enum.return_value = {
+            "aws": {
+                "accounts": [],
+                "error": "NoCredentialsError: Unable to locate credentials",
+            },
+            "gcp": {
+                "accounts": [],
+                "error": "DefaultCredentialsError: could not load credentials",
+            },
+        }
+        response = client.post(
+            "/wizard/accounts",
+            data={"providers": ["aws", "gcp"]},
+        )
+        assert response.status_code == 200
+        # Blocking message must appear when all providers fail
+        assert "No providers available" in response.text
+
+    @patch("cloud_usage.dashboard.routes.scan._enumerate_accounts")
+    def test_wizard_accounts_working_provider_not_blocked_by_failed(
+        self, mock_enum, client
+    ) -> None:
+        """When AWS succeeds and GCP fails, Next button is NOT disabled."""
+        mock_enum.return_value = {
+            "aws": {
+                "accounts": [
+                    {"id": "111111111111", "display_name": "Account 111111111111"},
+                    {"id": "222222222222", "display_name": "Account 222222222222"},
+                ],
+                "error": None,
+            },
+            "gcp": {
+                "accounts": [],
+                "error": "Permission denied",
+            },
+        }
+        response = client.post(
+            "/wizard/accounts",
+            data={"providers": ["aws", "gcp"]},
+        )
+        assert response.status_code == 200
+        # AWS accounts are rendered
+        assert "111111111111" in response.text
+        assert "222222222222" in response.text
+        # The "disabled" attribute must NOT appear on the Next button
+        # (submit button is disabled only when all providers fail)
+        # Check: the button block does NOT have disabled on submit when AWS succeeds
+        assert 'type="submit" disabled' not in response.text
+        assert "No providers available" not in response.text
+
+    @patch("cloud_usage.dashboard.routes.scan._enumerate_accounts")
+    def test_wizard_filter_accounts_uses_new_return_structure(
+        self, mock_enum, client
+    ) -> None:
+        """GET /wizard/filter-accounts works with the new dict return structure."""
+        mock_enum.return_value = {
+            "aws": {
+                "accounts": [
+                    {"id": "111111111111", "display_name": "Account 111111111111"},
+                    {"id": "999999999999", "display_name": "Account 999999999999"},
+                ],
+                "error": None,
+            },
+        }
+        response = client.get("/wizard/filter-accounts?provider=aws&q=111")
+        assert response.status_code == 200
+        assert "111111111111" in response.text
+        # Account 999 does not match the filter
+        assert "999999999999" not in response.text
+
+
+# -- CLI-vs-dashboard parity tests --
+
+
+class TestCLIDashboardParity:
+    """Tests proving dashboard _enumerate_accounts produces identical project ID results
+    to what the CLI path would see from the same enumerate_gcp_projects output."""
+
+    def test_dashboard_and_cli_gcp_enumeration_parity(self) -> None:
+        """Dashboard extracts the same project_id strings the CLI would receive.
+
+        Mocks enumerate_gcp_projects at the SDK level (not wrapping _enumerate_accounts)
+        so the real _enumerate_accounts code path runs. Verifies the resulting IDs
+        match the ProjectInfo.project_id values the CLI would also read.
+        """
+        import cloud_usage.providers.gcp.projects
+
+        from cloud_usage.dashboard.routes.scan import _enumerate_accounts
+        from cloud_usage.providers.gcp.projects import ProjectInfo
+
+        # Create ProjectInfo objects — what the CLI would receive from enumerate_gcp_projects
+        cli_projects = [
+            ProjectInfo(
+                project_id="proj-1",
+                compute_enabled=True,
+                dns_enabled=True,
+                sqladmin_enabled=True,
+                container_enabled=True,
+            ),
+            ProjectInfo(
+                project_id="proj-2",
+                compute_enabled=True,
+                dns_enabled=False,
+                sqladmin_enabled=True,
+                container_enabled=False,
+            ),
+        ]
+
+        # CLI would use: [p.project_id for p in cli_projects]
+        cli_project_ids = [p.project_id for p in cli_projects]
+
+        # Stub google.auth so _enumerate_accounts can call gcp_default()
+        mock_google = MagicMock()
+        mock_google_auth = MagicMock()
+        mock_google_auth.default.return_value = (MagicMock(), "adc-project")
+        mock_google.auth = mock_google_auth
+
+        with patch.dict(sys.modules, {
+            "google": mock_google,
+            "google.auth": mock_google_auth,
+        }), patch(
+            "cloud_usage.providers.gcp.projects.enumerate_gcp_projects",
+            return_value=cli_projects,
+        ):
+            result = _enumerate_accounts(["gcp"])
+
+        # Extract IDs from dashboard path
+        dashboard_ids = [a["id"] for a in result["gcp"]["accounts"]]
+
+        # Dashboard and CLI must produce identical project ID lists
+        assert dashboard_ids == cli_project_ids, (
+            f"Dashboard IDs {dashboard_ids!r} differ from CLI IDs {cli_project_ids!r}"
+        )
+        assert dashboard_ids == ["proj-1", "proj-2"]
