@@ -132,10 +132,11 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Tool installs and runs correctly on Windows 11 (native Python), WSL on Windows 11, and macOS -- all file paths, process handling, and environment detection work cross-platform
   2. PowerShell setup scripts are provided and signed with a self-signed certificate, enabling Windows users to install dependencies and configure the tool without manual Python environment setup
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: TBD
+- [ ] 06-01-PLAN.md -- Cross-platform Python hardening: preflight module, SIGTERM guard, setup script modernization with CLI detection
+- [ ] 06-02-PLAN.md -- CI multi-platform Python 3.10+ matrix, PowerShell signing (2-year cert), enterprise re-signing guide
 
 ### Phase 7: Integration Gap Closure
 **Goal**: Wire orphaned integration points so RateLimiter success tracking and Azure/GCP checkpoint resume are functional, closing dead code paths identified by v1.0 audit
@@ -164,6 +165,6 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 2.1. Wire RateLimiter (Gap Closure) | 2/2 | Complete | 2026-02-24 |
 | 3. Azure Provider | 4/4 | Complete | 2026-02-24 |
 | 4. GCP Provider | 4/4 | Complete    | 2026-02-24 |
-| 5. Web Dashboard | 4/4 | Complete | 2026-02-24 |
+| 5. Web Dashboard | 4/4 | Complete    | 2026-02-24 |
 | 6. Platform Hardening | 0/TBD | Not started | - |
 | 7. Integration Gap Closure | 0/TBD | Not started | - |
