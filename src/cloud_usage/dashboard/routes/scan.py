@@ -221,16 +221,21 @@ def _run_scan_pipeline(
     from cloud_usage.resilience.rate_limiter import RateLimiter
 
     try:
-        # Build discovery providers
-        providers = _build_discovery_providers(config)
+        scan_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_dir = "./output"
+        os.makedirs(output_dir, exist_ok=True)
+
+        checkpoint_engine = CheckpointEngine(
+            checkpoint_dir=f"{output_dir}/.checkpoints",
+            ttl_hours=48,
+        )
+
+        # Build discovery providers (checkpoint_engine threaded in for resume support)
+        providers = _build_discovery_providers(config, checkpoint_engine)
         if not providers:
             scan_manager.set_state(ScanState.COMPLETE)
             event_bridge.emit_done()
             return
-
-        scan_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_dir = "./output"
-        os.makedirs(output_dir, exist_ok=True)
 
         audit_logger = setup_audit_logger(output_dir, scan_id=scan_id)
         audit_logger.info(
@@ -264,10 +269,6 @@ def _run_scan_pipeline(
 
         progress_tracker.complete_account = _tracked_complete
 
-        checkpoint_engine = CheckpointEngine(
-            checkpoint_dir=f"{output_dir}/.checkpoints",
-            ttl_hours=48,
-        )
         rate_limiter = RateLimiter()
 
         orchestrator = DiscoveryOrchestrator(
@@ -383,11 +384,15 @@ def _run_scan_pipeline(
             pass
 
 
-def _build_discovery_providers(config: ScanConfig) -> list:
+def _build_discovery_providers(config: ScanConfig, checkpoint_engine=None) -> list:
     """Build discovery provider instances from scan config.
+
+    The checkpoint_engine is threaded into Azure and GCP provider constructors
+    so that per-subscription and per-project resume is functional.
 
     Args:
         config: Scan configuration with providers and filters.
+        checkpoint_engine: CheckpointEngine for per-account resume, or None.
 
     Returns:
         List of DiscoveryProvider instances.
@@ -428,6 +433,7 @@ def _build_discovery_providers(config: ScanConfig) -> list:
                     subscriptions=subscriptions,
                     include_subscriptions=include,
                     exclude_subscriptions=exclude,
+                    checkpoint_engine=checkpoint_engine,
                 )
             )
         except ImportError:
@@ -456,6 +462,7 @@ def _build_discovery_providers(config: ScanConfig) -> list:
                     shared_clients=shared_clients,
                     include_projects=include,
                     exclude_projects=exclude,
+                    checkpoint_engine=checkpoint_engine,
                 )
             )
         except ImportError:

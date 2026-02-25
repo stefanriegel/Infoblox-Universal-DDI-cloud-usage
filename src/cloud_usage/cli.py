@@ -377,7 +377,7 @@ def main(argv: list[str] | None = None) -> int:
                 audit_logger.info("User declined checkpoint resume, starting fresh")
 
     # Create discovery providers for selected cloud platforms
-    providers = _get_discovery_providers(selected, args)
+    providers = _get_discovery_providers(selected, args, checkpoint_engine)
 
     if not providers:
         sys.stderr.write(
@@ -568,15 +568,22 @@ def _get_auth_validators(
     return validators
 
 
-def _get_discovery_providers(selected: list[str], args: argparse.Namespace) -> list:
+def _get_discovery_providers(
+    selected: list[str],
+    args: argparse.Namespace,
+    checkpoint_engine=None,
+) -> list:
     """Get discovery provider instances for selected providers.
 
     Creates and returns concrete DiscoveryProvider instances for each
-    selected cloud platform.
+    selected cloud platform. The checkpoint_engine is threaded into Azure
+    and GCP provider constructors so that per-subscription and per-project
+    resume is functional.
 
     Args:
         selected: List of selected provider names.
         args: Parsed CLI arguments.
+        checkpoint_engine: CheckpointEngine for per-account resume, or None.
 
     Returns:
         List of DiscoveryProvider instances.
@@ -624,6 +631,7 @@ def _get_discovery_providers(selected: list[str], args: argparse.Namespace) -> l
                 subscriptions=subscriptions,
                 include_subscriptions=include_subs,
                 exclude_subscriptions=exclude_subs,
+                checkpoint_engine=checkpoint_engine,
             )
         )
 
@@ -661,6 +669,7 @@ def _get_discovery_providers(selected: list[str], args: argparse.Namespace) -> l
                 shared_clients=shared_clients,
                 include_projects=include_proj,
                 exclude_projects=exclude_proj,
+                checkpoint_engine=checkpoint_engine,
             )
         )
 
