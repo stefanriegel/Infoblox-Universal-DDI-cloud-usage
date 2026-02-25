@@ -37,7 +37,9 @@ class GracefulShutdown:
         self._scan_state: CheckpointData | None = None
         self._lock = threading.Lock()
         signal.signal(signal.SIGINT, self._handler)
-        signal.signal(signal.SIGTERM, self._handler)
+        if sys.platform != "win32":
+            # SIGTERM is unreliable on Windows — Ctrl+C (SIGINT) is the primary interrupt
+            signal.signal(signal.SIGTERM, self._handler)
 
     def update_state(self, state: CheckpointData) -> None:
         """Update the current scan state snapshot.

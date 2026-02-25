@@ -16,6 +16,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from cloud_usage.auth.doctor import AuthDoctor
+from cloud_usage.preflight import check_platform, print_preflight_warnings
 from cloud_usage.counting.asset_dedup import (
     deduplicate_assets,
     exclude_managed_service_resources,
@@ -271,6 +272,12 @@ def main(argv: list[str] | None = None) -> int:
         Exit code: 0 on success, 1 on failure.
     """
     args = parse_args(argv)
+
+    # Platform preflight (warn-only, never blocks except Python < 3.10)
+    preflight_results = check_platform()
+    print_preflight_warnings(preflight_results)
+    if not preflight_results["python_ok"]:
+        return 1
 
     # Web dashboard mode
     if args.web:
