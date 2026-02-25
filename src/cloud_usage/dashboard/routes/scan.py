@@ -121,16 +121,18 @@ def _run_auth_check() -> list[dict]:
     ]
 
 
-def _enumerate_accounts(providers: list[str]) -> dict[str, list[dict]]:
+def _enumerate_accounts(providers: list[str]) -> dict[str, dict]:
     """Enumerate accounts/subscriptions/projects per provider. Blocking.
 
     Args:
         providers: List of provider names to enumerate.
 
     Returns:
-        Dict mapping provider -> list of {id, display_name} dicts.
+        Dict mapping provider -> {"accounts": list[{id, display_name}], "error": str | None}.
+        On success, "accounts" contains the list and "error" is None.
+        On failure, "accounts" is empty and "error" contains the exception message.
     """
-    accounts: dict[str, list[dict]] = {}
+    accounts: dict[str, dict] = {}
 
     if "aws" in providers:
         try:
@@ -140,13 +142,16 @@ def _enumerate_accounts(providers: list[str]) -> dict[str, list[dict]]:
             session = boto3.Session()
             provider = AWSDiscoveryProvider(session=session)
             acct_ids = provider.list_accounts()
-            accounts["aws"] = [
-                {"id": a, "display_name": f"Account {a}"}
-                for a in acct_ids
-            ]
+            accounts["aws"] = {
+                "accounts": [
+                    {"id": a, "display_name": f"Account {a}"}
+                    for a in acct_ids
+                ],
+                "error": None,
+            }
         except Exception as exc:
             logger.warning("Failed to enumerate AWS accounts: %s", exc)
-            accounts["aws"] = []
+            accounts["aws"] = {"accounts": [], "error": str(exc)}
 
     if "azure" in providers:
         try:
@@ -155,16 +160,19 @@ def _enumerate_accounts(providers: list[str]) -> dict[str, list[dict]]:
 
             credential = DefaultAzureCredential()
             subs = list_subscriptions(credential)
-            accounts["azure"] = [
-                {
-                    "id": s.get("subscription_id", s.get("id", "")),
-                    "display_name": s.get("display_name", s.get("subscription_id", "")),
-                }
-                for s in subs
-            ]
+            accounts["azure"] = {
+                "accounts": [
+                    {
+                        "id": s.get("id", ""),
+                        "display_name": s.get("display_name", s.get("id", "")),
+                    }
+                    for s in subs
+                ],
+                "error": None,
+            }
         except Exception as exc:
             logger.warning("Failed to enumerate Azure subscriptions: %s", exc)
-            accounts["azure"] = []
+            accounts["azure"] = {"accounts": [], "error": str(exc)}
 
     if "gcp" in providers:
         try:
@@ -172,14 +180,17 @@ def _enumerate_accounts(providers: list[str]) -> dict[str, list[dict]]:
             from cloud_usage.providers.gcp.projects import enumerate_gcp_projects
 
             credentials, adc_project = gcp_default()
-            projects = enumerate_gcp_projects(credentials, adc_project)
-            accounts["gcp"] = [
-                {"id": p, "display_name": f"Project {p}"}
-                for p in projects
-            ]
+            projects = enumerate_gcp_projects(credentials, adc_project, None, None, None, None)
+            accounts["gcp"] = {
+                "accounts": [
+                    {"id": p.project_id, "display_name": f"Project {p.project_id}"}
+                    for p in projects
+                ],
+                "error": None,
+            }
         except Exception as exc:
             logger.warning("Failed to enumerate GCP projects: %s", exc)
-            accounts["gcp"] = []
+            accounts["gcp"] = {"accounts": [], "error": str(exc)}
 
     return accounts
 
@@ -450,9 +461,7 @@ def _build_discovery_providers(config: ScanConfig, checkpoint_engine=None) -> li
             include = config.include_accounts.get("gcp")
             exclude = config.exclude_accounts.get("gcp")
             projects = enumerate_gcp_projects(
-                credentials, adc_project,
-                include_patterns=include,
-                exclude_patterns=exclude,
+                credentials, adc_project, None, None, include, exclude,
             )
             shared_clients = create_shared_clients(credentials)
             providers.append(
@@ -639,7 +648,7 @@ async def wizard_filter_accounts(request: Request) -> HTMLResponse:
     # For simplicity, enumerate fresh (the list is small)
     if provider:
         accounts = await asyncio.to_thread(_enumerate_accounts, [provider])
-        provider_accounts = accounts.get(provider, [])
+        provider_accounts = accounts.get(provider, {}).get("accounts", [])
     else:
         provider_accounts = []
 

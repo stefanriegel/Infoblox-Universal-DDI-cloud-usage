@@ -312,10 +312,13 @@ class TestWizardAccounts:
     def test_accounts_step_returns_200(self, mock_enum, client) -> None:
         """POST /wizard/accounts returns step 3 with account lists."""
         mock_enum.return_value = {
-            "aws": [
-                {"id": "111111111111", "display_name": "Account 111111111111"},
-                {"id": "222222222222", "display_name": "Account 222222222222"},
-            ],
+            "aws": {
+                "accounts": [
+                    {"id": "111111111111", "display_name": "Account 111111111111"},
+                    {"id": "222222222222", "display_name": "Account 222222222222"},
+                ],
+                "error": None,
+            },
         }
         response = client.post(
             "/wizard/accounts",
