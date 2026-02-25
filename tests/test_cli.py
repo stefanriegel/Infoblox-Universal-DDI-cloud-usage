@@ -11,7 +11,7 @@ from unittest import mock
 
 sys.path.insert(0, "src")
 
-from cloud_usage.cli import main, parse_args, select_providers
+from cloud_usage.cli import main, parse_args, select_providers, _get_discovery_providers
 
 
 class TestParseArgs:
@@ -305,3 +305,75 @@ class TestMainFunction:
         # Should not call load() when --no-resume is set
         mock_cp.load.assert_not_called()
         assert result == 0
+
+
+class TestGetDiscoveryProvidersCheckpointEngine:
+    """Tests proving checkpoint_engine is threaded through to provider constructors."""
+
+    def test_get_discovery_providers_passes_checkpoint_to_azure(self):
+        """_get_discovery_providers() passes checkpoint_engine kwarg to AzureDiscoveryProvider."""
+        mock_checkpoint = mock.MagicMock()
+        mock_args = mock.MagicMock()
+        mock_args.include_subscriptions = None
+        mock_args.exclude_subscriptions = None
+
+        mock_azure_cls = mock.MagicMock()
+        mock_credential = mock.MagicMock()
+        mock_subscriptions = [{"subscription_id": "sub-1", "tenant_id": "tenant-1", "display_name": "Sub 1"}]
+
+        # Inject stub azure.identity module so mock.patch can target it without SDK installed
+        mock_azure_identity = mock.MagicMock()
+        mock_azure_identity.DefaultAzureCredential.return_value = mock_credential
+        mock_azure_mod = mock.MagicMock()
+        mock_azure_mod.identity = mock_azure_identity
+
+        with mock.patch.dict(sys.modules, {
+            "azure": mock_azure_mod,
+            "azure.identity": mock_azure_identity,
+        }), \
+             mock.patch("cloud_usage.providers.azure.subscriptions.list_subscriptions", return_value=mock_subscriptions), \
+             mock.patch("cloud_usage.providers.azure.provider.AzureDiscoveryProvider", mock_azure_cls):
+            _get_discovery_providers(["azure"], mock_args, mock_checkpoint)
+
+        mock_azure_cls.assert_called_once()
+        call_kwargs = mock_azure_cls.call_args[1]
+        assert call_kwargs.get("checkpoint_engine") is mock_checkpoint
+
+    def test_get_discovery_providers_passes_checkpoint_to_gcp(self):
+        """_get_discovery_providers() passes checkpoint_engine kwarg to GCPDiscoveryProvider."""
+        # Pre-import GCP provider modules so they are in sys.modules for mock.patch
+        import importlib
+        import cloud_usage.providers.gcp.provider
+        import cloud_usage.providers.gcp.projects
+        import cloud_usage.providers.gcp.client_factory
+
+        mock_checkpoint = mock.MagicMock()
+        mock_args = mock.MagicMock()
+        mock_args.include_projects = None
+        mock_args.exclude_projects = None
+        mock_args.project = None
+        mock_args.org_id = None
+
+        mock_gcp_cls = mock.MagicMock()
+        mock_credentials = mock.MagicMock()
+        mock_projects = ["project-1", "project-2"]
+        mock_clients = mock.MagicMock()
+
+        # Inject stub google.auth module so mock.patch can target it without SDK installed
+        mock_google = mock.MagicMock()
+        mock_google_auth = mock.MagicMock()
+        mock_google_auth.default.return_value = (mock_credentials, "project-1")
+        mock_google.auth = mock_google_auth
+
+        with mock.patch.dict(sys.modules, {
+            "google": mock_google,
+            "google.auth": mock_google_auth,
+        }), \
+             mock.patch("cloud_usage.providers.gcp.projects.enumerate_gcp_projects", return_value=mock_projects), \
+             mock.patch("cloud_usage.providers.gcp.client_factory.create_shared_clients", return_value=mock_clients), \
+             mock.patch("cloud_usage.providers.gcp.provider.GCPDiscoveryProvider", mock_gcp_cls):
+            _get_discovery_providers(["gcp"], mock_args, mock_checkpoint)
+
+        mock_gcp_cls.assert_called_once()
+        call_kwargs = mock_gcp_cls.call_args[1]
+        assert call_kwargs.get("checkpoint_engine") is mock_checkpoint

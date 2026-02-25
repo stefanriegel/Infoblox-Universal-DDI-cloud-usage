@@ -423,6 +423,34 @@ class TestGracefulShutdown:
         assert signal.SIGTERM in registered_signals
 
 
+class TestRecordSuccessWiring:
+    """Tests proving record_success() is called on success and not on failure."""
+
+    def test_discover_account_calls_record_success_on_success(self):
+        """record_success() is called with provider_name when discover_account() succeeds."""
+        mock_rate_limiter = mock.MagicMock(spec=RateLimiter)
+        mock_rate_limiter.get_delay.return_value = 0.0
+
+        aws = MockDiscoveryProvider("aws", ["acc1"], resources_per_account=2)
+        orchestrator = _make_orchestrator([aws], rate_limiter=mock_rate_limiter)
+
+        orchestrator.run()
+
+        mock_rate_limiter.record_success.assert_called_with("aws")
+
+    def test_discover_account_does_not_call_record_success_on_failure(self):
+        """record_success() is NOT called when discover_account() raises an exception."""
+        mock_rate_limiter = mock.MagicMock(spec=RateLimiter)
+        mock_rate_limiter.get_delay.return_value = 0.0
+
+        aws = MockDiscoveryProvider("aws", ["acc1"], fail_accounts={"acc1"})
+        orchestrator = _make_orchestrator([aws], rate_limiter=mock_rate_limiter)
+
+        orchestrator.run()
+
+        mock_rate_limiter.record_success.assert_not_called()
+
+
 class TestRateLimiterIntegration:
     """Tests for RateLimiter wiring into the orchestrator."""
 
