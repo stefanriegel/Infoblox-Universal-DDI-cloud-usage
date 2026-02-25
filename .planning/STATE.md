@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-23)
 
 **Core value:** Accurate, auditable UDDI token estimation from cloud discovery -- customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Phase 7: Integration Gap Closure
+**Current focus:** Phase 8: Dashboard GCP Scan Fix
 
 ## Current Position
 
-Phase: 7 of 7 (Integration Gap Closure)
-Plan: 2 of 2 in current phase
-Status: Plan 07-02 complete -- Phase 7 complete -- ALL PHASES COMPLETE
-Last activity: 2026-02-25 -- Plan 07-02 complete
+Phase: 8 of 8 (Dashboard GCP Scan Fix)
+Plan: 1 of 1 in current phase
+Status: Plan 08-01 complete -- Phase 8 complete
+Last activity: 2026-02-25 -- Plan 08-01 complete
 
 Progress: [█████████████████████████] 100%
 
@@ -62,6 +62,7 @@ Progress: [███████████████████████
 | Phase 06 P02 | 2min | 2 tasks | 3 files |
 | Phase 07 P01 | 7min | 2 tasks | 4 files |
 | Phase 07 P02 | 9min | 2 tasks | 4 files |
+| Phase 08 P01 | 2min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -188,6 +189,10 @@ Recent decisions affecting current work:
 - [07-01]: CheckpointEngine creation moved before _build_discovery_providers() in dashboard _run_scan_pipeline() to ensure it is in scope
 - [07-02]: sys.modules injection used for azure.identity and google.auth stubs since SDKs not installed in test env; avoids requiring cloud SDKs to run unit tests
 - [07-02]: Pre-import GCP provider modules before mock.patch to ensure cloud_usage.providers.gcp is in sys.modules (lazy imports require this)
+- [08-01]: _enumerate_accounts return type changed from dict[str, list[dict]] to dict[str, dict] with 'accounts' and 'error' keys for error transparency in wizard
+- [08-01]: enumerate_gcp_projects called with all 6 positional args (credentials, adc_project, None, None, include, exclude) in both dashboard call sites
+- [08-01]: Azure subscriptions use 'id' key directly (no dead 'subscription_id' fallback) matching list_subscriptions() actual return dict structure
+- [08-01]: Failed providers show inline error in wizard step 3 but do not block form submission; only all-providers-fail scenario disables Next button
 
 ### Pending Todos
 
@@ -201,5 +206,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 07-02-PLAN.md (final plan -- all phases complete)
-Resume file: .planning/phases/07-integration-gap-closure/07-02-SUMMARY.md
+Stopped at: Completed 08-01-PLAN.md (phase 8 complete)
+Resume file: .planning/phases/08-dashboard-gcp-scan-fix/08-01-SUMMARY.md

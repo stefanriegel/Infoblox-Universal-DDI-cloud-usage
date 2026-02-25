@@ -167,7 +167,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md -- Fix all provider bugs in scan.py (GCP 6-arg calls, ProjectInfo iteration, Azure dict key) and add inline error UX
+- [x] 08-01-PLAN.md -- Fix all provider bugs in scan.py (GCP 6-arg calls, ProjectInfo iteration, Azure dict key) and add inline error UX
 - [ ] 08-02-PLAN.md -- Regression tests for all bug fixes, error UX paths, and CLI-vs-dashboard parity
 
 ## Progress
@@ -186,4 +186,4 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 5. Web Dashboard | 4/4 | Complete    | 2026-02-24 |
 | 6. Platform Hardening | 2/2 | Complete    | 2026-02-25 |
 | 7. Integration Gap Closure | 2/2 | Complete    | 2026-02-25 |
-| 8. Dashboard GCP Scan Fix | 0/1 | Planned    | — |
+| 8. Dashboard GCP Scan Fix | 1/2 | In Progress    | — |
