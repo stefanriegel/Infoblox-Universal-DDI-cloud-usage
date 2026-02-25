@@ -138,6 +138,7 @@ class DiscoveryOrchestrator:
             set_rate_limit_callback(callback)
             try:
                 resources = provider.discover_account(account_id)
+                self._rate_limiter.record_success(provider.provider_name)
                 return (provider.provider_name, account_id, resources, None)
             except Exception as exc:
                 error_record = create_error_record(provider.provider_name, account_id, exc)

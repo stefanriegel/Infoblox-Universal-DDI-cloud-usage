@@ -2,7 +2,7 @@
 
 Tracks per-provider backoff state and respects Retry-After headers from API
 responses. Starts aggressive (full speed), backs off when rate limits hit,
-and gradually recovers as successful calls are made.
+and immediately resets to zero on the first successful call.
 
 Thread-safe: all mutable state access is protected by a threading lock.
 """
@@ -18,12 +18,6 @@ logger = logging.getLogger(__name__)
 
 # Number of consecutive rate limits before a provider is considered heavily throttled.
 _HEAVY_THROTTLE_THRESHOLD = 3
-
-# Factor by which delay decreases on each successful call.
-_DECAY_FACTOR = 0.5
-
-# Minimum delay before it is rounded down to zero.
-_MIN_DELAY = 0.05
 
 
 @dataclass
@@ -108,20 +102,20 @@ class RateLimiter:
             return state.delay
 
     def record_success(self, provider: str) -> None:
-        """Record a successful API call, gradually reducing backoff.
+        """Record a successful API call, immediately resetting backoff to zero.
 
-        Halves the current delay and resets the consecutive rate-limit counter.
-        Once delay drops below the minimum threshold, it resets to zero.
+        Both the delay and the consecutive rate-limit counter reset to zero on
+        the first success after any throttling period. This ensures the provider
+        returns to full speed immediately after a single clean response, rather
+        than decaying gradually.
 
         Args:
             provider: Cloud provider identifier.
         """
         with self._lock:
             state = self._get_state(provider)
-            state.consecutive_rate_limits = max(0, state.consecutive_rate_limits - 1)
-            state.delay *= _DECAY_FACTOR
-            if state.delay < _MIN_DELAY:
-                state.delay = 0.0
+            state.consecutive_rate_limits = 0
+            state.delay = 0.0
 
     def is_throttled(self, provider: str) -> bool:
         """Check if a provider is currently in a heavy throttling state.
