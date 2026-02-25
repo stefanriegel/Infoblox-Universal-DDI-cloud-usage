@@ -15,11 +15,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Core Infrastructure** - Foundation abstractions: resource schema, error taxonomy, rate limiter, result collector, checkpoint engine, progress tracking
 - [x] **Phase 2: AWS Provider and End-to-End Pipeline** - First complete vertical slice: AWS discovery through counting, token calculation, and CSV/XLS report output
 - [x] **Phase 2.1: Wire RateLimiter into Discovery Pipeline** - INSERTED: Gap closure from v1.0 audit — activate RateLimiter coordination in orchestrator and collector decorators, remove dead code
-- [ ] **Phase 3: Azure Provider** - Azure subscription discovery plugged into the proven pipeline with tenant-level rate limiting
+- [x] **Phase 3: Azure Provider** - Azure subscription discovery plugged into the proven pipeline with tenant-level rate limiting
 - [x] **Phase 4: GCP Provider** - GCP project discovery plugged into the proven pipeline, validated against 87-project reference environment (completed 2026-02-24)
 - [x] **Phase 5: Web Dashboard** - FastAPI + HTMX dashboard with real-time SSE progress and results browsing (completed 2026-02-24)
 - [x] **Phase 6: Platform Hardening** - Cross-platform validation (Windows 11, WSL, macOS) and PowerShell setup scripts (completed 2026-02-25)
 - [x] **Phase 7: Integration Gap Closure** - Wire orphaned RateLimiter.record_success() and checkpoint_engine to Azure/GCP providers (completed 2026-02-25)
+- [ ] **Phase 8: Dashboard GCP Scan Fix** - Fix GCP scan path in web dashboard: correct enumerate_gcp_projects args, ProjectInfo iteration, and Azure dict key lookup
 
 ## Phase Details
 
@@ -123,7 +124,7 @@ Plans:
 - [x] 05-01-PLAN.md -- FastAPI app factory, vendored static assets, base template, EventBridge, ScanManager
 - [x] 05-02-PLAN.md -- HTMX tab navigation, SSE progress endpoint, DashboardProgressTracker
 - [x] 05-03-PLAN.md -- Results table with filtering/pagination, Summary tab with token cards
-- [ ] 05-04-PLAN.md -- Scan wizard, download endpoints, CLI --web flag
+- [x] 05-04-PLAN.md -- Scan wizard, download endpoints, CLI --web flag
 
 ### Phase 6: Platform Hardening
 **Goal**: Tool runs reliably on all target platforms (Windows 11, WSL, macOS) with signed PowerShell setup scripts for Windows onboarding
@@ -135,8 +136,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- Cross-platform Python hardening: preflight module, SIGTERM guard, setup script modernization with CLI detection
-- [ ] 06-02-PLAN.md -- CI multi-platform Python 3.10+ matrix, PowerShell signing (2-year cert), enterprise re-signing guide
+- [x] 06-01-PLAN.md -- Cross-platform Python hardening: preflight module, SIGTERM guard, setup script modernization with CLI detection
+- [x] 06-02-PLAN.md -- CI multi-platform Python 3.10+ matrix, PowerShell signing (2-year cert), enterprise re-signing guide
 
 ### Phase 7: Integration Gap Closure
 **Goal**: Wire orphaned integration points so RateLimiter success tracking and Azure/GCP checkpoint resume are functional, closing dead code paths identified by v1.0 audit
@@ -150,14 +151,29 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 07-01-PLAN.md -- Wire record_success() immediate reset into orchestrator + thread checkpoint_engine into CLI and dashboard provider construction
-- [ ] 07-02-PLAN.md -- Update tests for immediate-reset semantics, remove dead constant references, add integration tests for wiring
+- [x] 07-01-PLAN.md -- Wire record_success() immediate reset into orchestrator + thread checkpoint_engine into CLI and dashboard provider construction
+- [x] 07-02-PLAN.md -- Update tests for immediate-reset semantics, remove dead constant references, add integration tests for wiring
+
+### Phase 8: Dashboard GCP Scan Fix
+**Goal**: Fix the web dashboard's GCP scan path so users can initiate GCP scans through the wizard, matching the working CLI path
+**Depends on**: Phase 5, Phase 7
+**Requirements**: DISC-02, DISC-03, DISC-07, PLAT-02 (dashboard path hardening)
+**Gap Closure**: Closes INT-01, INT-02, INT-03 and Dashboard GCP Scan flow from v1.0 audit
+**Success Criteria** (what must be TRUE):
+  1. `enumerate_gcp_projects` is called with all 6 required positional args in both `_enumerate_accounts` and `_build_discovery_providers`
+  2. GCP wizard displays project IDs extracted from `ProjectInfo.project_id`, not raw `ProjectInfo` objects
+  3. Azure wizard uses the correct `id` key from `list_subscriptions()` return dicts (removes dead `subscription_id` primary lookup)
+  4. Dashboard GCP scan flow works end-to-end: wizard enumerates projects → user selects → scan starts → SSE progress → results
+**Plans**: TBD
+
+Plans:
+- [ ] 08-01-PLAN.md -- Fix enumerate_gcp_projects call signatures, ProjectInfo iteration, and Azure dict key in scan.py
 
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 2.1 -> 3 -> 4 -> 5 -> 6 -> 7
-Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depends on all provider phases. Phase 7 is a gap closure phase from v1.0 audit.
+Phases execute in numeric order: 1 -> 2 -> 2.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
+Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depends on all provider phases. Phase 7 and 8 are gap closure phases from v1.0 audit.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -168,4 +184,5 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 4. GCP Provider | 4/4 | Complete    | 2026-02-24 |
 | 5. Web Dashboard | 4/4 | Complete    | 2026-02-24 |
 | 6. Platform Hardening | 2/2 | Complete    | 2026-02-25 |
-| 7. Integration Gap Closure | 2/2 | Complete   | 2026-02-25 |
+| 7. Integration Gap Closure | 2/2 | Complete    | 2026-02-25 |
+| 8. Dashboard GCP Scan Fix | 0/1 | Planned    | — |
