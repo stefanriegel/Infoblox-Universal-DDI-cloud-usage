@@ -1,7 +1,7 @@
 {# Wizard Step 3: Account Selection
    Per-provider searchable checkbox list with Select All/Deselect All.
    Variables: steps, current_step, selected_providers (list of str),
-   accounts (dict: provider -> list of {id, display_name}),
+   accounts (dict: provider -> {"accounts": list[{id, display_name}], "error": str|None}),
    saved_includes (dict: provider -> list of account IDs) #}
 <div id="wizard-content">
   <h2>New Scan Wizard</h2>
@@ -18,6 +18,14 @@
 
   <h3>Step 3: Select Accounts</h3>
 
+  {# Check whether at least one provider has any accounts #}
+  {% set has_any_accounts = namespace(value=false) %}
+  {% for p in selected_providers %}
+    {% if accounts.get(p, {}).get('accounts', []) %}
+      {% set has_any_accounts.value = true %}
+    {% endif %}
+  {% endfor %}
+
   <form hx-post="/wizard/review" hx-target="#wizard-content">
     {% set provider_display = {"aws": "AWS", "azure": "Azure", "gcp": "GCP"} %}
     {% set provider_unit = {"aws": "accounts", "azure": "subscriptions", "gcp": "projects"} %}
@@ -27,11 +35,23 @@
     {% endfor %}
 
     {% for p in selected_providers %}
+    {% set provider_data = accounts.get(p, {}) %}
+    {% set provider_accounts = provider_data.get('accounts', []) %}
+    {% set provider_error = provider_data.get('error', none) %}
     <article style="margin-bottom: 1rem;">
       <header>
         <strong>{{ provider_display.get(p, p) }}</strong>
-        ({{ (accounts.get(p, [])|length) }} {{ provider_unit.get(p, 'accounts') }})
+        ({{ provider_accounts|length }} {{ provider_unit.get(p, 'accounts') }})
       </header>
+
+      {# Inline error display when provider enumeration failed #}
+      {% if provider_error %}
+      <div style="color: var(--del-color, #c62828); background: var(--mark-background-color, #fff3cd); padding: 0.75rem; border-radius: 4px; margin-bottom: 0.5rem;">
+        <strong>Failed to enumerate {{ provider_display.get(p, p) }} {{ provider_unit.get(p, 'accounts') }}</strong><br>
+        {{ provider_error }}<br>
+        <small>Check your authentication and permissions, then retry.</small>
+      </div>
+      {% else %}
 
       {# Search input with HTMX filtering #}
       <input type="search" placeholder="Search {{ provider_unit.get(p, 'accounts') }}..."
@@ -54,7 +74,6 @@
 
       {# Account checkbox list #}
       <div id="accounts-{{ p }}" style="max-height: 300px; overflow-y: auto;">
-        {% set provider_accounts = accounts.get(p, []) %}
         {% set saved_accts = saved_includes.get(p, []) if saved_includes else [] %}
         {% if provider_accounts %}
           {% for acct in provider_accounts %}
@@ -69,8 +88,16 @@
           <p>No {{ provider_unit.get(p, 'accounts') }} found. Check your credentials.</p>
         {% endif %}
       </div>
+      {% endif %}
     </article>
     {% endfor %}
+
+    {# All-providers-failed blocking message #}
+    {% if not has_any_accounts.value %}
+    <div style="color: var(--del-color, #c62828); background: var(--mark-background-color, #fff3cd); padding: 0.75rem; border-radius: 4px; margin-bottom: 1rem;">
+      <strong>No providers available</strong> — check authentication for at least one provider before continuing.
+    </div>
+    {% endif %}
 
     <p><small>All regions are scanned by default.</small></p>
 
@@ -84,7 +111,7 @@
               hx-post="/wizard/providers" hx-target="#wizard-content">
         Back
       </button>
-      <button type="submit">
+      <button type="submit" {% if not has_any_accounts.value %}disabled{% endif %}>
         Next: Review
       </button>
     </div>
