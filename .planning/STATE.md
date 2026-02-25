@@ -10,9 +10,9 @@ See: .planning/PROJECT.md (updated 2026-02-23)
 ## Current Position
 
 Phase: 8 of 8 (Dashboard GCP Scan Fix)
-Plan: 1 of 1 in current phase
-Status: Plan 08-01 complete -- Phase 8 complete
-Last activity: 2026-02-25 -- Plan 08-01 complete
+Plan: 2 of 2 in current phase
+Status: Plan 08-02 complete -- Phase 8 complete
+Last activity: 2026-02-25 -- Plan 08-02 complete
 
 Progress: [█████████████████████████] 100%
 
@@ -63,6 +63,7 @@ Progress: [███████████████████████
 | Phase 07 P01 | 7min | 2 tasks | 4 files |
 | Phase 07 P02 | 9min | 2 tasks | 4 files |
 | Phase 08 P01 | 2min | 2 tasks | 3 files |
+| Phase 08 P02 | 7min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,9 @@ Recent decisions affecting current work:
 - [08-01]: enumerate_gcp_projects called with all 6 positional args (credentials, adc_project, None, None, include, exclude) in both dashboard call sites
 - [08-01]: Azure subscriptions use 'id' key directly (no dead 'subscription_id' fallback) matching list_subscriptions() actual return dict structure
 - [08-01]: Failed providers show inline error in wizard step 3 but do not block form submission; only all-providers-fail scenario disables Next button
+- [08-02]: Azure display_name fallback uses 'or' operator (s.get('display_name') or s.get('id', '')) so empty-string falls back to id -- dict.get() default only triggers on missing key
+- [08-02]: Parity tests mock at SDK level (enumerate_gcp_projects) not wrapper level (_enumerate_accounts) to exercise real dashboard code path
+- [08-02]: call_args.args tuple length == 6 is the definitive assertion for positional vs keyword arg usage in enumerate_gcp_projects calls
 
 ### Pending Todos
 
@@ -206,5 +210,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 08-01-PLAN.md (phase 8 complete)
-Resume file: .planning/phases/08-dashboard-gcp-scan-fix/08-01-SUMMARY.md
+Stopped at: Completed 08-02-PLAN.md (phase 8 complete - all plans done)
+Resume file: .planning/phases/08-dashboard-gcp-scan-fix/08-02-SUMMARY.md
