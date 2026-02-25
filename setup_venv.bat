@@ -1,6 +1,7 @@
 @echo off
-REM Setup Python virtual environment and install dependencies for AWS, Azure, and GCP discovery
+REM Setup Python virtual environment and install all dependencies
 REM Batch file fallback for Windows when PowerShell execution is restricted
+REM For full features (CLI detection with prompts, long-path check), use setup_venv.ps1
 
 echo ================================
 echo  Infoblox Universal DDI Setup Routine
@@ -25,59 +26,28 @@ python -m pip install --upgrade pip
 
 echo.
 echo ================================
-echo  Provider Dependency Selection
-echo ================================
-echo.
-
-REM Provider selection (simplified - installs all by default)
-echo Which provider dependencies do you want to install?
-echo   1) AWS
-echo   2) Azure
-echo   3) GCP
-echo   4) All (default)
-echo ---------------------------------
-echo.
-
-set /p choice="Enter choice [1-4] or press Enter for All: "
-if "%choice%"=="" set choice=4
-
-echo.
-echo ================================
 echo  Installing Dependencies
 echo ================================
 echo.
 
-REM Install common dependencies
-echo   - Installing common dependencies...
-python -m pip install tqdm pandas
+echo   - Installing all dependencies...
+python -m pip install -r requirements.txt
 
-if "%choice%"=="1" (
-    echo   - Installing AWS dependencies...
-    python -m pip install -r aws_discovery/requirements.txt
-) else if "%choice%"=="2" (
-    echo   - Installing Azure dependencies...
-    python -m pip install -r azure_discovery/requirements.txt
-) else if "%choice%"=="3" (
-    echo   - Installing GCP dependencies...
-    python -m pip install -r gcp_discovery/requirements.txt
-) else if "%choice%"=="4" (
-    echo   - Installing AWS dependencies...
-    python -m pip install -r aws_discovery/requirements.txt
-    echo   - Installing Azure dependencies...
-    python -m pip install -r azure_discovery/requirements.txt
-    echo   - Installing GCP dependencies...
-    python -m pip install -r gcp_discovery/requirements.txt
-) else (
-    echo.
-    echo [ERROR] Invalid choice: %choice%. Exiting.
-    echo.
-    exit /b 1
-)
+echo.
+echo ================================
+echo  Cloud CLI Detection
+echo ================================
+echo.
+
+where aws >nul 2>&1 && (echo [OK]   AWS CLI found.) || (echo [WARN] AWS CLI not found.)
+where az >nul 2>&1 && (echo [OK]   Azure CLI found.) || (echo [WARN] Azure CLI not found.)
+where gcloud >nul 2>&1 && (echo [OK]   GCP CLI found.) || (echo [WARN] GCP CLI not found.)
 
 echo.
 echo ================================
 echo  Setup complete!
 echo  To activate: venv\Scripts\activate.bat
+echo  For full features, use setup_venv.ps1
 echo ================================
 echo.
 pause

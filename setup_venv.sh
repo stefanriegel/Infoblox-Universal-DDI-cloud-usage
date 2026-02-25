@@ -1,8 +1,9 @@
 #!/bin/bash
-# Setup Python virtual environment and install dependencies for AWS, Azure, and GCP discovery
+# Setup Python virtual environment and install all dependencies
+# Supports AWS, Azure, and GCP discovery
 set -e
 
-# Check for non-interactive mode (CI)
+# Parameter: if set to "4" or "all", skip interactive CLI prompts (CI mode)
 PROVIDER_CHOICE="${1:-}"
 
 # Helper function for centered echo
@@ -13,12 +14,13 @@ center_echo() {
   printf '#%*s%s%*s#\n' "$pad" '' "$text" "$((width - pad - ${#text}))" ''
 }
 
-# --- Section: Clean up old environment ---
+# --- Section: Banner ---
 echo "########################################"
 center_echo "Infoblox Universal DDI Setup Routine"
 echo "########################################"
 echo
 
+# --- Section: Clean up old environment ---
 if [ -d "venv" ]; then
   echo "[INFO] Removing existing virtual environment..."
   rm -rf venv
@@ -37,69 +39,47 @@ pip install --upgrade pip
 
 echo
 echo "########################################"
-center_echo "Provider Dependency Selection"
-echo "########################################"
-echo
-
-# Use parameter if provided (non-interactive mode)
-if [ -n "$PROVIDER_CHOICE" ]; then
-  choice="$PROVIDER_CHOICE"
-  echo "Using provider choice from parameter: $choice"
-else
-  echo "Which provider dependencies do you want to install?"
-  echo "  1) AWS"
-  echo "  2) Azure"
-  echo "  3) GCP"
-  echo "  4) All"
-  echo "----------------------------------------"
-  echo
-  read -p "Enter choice [1-4]: " choice
-fi
-
-echo
-
-echo "########################################"
 center_echo "Installing Dependencies"
 echo "########################################"
 echo
 
-# Install common dependencies first
-echo "  - Installing common dependencies..."
-pip install tqdm pandas
+echo "  - Installing all dependencies..."
+pip install -r requirements.txt
 
-case $choice in
-  1)
-    echo "  - Installing AWS dependencies..."
-    pip install -r aws_discovery/requirements.txt
-    ;;
-  2)
-    echo "  - Installing Azure dependencies..."
-    pip install -r azure_discovery/requirements.txt
-    ;;
-  3)
-    echo "  - Installing GCP dependencies..."
-    pip install -r gcp_discovery/requirements.txt
-    ;;
-  4)
-    echo "  - Installing AWS dependencies..."
-    pip install -r aws_discovery/requirements.txt
-    echo "  - Installing Azure dependencies..."
-    pip install -r azure_discovery/requirements.txt
-    echo "  - Installing GCP dependencies..."
-    pip install -r gcp_discovery/requirements.txt
-    ;;
-  *)
-    echo
-    echo "[ERROR] Invalid choice: $choice. Exiting."
-    echo
-    exit 1
-    ;;
-esac
+echo
+echo "########################################"
+center_echo "Cloud CLI Detection"
+echo "########################################"
+echo
+
+check_cli() {
+  local name=$1 cmd=$2 install_url=$3
+  if command -v "$cmd" &>/dev/null; then
+    echo "[OK]   $name CLI found: $(command -v "$cmd")"
+  else
+    echo "[WARN] $name CLI not found on PATH."
+    echo "       Install: $install_url"
+  fi
+}
+
+check_cli "AWS"   "aws"    "https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+check_cli "Azure" "az"     "https://learn.microsoft.com/en-us/cli/azure/install-azure-cli"
+check_cli "GCP"   "gcloud" "https://cloud.google.com/sdk/docs/install"
 
 echo
 
+# --- Section: Port check ---
+if command -v lsof &>/dev/null; then
+  if lsof -i :8080 &>/dev/null; then
+    echo "[WARN] Port 8080 is already in use. Dashboard may need --port flag."
+  else
+    echo "[OK]   Port 8080 is available for web dashboard."
+  fi
+fi
+
+echo
 echo "########################################"
 center_echo "Setup complete!"
 center_echo "To activate: source venv/bin/activate"
 echo "########################################"
-echo 
+echo

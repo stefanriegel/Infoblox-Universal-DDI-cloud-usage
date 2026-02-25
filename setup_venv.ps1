@@ -1,17 +1,40 @@
-# Setup Python virtual environment and install dependencies for AWS, Azure, and GCP discovery
+# Setup Python virtual environment and install all dependencies
+# Supports AWS, Azure, and GCP discovery
 # This script is automatically signed by GitHub Actions for Windows compatibility
 
-# Check for non-interactive mode (CI) - accept parameter
+# CI compatibility: $ProviderChoice controls whether to skip interactive CLI prompts
 param(
     [string]$ProviderChoice = ""
 )
 
-# --- Section: Clean up old environment ---
+# --- Section: ExecutionPolicy Detection ---
+# Check if execution is allowed before doing anything else
+$machinePolicy = $null
+$userPolicy = $null
+try {
+    $machinePolicy = (Get-ExecutionPolicy -Scope MachinePolicy -ErrorAction SilentlyContinue).ToString()
+} catch { $machinePolicy = $null }
+try {
+    $userPolicy = (Get-ExecutionPolicy -Scope CurrentUser -ErrorAction SilentlyContinue).ToString()
+} catch { $userPolicy = $null }
+
+if ($machinePolicy -eq "Restricted") {
+    Write-Host "[WARN] ExecutionPolicy is controlled by Group Policy." -ForegroundColor Yellow
+    Write-Host "       Contact IT administrator." -ForegroundColor Yellow
+    Write-Host "       See docs/enterprise-resign.md for enterprise signing guidance." -ForegroundColor Cyan
+    # Script is already running if we get here, so just warn
+}
+elseif ($userPolicy -in @("Restricted", "Undefined", $null)) {
+    Write-Host "[WARN] PowerShell ExecutionPolicy is '$userPolicy'." -ForegroundColor Yellow
+    Write-Host "       Run: Set-ExecutionPolicy RemoteSigned -Scope CurrentUser" -ForegroundColor Cyan
+}
+
 Write-Host "================================" -ForegroundColor Cyan
 Write-Host " Infoblox Universal DDI Setup Routine" -ForegroundColor Cyan
 Write-Host "================================" -ForegroundColor Cyan
 Write-Host
 
+# --- Section: Clean up old environment ---
 if (Test-Path "venv") {
     Write-Host "[INFO] Removing existing virtual environment..." -ForegroundColor Yellow
     Remove-Item -Recurse -Force venv
@@ -29,63 +52,60 @@ python -m pip install --upgrade pip
 
 Write-Host
 Write-Host "================================" -ForegroundColor Cyan
-Write-Host " Provider Dependency Selection" -ForegroundColor Cyan
-Write-Host "================================" -ForegroundColor Cyan
-Write-Host
-
-# Use parameter if provided (non-interactive mode)
-if ($ProviderChoice) {
-    $choice = $ProviderChoice
-    Write-Host "Using provider choice from parameter: $choice" -ForegroundColor Yellow
-} else {
-    Write-Host "Which provider dependencies do you want to install?"
-    Write-Host "  1) AWS"
-    Write-Host "  2) Azure"
-    Write-Host "  3) GCP"
-    Write-Host "  4) All"
-    Write-Host "---------------------------------"
-    Write-Host
-
-    $choice = Read-Host "Enter choice [1-4]"
-}
-
-Write-Host
-Write-Host "================================" -ForegroundColor Cyan
 Write-Host " Installing Dependencies" -ForegroundColor Cyan
 Write-Host "================================" -ForegroundColor Cyan
 Write-Host
 
-# Install common dependencies
-Write-Host "  - Installing common dependencies..."
-python -m pip install tqdm pandas
+Write-Host "  - Installing all dependencies..." -ForegroundColor Green
+python -m pip install -r requirements.txt
 
-switch ($choice) {
-    "1" {
-        Write-Host "  - Installing AWS dependencies..."
-        python -m pip install -r aws_discovery/requirements.txt
+Write-Host
+Write-Host "================================" -ForegroundColor Cyan
+Write-Host " Cloud CLI Detection" -ForegroundColor Cyan
+Write-Host "================================" -ForegroundColor Cyan
+Write-Host
+
+function Test-CLI($Name, $Command, $InstallUrl) {
+    if (-not (Get-Command $Command -ErrorAction SilentlyContinue)) {
+        Write-Host "[WARN] $Name CLI not found on PATH." -ForegroundColor Yellow
+        if (-not $ProviderChoice) {
+            $yn = Read-Host "  Open $Name CLI install page? (y/N)"
+            if ($yn -match "^[Yy]$") {
+                Start-Process $InstallUrl
+            }
+        } else {
+            Write-Host "       Install: $InstallUrl" -ForegroundColor Cyan
+        }
+    } else {
+        Write-Host "[OK]   $Name CLI found." -ForegroundColor Green
     }
-    "2" {
-        Write-Host "  - Installing Azure dependencies..."
-        python -m pip install -r azure_discovery/requirements.txt
+}
+
+Test-CLI "AWS"   "aws"    "https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html"
+Test-CLI "Azure" "az"     "https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows"
+Test-CLI "GCP"   "gcloud" "https://cloud.google.com/sdk/docs/install"
+
+Write-Host
+
+# --- Section: Windows Long-Path Check ---
+try {
+    $longPath = (Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -ErrorAction Stop).LongPathsEnabled
+    if ($longPath -ne 1) {
+        Write-Host "[WARN] Windows long path support is disabled." -ForegroundColor Yellow
+        Write-Host "       Run as Admin: New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem' -Name 'LongPathsEnabled' -Value 1 -PropertyType DWORD -Force" -ForegroundColor Cyan
+    } else {
+        Write-Host "[OK]   Windows long path support is enabled." -ForegroundColor Green
     }
-    "3" {
-        Write-Host "  - Installing GCP dependencies..."
-        python -m pip install -r gcp_discovery/requirements.txt
-    }
-    "4" {
-        Write-Host "  - Installing AWS dependencies..."
-        python -m pip install -r aws_discovery/requirements.txt
-        Write-Host "  - Installing Azure dependencies..."
-        python -m pip install -r azure_discovery/requirements.txt
-        Write-Host "  - Installing GCP dependencies..."
-        python -m pip install -r gcp_discovery/requirements.txt
-    }
-    default {
-        Write-Host
-        Write-Host "[ERROR] Invalid choice: $choice. Exiting." -ForegroundColor Red
-        Write-Host
-        exit 1
-    }
+} catch {
+    Write-Host "[WARN] Could not check long path support." -ForegroundColor Yellow
+}
+
+# --- Section: Port Check ---
+$portCheck = Test-NetConnection -ComputerName localhost -Port 8080 -WarningAction SilentlyContinue -ErrorAction SilentlyContinue
+if ($portCheck.TcpTestSucceeded) {
+    Write-Host "[WARN] Port 8080 is already in use. Dashboard may need --port flag." -ForegroundColor Yellow
+} else {
+    Write-Host "[OK]   Port 8080 is available for web dashboard." -ForegroundColor Green
 }
 
 Write-Host
@@ -94,35 +114,3 @@ Write-Host " Setup complete!" -ForegroundColor Green
 Write-Host " To activate: & venv\Scripts\Activate.ps1" -ForegroundColor Green
 Write-Host "================================" -ForegroundColor Cyan
 Write-Host
-# SIG # Begin signature block
-# MIIFlAYJKoZIhvcNAQcCoIIFhTCCBYECAQExCzAJBgUrDgMCGgUAMGkGCisGAQQB
-# gjcCAQSgWzBZMDQGCisGAQQBgjcCAR4wJgIDAQAABBAfzDtgWUsITrck0sYpfvNR
-# AgEAAgEAAgEAAgEAAgEAMCEwCQYFKw4DAhoFAAQUPXw5oEAB2j/V3bFPVOa/cmXj
-# iyKgggMiMIIDHjCCAgagAwIBAgIQaIeb1n1GY7lCgwHrU45WAzANBgkqhkiG9w0B
-# AQsFADAnMSUwIwYDVQQDDBxJbmZvYmxveCBVbml2ZXJzYWwgRERJIFNldHVwMB4X
-# DTI1MTIxMjE0MzQwNFoXDTI2MTIxMjE0NDQwNFowJzElMCMGA1UEAwwcSW5mb2Js
-# b3ggVW5pdmVyc2FsIERESSBTZXR1cDCCASIwDQYJKoZIhvcNAQEBBQADggEPADCC
-# AQoCggEBANWQUeoa8jhos3BmkssRryZA36iGme+1U4gM9v65TJfflp+OXiC5IzvL
-# /81G1Vawd/s8mIXKr/MELY0aSVSXhlgz3vl3Brz0JYhtVW5TDxG6dTdVwLMcPdr8
-# bL3HYsSPYyT8boR4MmVTo83t9OzIiIC7lyhr7CXpCtAcgtLok2DpHQBHg0xPCs+O
-# YM7unK+EtuzP7HIr2DuDj9WJBGsx/rQJA/W/qH9PPjeSlN+TrKzjV3hiLRTMLn/D
-# ZSm2xdhb73r94AOLT5IOi2Fh5TZGL8IkgSCxHdNlECcTrZt2CiZJP3ifr7ZfzlGD
-# LdGueBbIIi1rafh6FQEajO8ZpyPBIHkCAwEAAaNGMEQwDgYDVR0PAQH/BAQDAgeA
-# MBMGA1UdJQQMMAoGCCsGAQUFBwMDMB0GA1UdDgQWBBToPoyj6c7P/uztUJN4d68q
-# CP3KEjANBgkqhkiG9w0BAQsFAAOCAQEAMPVRwRNR/TtTQLjPgA3HpWrPhBPg5agY
-# 8VkG5lM9UfOpV9b7lPTLZf0lwZw8epiQKLeKpGqVTEGabkT1IWMUXebBSWUlluq3
-# waC617Lh6T9g6HipgZI6kkI9Erp5YHKv6uPBsXrLNiMo4tSnuvZYlO99QWGlDLGU
-# v/gdo7jXDzMctEpfg/FyV/oCVu0NImEMPAkqIC2rkNvfMAvopmZLowNIyZNAV2Is
-# PcUoc7d4ZNax6vUXLAVfAJaM78//F5fp8g8RykI5lEw38XTLzzCF9snIDpAuOm5Z
-# fCzH1GK03It8BIujHOqCkrOOqngO7YFfk13eOBEdnlh8bBIfRfgrpjGCAdwwggHY
-# AgEBMDswJzElMCMGA1UEAwwcSW5mb2Jsb3ggVW5pdmVyc2FsIERESSBTZXR1cAIQ
-# aIeb1n1GY7lCgwHrU45WAzAJBgUrDgMCGgUAoHgwGAYKKwYBBAGCNwIBDDEKMAig
-# AoAAoQKAADAZBgkqhkiG9w0BCQMxDAYKKwYBBAGCNwIBBDAcBgorBgEEAYI3AgEL
-# MQ4wDAYKKwYBBAGCNwIBFTAjBgkqhkiG9w0BCQQxFgQUsrJViNt5X8mJCJ7CiTDP
-# divzs7cwDQYJKoZIhvcNAQEBBQAEggEAEllkqGiwcqD2E+1hd/JMd76zRzDP0zUR
-# bZuKC4t0VAD8sGNNvPinzYJFmR4sGyJAv8QgbCvgNf4pkLVVEKHiH9NMS/KFhhnZ
-# KqeEPtubPL2tO6FZQi1UDPmDj1TaUwMtjC+DQomOOp8xu9maQyT9BXFQt/qymk0D
-# rQrDlyztZZ6CXlxle0KYEqH+rihpJRtJYNXlNcvwYHFMnxqWr+mygXNFNy2PnSmP
-# E/i1lnTnS1B8bw5+/DuVL4z5t3y3nhzLQw6dSBvyWSesbHkvCuiw7Ky702g8BK6v
-# 2mzoWa8XmXiFUlCZSEg3VkC24Xiw3K9Yzfh0lcMIzkOrFAO399I7Ig==
-# SIG # End signature block
