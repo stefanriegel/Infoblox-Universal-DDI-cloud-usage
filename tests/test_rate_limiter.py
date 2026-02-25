@@ -61,28 +61,29 @@ class TestRecordRateLimit:
 
 
 class TestRecordSuccess:
-    """Test that successful calls reduce delay."""
+    """Test that successful calls immediately reset delay to zero."""
 
     def test_success_decreases_delay(self):
-        """After rate-limit + success, delay should decrease."""
+        """After rate-limit + single success, delay resets immediately to 0.0."""
         limiter = RateLimiter()
         limiter.record_rate_limit("aws")
-        delay_before = limiter.get_delay("aws")
 
         limiter.record_success("aws")
-        delay_after = limiter.get_delay("aws")
 
-        assert delay_after < delay_before
+        assert limiter.get_delay("aws") == 0.0
 
     def test_multiple_successes_return_to_zero(self):
-        """Enough successful calls should bring delay back to zero."""
+        """A single record_success() call is enough to bring delay to zero."""
         limiter = RateLimiter()
         limiter.record_rate_limit("aws")
 
-        # Several successes to decay fully
-        for _ in range(20):
-            limiter.record_success("aws")
+        # A single success is sufficient for immediate reset
+        limiter.record_success("aws")
 
+        assert limiter.get_delay("aws") == 0.0
+
+        # Calling record_success() again on already-zero state keeps it at zero
+        limiter.record_success("aws")
         assert limiter.get_delay("aws") == 0.0
 
     def test_success_on_clean_provider_stays_zero(self):
@@ -138,16 +139,16 @@ class TestIsThrottled:
         assert limiter.is_throttled("aws") is True
 
     def test_success_reduces_throttle_state(self):
-        """Successful calls reduce consecutive count, eventually clearing throttled state."""
+        """A single record_success() immediately clears throttled state (consecutive_rate_limits=0)."""
         limiter = RateLimiter()
-        # Hit the threshold
+        # Hit the threshold multiple times
         for _ in range(3):
             limiter.record_rate_limit("aws")
         assert limiter.is_throttled("aws") is True
 
-        # Enough successes to bring consecutive count below threshold
-        for _ in range(3):
-            limiter.record_success("aws")
+        # A single success resets consecutive_rate_limits to 0, clearing throttled state
+        limiter.record_success("aws")
+        assert limiter.get_delay("aws") == 0.0
         assert limiter.is_throttled("aws") is False
 
 
