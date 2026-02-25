@@ -164,10 +164,11 @@ Plans:
   2. GCP wizard displays project IDs extracted from `ProjectInfo.project_id`, not raw `ProjectInfo` objects
   3. Azure wizard uses the correct `id` key from `list_subscriptions()` return dicts (removes dead `subscription_id` primary lookup)
   4. Dashboard GCP scan flow works end-to-end: wizard enumerates projects → user selects → scan starts → SSE progress → results
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md -- Fix enumerate_gcp_projects call signatures, ProjectInfo iteration, and Azure dict key in scan.py
+- [ ] 08-01-PLAN.md -- Fix all provider bugs in scan.py (GCP 6-arg calls, ProjectInfo iteration, Azure dict key) and add inline error UX
+- [ ] 08-02-PLAN.md -- Regression tests for all bug fixes, error UX paths, and CLI-vs-dashboard parity
 
 ## Progress
 
