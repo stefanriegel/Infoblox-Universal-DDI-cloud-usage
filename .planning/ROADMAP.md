@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: Azure Provider** - Azure subscription discovery plugged into the proven pipeline with tenant-level rate limiting
 - [x] **Phase 4: GCP Provider** - GCP project discovery plugged into the proven pipeline, validated against 87-project reference environment (completed 2026-02-24)
 - [x] **Phase 5: Web Dashboard** - FastAPI + HTMX dashboard with real-time SSE progress and results browsing (completed 2026-02-24)
-- [ ] **Phase 6: Platform Hardening** - Cross-platform validation (Windows 11, WSL, macOS) and PowerShell setup scripts
+- [x] **Phase 6: Platform Hardening** - Cross-platform validation (Windows 11, WSL, macOS) and PowerShell setup scripts (completed 2026-02-25)
 - [ ] **Phase 7: Integration Gap Closure** - Wire orphaned RateLimiter.record_success() and checkpoint_engine to Azure/GCP providers
 
 ## Phase Details
@@ -166,5 +166,5 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 3. Azure Provider | 4/4 | Complete | 2026-02-24 |
 | 4. GCP Provider | 4/4 | Complete    | 2026-02-24 |
 | 5. Web Dashboard | 4/4 | Complete    | 2026-02-24 |
-| 6. Platform Hardening | 1/2 | In Progress|  |
+| 6. Platform Hardening | 2/2 | Complete   | 2026-02-25 |
 | 7. Integration Gap Closure | 0/TBD | Not started | - |

@@ -58,6 +58,7 @@ Progress: [███████████████████████
 | Phase 05 P02 | 13min | 2 tasks | 13 files |
 | Phase 05 P03 | 13min | 2 tasks | 10 files |
 | Phase 05 P04 | 8min | 2 tasks | 12 files |
+| Phase 06 P01 | 3min | 2 tasks | 8 files |
 | Phase 06 P02 | 2min | 2 tasks | 3 files |
 
 ## Accumulated Context
@@ -171,6 +172,11 @@ Recent decisions affecting current work:
 - [05-04]: Download endpoint validates basename==filename and extension whitelist for path traversal prevention
 - [05-04]: CLI --web flag early-exits before provider selection, handles ImportError gracefully
 - [05-04]: Wizard steps use HTMX hx-post/hx-target for server-controlled step progression
+- [06-01]: preflight check_platform() returns dict so callers can inspect results without re-running detection
+- [06-01]: print_preflight_warnings() hard-exits only on Python < 3.10; all other issues are warn-only on stderr
+- [06-01]: SIGTERM registered only on sys.platform != 'win32' -- SIGINT is the primary interrupt on Windows
+- [06-01]: Bash setup script does NOT prompt to install CLIs (just prints URL) -- Linux/macOS users use package managers
+- [06-01]: PowerShell Test-CLI() prompts to open browser in interactive mode, skips when ProviderChoice is set (CI mode)
 - [06-02]: CI matrix uses os x python-version product: 3 platforms x 3 Python versions = 9 jobs per matrix job
 - [06-02]: Integration test commands updated from python main.py to python -m cloud_usage.cli (main.py deleted in Phase 2)
 - [06-02]: sign-ps1.yml: CN=Infoblox UDDI Estimator, 2-year expiry, -HashAlgorithm sha256 added
@@ -188,5 +194,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-25
-Stopped at: Completed 06-02-PLAN.md
-Resume file: .planning/phases/06-platform-hardening/06-02-SUMMARY.md
+Stopped at: Completed 06-01-PLAN.md (executed out of order after 06-02)
+Resume file: .planning/phases/06-platform-hardening/06-01-SUMMARY.md

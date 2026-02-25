@@ -70,7 +70,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Platform & UX
 
-- [ ] **PLAT-01**: Tool runs on Windows 11, WSL on Windows 11, and macOS
+- [x] **PLAT-01**: Tool runs on Windows 11, WSL on Windows 11, and macOS
 - [x] **PLAT-02**: Web dashboard (FastAPI + HTML) shows discovery progress in real-time via SSE
 - [x] **PLAT-03**: Web dashboard displays results with filtering and token calculation summary
 - [x] **PLAT-04**: PowerShell setup scripts are provided and signed (self-signed certificate)
@@ -157,7 +157,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RESIL-01 | Phase 1+7 | Complete |
 | RESIL-02 | Phase 1 | Complete |
 | RESIL-03 | Phase 1 | Complete |
-| PLAT-01 | Phase 6 | Pending |
+| PLAT-01 | Phase 6 | Complete |
 | PLAT-02 | Phase 5 | Complete |
 | PLAT-03 | Phase 5 | Complete |
 | PLAT-04 | Phase 6 | Complete |
