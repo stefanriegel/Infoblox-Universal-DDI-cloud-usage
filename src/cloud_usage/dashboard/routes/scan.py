@@ -245,7 +245,6 @@ def _run_scan_pipeline(
         providers = _build_discovery_providers(config, checkpoint_engine)
         if not providers:
             scan_manager.set_state(ScanState.COMPLETE)
-            event_bridge.emit_done()
             return
 
         audit_logger = setup_audit_logger(output_dir, scan_id=scan_id)
@@ -423,6 +422,7 @@ def _build_discovery_providers(config: ScanConfig, checkpoint_engine=None) -> li
                     session=session,
                     include_accounts=include,
                     exclude_accounts=exclude,
+                    checkpoint_engine=checkpoint_engine,
                 )
             )
         except ImportError:

@@ -67,6 +67,9 @@ class AWSDiscoveryProvider(DiscoveryProvider):
         role_name: Name of the cross-account role for Organizations mode.
         include_accounts: If provided, only scan these account IDs.
         exclude_accounts: If provided, exclude these account IDs from scan.
+        checkpoint_engine: Optional CheckpointEngine for per-account resume support.
+            When provided, discover_account() skips accounts already in
+            checkpoint completed_accounts, symmetric with Azure/GCP providers.
     """
 
     def __init__(
@@ -75,11 +78,13 @@ class AWSDiscoveryProvider(DiscoveryProvider):
         role_name: str = "OrganizationAccountAccessRole",
         include_accounts: list[str] | None = None,
         exclude_accounts: list[str] | None = None,
+        checkpoint_engine=None,
     ) -> None:
         self._session = session
         self._role_name = role_name
         self._include = include_accounts
         self._exclude = exclude_accounts
+        self._checkpoint_engine = checkpoint_engine
 
         # Cache the current account ID for cross-account role decisions
         sts = self._session.client("sts")
@@ -138,6 +143,18 @@ class AWSDiscoveryProvider(DiscoveryProvider):
         Raises:
             ClientError: If cross-account role assumption fails.
         """
+        # Skip accounts already completed in a previous checkpoint run
+        if self._checkpoint_engine is not None:
+            existing = self._checkpoint_engine.load()
+            if existing is not None:
+                aws_progress = existing.providers.get("aws")
+                if aws_progress and account_id in aws_progress.completed_accounts:
+                    logger.info(
+                        "Skipping already-completed account: %s",
+                        account_id,
+                    )
+                    return []
+
         # Determine if we need cross-account role assumption
         if account_id != self._current_account_id:
             try:

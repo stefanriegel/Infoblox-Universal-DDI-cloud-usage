@@ -10,16 +10,8 @@ Provides three pipeline stages that run before token calculation:
 
 from __future__ import annotations
 
+from cloud_usage.counting.categorizer import DDI_TYPES
 from cloud_usage.schema.resource import CloudResource
-
-# DDI types are exempt from tag-based managed service exclusion
-DDI_TYPES: set[str] = {
-    "vpc",
-    "subnet",
-    "route53-zone",
-    "route53-record",
-    "dhcp-option-set",
-}
 
 # Token-free types are also exempt from tag-based exclusion
 TOKEN_FREE_TYPES: set[str] = {"ebs-volume", "s3-bucket"}

@@ -606,6 +606,7 @@ def _get_discovery_providers(
                 role_name=args.role_name,
                 include_accounts=include,
                 exclude_accounts=exclude,
+                checkpoint_engine=checkpoint_engine,
             )
         )
 

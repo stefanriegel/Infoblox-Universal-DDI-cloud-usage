@@ -272,11 +272,11 @@ class DashboardProgressTracker(ProgressTracker):
             })
 
     def finish(self) -> None:
-        """Write completion summary and emit scan_complete SSE event.
+        """Write completion summary.
 
-        Calls super() to maintain existing finish behavior (stderr
-        output), then signals scan completion to all SSE subscribers
-        via EventBridge.emit_done().
+        Calls super() to maintain existing finish behavior (stderr output).
+        scan_complete SSE emission is owned exclusively by the finally block
+        in _run_scan_pipeline, which covers success, error, and cancellation
+        paths -- ensuring the event is sent exactly once per scan.
         """
         super().finish()
-        self._event_bridge.emit_done()

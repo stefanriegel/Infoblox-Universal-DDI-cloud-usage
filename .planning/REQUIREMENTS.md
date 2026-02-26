@@ -145,7 +145,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | ASSET-03 | Phase 2 | Complete |
 | ASSET-04 | Phase 3 | Complete |
 | ASSET-05 | Phase 4 | Complete |
-| ASSET-06 | Phase 2 | Complete |
+| ASSET-06 | Phase 2+9 | Complete |
 | TOKEN-01 | Phase 2 | Complete |
 | TOKEN-02 | Phase 2 | Complete |
 | TOKEN-03 | Phase 2 | Complete |
@@ -154,11 +154,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OUT-03 | Phase 2 | Complete |
 | OUT-04 | Phase 2 | Complete |
 | OUT-05 | Phase 2 | Complete |
-| RESIL-01 | Phase 1+7 | Complete |
+| RESIL-01 | Phase 1+7+9 | Complete |
 | RESIL-02 | Phase 1 | Complete |
 | RESIL-03 | Phase 1 | Complete |
 | PLAT-01 | Phase 6 | Complete |
-| PLAT-02 | Phase 5 | Complete |
+| PLAT-02 | Phase 5+9 | Complete |
 | PLAT-03 | Phase 5 | Complete |
 | PLAT-04 | Phase 6 | Complete |
 | PLAT-05 | Phase 1 | Complete |

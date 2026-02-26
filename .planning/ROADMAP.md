@@ -21,6 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Platform Hardening** - Cross-platform validation (Windows 11, WSL, macOS) and PowerShell setup scripts (completed 2026-02-25)
 - [x] **Phase 7: Integration Gap Closure** - Wire orphaned RateLimiter.record_success() and checkpoint_engine to Azure/GCP providers (completed 2026-02-25)
 - [x] **Phase 8: Dashboard GCP Scan Fix** - Fix GCP scan path in web dashboard: correct enumerate_gcp_projects args, ProjectInfo iteration, and Azure dict key lookup (completed 2026-02-25)
+- [ ] **Phase 9: Integration Tech Debt Cleanup** - Close 3 non-critical integration gaps: AWS checkpoint symmetry, DDI_TYPES unification, double emit_done removal
 
 ## Phase Details
 
@@ -170,11 +171,22 @@ Plans:
 - [x] 08-01-PLAN.md -- Fix all provider bugs in scan.py (GCP 6-arg calls, ProjectInfo iteration, Azure dict key) and add inline error UX
 - [ ] 08-02-PLAN.md -- Regression tests for all bug fixes, error UX paths, and CLI-vs-dashboard parity
 
+### Phase 9: Integration Tech Debt Cleanup
+**Goal**: Close 3 non-critical integration gaps from v1.0 audit: add AWS checkpoint guard for provider-level symmetry, unify DDI_TYPES across modules, and remove double emit_done in dashboard scan pipeline
+**Depends on**: Phase 7, Phase 8
+**Requirements**: RESIL-01, ASSET-06, PLAT-02 (integration hardening)
+**Gap Closure**: Closes INT-01, INT-02, INT-03 from v1.0 tech debt audit
+**Success Criteria** (what must be TRUE):
+  1. AWSDiscoveryProvider.discover_account() accepts checkpoint_engine and skips already-completed accounts, symmetric with Azure/GCP providers
+  2. asset_dedup.DDI_TYPES imports from or mirrors the canonical categorizer.DDI_TYPES, covering AWS, Azure, and GCP DDI resource types
+  3. DashboardProgressTracker.finish() emits scan_complete exactly once — no duplicate emission in the finally block
+**Plans**: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 2.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
-Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depends on all provider phases. Phase 7 and 8 are gap closure phases from v1.0 audit.
+Phases execute in numeric order: 1 -> 2 -> 2.1 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
+Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 2 but not on each other. Phase 5 depends on all provider phases. Phases 7, 8, and 9 are gap closure phases from v1.0 audit.
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -187,3 +199,4 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 6. Platform Hardening | 2/2 | Complete    | 2026-02-25 |
 | 7. Integration Gap Closure | 2/2 | Complete    | 2026-02-25 |
 | 8. Dashboard GCP Scan Fix | 2/2 | Complete   | 2026-02-25 |
+| 9. Integration Tech Debt Cleanup | 0/0 | Planning | - |
