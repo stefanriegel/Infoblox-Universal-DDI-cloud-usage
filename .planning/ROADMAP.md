@@ -21,7 +21,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 6: Platform Hardening** - Cross-platform validation (Windows 11, WSL, macOS) and PowerShell setup scripts (completed 2026-02-25)
 - [x] **Phase 7: Integration Gap Closure** - Wire orphaned RateLimiter.record_success() and checkpoint_engine to Azure/GCP providers (completed 2026-02-25)
 - [x] **Phase 8: Dashboard GCP Scan Fix** - Fix GCP scan path in web dashboard: correct enumerate_gcp_projects args, ProjectInfo iteration, and Azure dict key lookup (completed 2026-02-25)
-- [ ] **Phase 9: Integration Tech Debt Cleanup** - Close 3 non-critical integration gaps: AWS checkpoint symmetry, DDI_TYPES unification, double emit_done removal
+- [x] **Phase 9: Integration Tech Debt Cleanup** - Close 3 non-critical integration gaps: AWS checkpoint symmetry, DDI_TYPES unification, double emit_done removal (completed 2026-02-26)
 
 ## Phase Details
 
@@ -180,7 +180,10 @@ Plans:
   1. AWSDiscoveryProvider.discover_account() accepts checkpoint_engine and skips already-completed accounts, symmetric with Azure/GCP providers
   2. asset_dedup.DDI_TYPES imports from or mirrors the canonical categorizer.DDI_TYPES, covering AWS, Azure, and GCP DDI resource types
   3. DashboardProgressTracker.finish() emits scan_complete exactly once — no duplicate emission in the finally block
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 09-01-PLAN.md -- Fix all 3 integration gaps (INT-01 AWS checkpoint, INT-02 DDI_TYPES unification, INT-03 double emit_done) + regression tests
 
 ## Progress
 
@@ -199,4 +202,4 @@ Note: Phase 2.1 is a gap closure insertion. Phases 3 and 4 both depend on Phase 
 | 6. Platform Hardening | 2/2 | Complete    | 2026-02-25 |
 | 7. Integration Gap Closure | 2/2 | Complete    | 2026-02-25 |
 | 8. Dashboard GCP Scan Fix | 2/2 | Complete   | 2026-02-25 |
-| 9. Integration Tech Debt Cleanup | 0/0 | Planning | - |
+| 9. Integration Tech Debt Cleanup | 1/1 | Complete   | 2026-02-26 |
