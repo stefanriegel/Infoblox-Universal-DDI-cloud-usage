@@ -11,6 +11,7 @@ import io
 import sys
 from pathlib import Path
 from unittest.mock import patch
+import tempfile
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -261,3 +262,75 @@ class TestParseAccountList:
 
         result = _parse_account_list("")
         assert result == []
+
+
+# -- Regression tests for INT-01: AWS checkpoint skip guard --
+
+
+class TestAWSProviderCheckpointSkip:
+    """Tests confirming checkpoint_engine skip guard in AWSDiscoveryProvider."""
+
+    @mock_aws
+    def test_discover_account_skips_completed_checkpoint(self, tmp_path) -> None:
+        """discover_account() returns [] when account_id is in checkpoint completed_accounts."""
+        from cloud_usage.resilience.checkpoint import (
+            CheckpointData,
+            CheckpointEngine,
+            ProviderProgress,
+        )
+
+        session = boto3.Session(region_name="us-east-1")
+        checkpoint = CheckpointEngine(checkpoint_dir=str(tmp_path), ttl_hours=0)
+        data = CheckpointData(
+            timestamp="2026-01-01T00:00:00",
+            ttl_hours=0,
+            providers={"aws": ProviderProgress(
+                total_accounts=1,
+                completed_accounts=["123456789012"],
+            )},
+            scan_id="test",
+        )
+        checkpoint.save(data)
+
+        provider = AWSDiscoveryProvider(session=session, checkpoint_engine=checkpoint)
+        result = provider.discover_account("123456789012")
+
+        assert result == []
+
+    @mock_aws
+    def test_discover_account_proceeds_without_checkpoint(self) -> None:
+        """discover_account() proceeds normally when checkpoint_engine is None."""
+        session = boto3.Session(region_name="us-east-1")
+        provider = AWSDiscoveryProvider(session=session, checkpoint_engine=None)
+        result = provider.discover_account("123456789012")
+
+        # moto creates default VPCs so we should get resources
+        assert len(result) > 0
+
+    @mock_aws
+    def test_discover_account_proceeds_when_account_not_in_checkpoint(self, tmp_path) -> None:
+        """discover_account() proceeds when account is NOT in checkpoint completed_accounts."""
+        from cloud_usage.resilience.checkpoint import (
+            CheckpointData,
+            CheckpointEngine,
+            ProviderProgress,
+        )
+
+        session = boto3.Session(region_name="us-east-1")
+        checkpoint = CheckpointEngine(checkpoint_dir=str(tmp_path), ttl_hours=0)
+        data = CheckpointData(
+            timestamp="2026-01-01T00:00:00",
+            ttl_hours=0,
+            providers={"aws": ProviderProgress(
+                total_accounts=1,
+                completed_accounts=["999999999999"],  # different account
+            )},
+            scan_id="test",
+        )
+        checkpoint.save(data)
+
+        provider = AWSDiscoveryProvider(session=session, checkpoint_engine=checkpoint)
+        # 123456789012 is NOT in completed_accounts, so it should be scanned
+        result = provider.discover_account("123456789012")
+
+        assert len(result) > 0

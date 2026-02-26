@@ -59,6 +59,9 @@ class TestDashboardProgressTracker:
                 tracker.complete_account("AWS", 10)
                 tracker.complete_account("AWS", 5)
                 tracker.finish()
+                # scan_complete is emitted by the finally block in _run_scan_pipeline,
+                # not by finish(). Simulate that here to unblock the SSE consumer.
+                bridge.emit_done()
 
             thread = threading.Thread(target=emit_events)
             thread.start()
@@ -84,8 +87,27 @@ class TestDashboardProgressTracker:
         assert '"completed": 2' in results[1]
         assert '"resources": 15' in results[1]
 
-    def test_finish_emits_scan_complete(self) -> None:
-        """finish() emits scan_complete event via EventBridge."""
+    def test_finish_does_not_emit_scan_complete(self) -> None:
+        """finish() does NOT emit scan_complete -- the finally block in _run_scan_pipeline owns it.
+
+        This is an INT-03 regression test. scan_complete emission is the
+        responsibility of the finally block in _run_scan_pipeline, not finish().
+        """
+        bridge = EventBridge()
+        # Don't start bridge -- emit_done would need to be called from the finally block
+        tracker = DashboardProgressTracker(bridge)
+        tracker.register_provider("GCP", total=1, unit_label="projects")
+
+        # Call finish without a live bridge -- no emit_done should be called
+        import inspect
+        src = inspect.getsource(tracker.finish)
+        assert "emit_done" not in src, (
+            "DashboardProgressTracker.finish() must not call emit_done(); "
+            "the finally block in _run_scan_pipeline owns scan_complete emission"
+        )
+
+    def test_scan_complete_emitted_from_finally_block(self) -> None:
+        """scan_complete SSE event is delivered when bridge.emit_done() is called externally."""
 
         async def _run() -> list[str]:
             bridge = EventBridge()
@@ -109,6 +131,8 @@ class TestDashboardProgressTracker:
             def emit_events() -> None:
                 tracker.complete_account("GCP", 3)
                 tracker.finish()
+                # Simulate finally block calling emit_done()
+                bridge.emit_done()
 
             thread = threading.Thread(target=emit_events)
             thread.start()
@@ -149,6 +173,9 @@ class TestDashboardProgressTracker:
                 tracker.complete_account("Azure", 3)
                 tracker.complete_account("AWS", 7)
                 tracker.finish()
+                # scan_complete is emitted by the finally block in _run_scan_pipeline,
+                # not by finish(). Simulate that here to unblock the SSE consumer.
+                bridge.emit_done()
 
             thread = threading.Thread(target=emit_events)
             thread.start()

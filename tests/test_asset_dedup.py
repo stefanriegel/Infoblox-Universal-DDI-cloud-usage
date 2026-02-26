@@ -277,5 +277,50 @@ class TestDeduplicateAssets:
         assert result[0].counted is False
         assert result[0].skip_reason == "some reason"
 
+
+# -- Regression tests for INT-02: DDI_TYPES unification --
+
+
+class TestDDITypesUnification:
+    """Tests confirming asset_dedup.DDI_TYPES matches categorizer.DDI_TYPES."""
+
+    def test_ddi_types_matches_categorizer(self):
+        """asset_dedup.DDI_TYPES is identical to categorizer.DDI_TYPES."""
+        from cloud_usage.counting import asset_dedup
+        from cloud_usage.counting import categorizer
+
+        assert asset_dedup.DDI_TYPES == categorizer.DDI_TYPES
+        # Verify multi-provider coverage
+        assert "azure-vnet" in asset_dedup.DDI_TYPES
+        assert "gcp-vpc" in asset_dedup.DDI_TYPES
+
+    def test_azure_ddi_exempt_from_managed_exclusion(self):
+        """azure-vnet with kubernetes managed tag is NOT excluded (DDI type exempt)."""
+        r = _make_resource(
+            "azure-vnet",
+            resource_id="azure-vnet-001",
+            tags={"kubernetes.io/cluster/my-cluster": "owned"},
+            counted=None,
+            category=None,
+        )
+        result = exclude_managed_service_resources([r])
+        assert result[0].counted is not False, (
+            "azure-vnet should be exempt from managed-service tag exclusion"
+        )
+
+    def test_gcp_ddi_exempt_from_managed_exclusion(self):
+        """gcp-vpc with EKS-style managed tag is NOT excluded (DDI type exempt)."""
+        r = _make_resource(
+            "gcp-vpc",
+            resource_id="gcp-vpc-001",
+            tags={"kubernetes.io/cluster/my-cluster": "owned"},
+            counted=None,
+            category=None,
+        )
+        result = exclude_managed_service_resources([r])
+        assert result[0].counted is not False, (
+            "gcp-vpc should be exempt from managed-service tag exclusion"
+        )
+
     def test_empty_list(self):
         assert deduplicate_assets([]) == []

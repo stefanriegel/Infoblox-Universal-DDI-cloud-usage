@@ -446,3 +446,54 @@ class TestBuildDiscoveryProvidersGCPCallSignature:
         assert call_args.args[5] == exclude_list, (
             f"Expected exclude_patterns={exclude_list!r} as arg 6, got {call_args.args[5]!r}"
         )
+
+
+# -- Regression tests for INT-03: single emit_done ownership --
+
+
+class TestEmitDoneOwnership:
+    """Tests confirming DashboardProgressTracker.finish() does not call emit_done()."""
+
+    def test_dashboard_tracker_finish_does_not_emit_done(self):
+        """DashboardProgressTracker.finish() must NOT call emit_done() on event_bridge."""
+        from unittest.mock import MagicMock
+        from cloud_usage.dashboard.services.scan_manager import DashboardProgressTracker
+
+        event_bridge = MagicMock()
+        tracker = DashboardProgressTracker(event_bridge)
+        tracker.register_provider("AWS", 1, "accounts")
+        tracker.finish()
+
+        assert event_bridge.emit_done.call_count == 0, (
+            "DashboardProgressTracker.finish() must not call emit_done(); "
+            "the finally block in _run_scan_pipeline owns scan_complete emission"
+        )
+
+    def test_build_discovery_providers_passes_checkpoint_to_aws(self):
+        """_build_discovery_providers() passes checkpoint_engine kwarg to AWSDiscoveryProvider."""
+        import cloud_usage.providers.aws.provider
+
+        mock_checkpoint = mock.MagicMock()
+        mock_aws_cls = mock.MagicMock()
+        mock_session = mock.MagicMock()
+
+        config = ScanConfig(
+            providers=["aws"],
+            include_accounts={},
+            exclude_accounts={},
+        )
+
+        with mock.patch.dict(sys.modules, {}), \
+             mock.patch("boto3.Session", return_value=mock_session), \
+             mock.patch(
+                 "cloud_usage.providers.aws.provider.AWSDiscoveryProvider",
+                 mock_aws_cls,
+             ):
+            _build_discovery_providers(config, mock_checkpoint)
+
+        mock_aws_cls.assert_called_once()
+        call_kwargs = mock_aws_cls.call_args[1]
+        assert call_kwargs.get("checkpoint_engine") is mock_checkpoint, (
+            "AWSDiscoveryProvider must receive checkpoint_engine kwarg from "
+            "_build_discovery_providers()"
+        )
