@@ -377,3 +377,178 @@ class TestGetDiscoveryProvidersCheckpointEngine:
         mock_gcp_cls.assert_called_once()
         call_kwargs = mock_gcp_cls.call_args[1]
         assert call_kwargs.get("checkpoint_engine") is mock_checkpoint
+
+
+class TestWebMode:
+    """Tests for --web dashboard mode to ensure correct host binding and URL output."""
+
+    def _make_uvicorn_mock(self):
+        """Create a mock uvicorn module with a tracked run() method."""
+        mock_uvicorn = mock.MagicMock()
+        mock_uvicorn.run = mock.MagicMock(return_value=None)
+        return mock_uvicorn
+
+    def _make_dashboard_mock(self):
+        """Create a mock cloud_usage.dashboard.app module."""
+        mock_dashboard = mock.MagicMock()
+        mock_dashboard.create_app = mock.MagicMock(return_value=mock.MagicMock())
+        return mock_dashboard
+
+    def _web_mode_patches(self, mock_uvicorn, mock_dashboard_app):
+        """Return a context manager that patches preflight + uvicorn + dashboard."""
+        passing_preflight = {
+            "python_ok": True,
+            "python_version": "3.13.0",
+            "system": "Darwin",
+            "is_wsl": False,
+            "long_path_enabled": True,
+            "execution_policy": None,
+            "ansi_capable": True,
+            "cli_aws": False,
+            "cli_az": False,
+            "cli_gcloud": False,
+        }
+        return mock.patch.multiple(
+            "cloud_usage.cli",
+            check_platform=mock.MagicMock(return_value=passing_preflight),
+            print_preflight_warnings=mock.MagicMock(),
+            **{"sys": mock.DEFAULT},  # ensure sys.modules override takes effect
+        )
+
+    def test_web_mode_binds_to_loopback_not_all_interfaces(self):
+        """--web mode must bind to 127.0.0.1 (loopback), not 0.0.0.0 (all interfaces).
+
+        Binding to 0.0.0.0 causes uvicorn to print 'http://0.0.0.0:8080' which
+        users paste into the browser, resulting in ERR_NAME_NOT_RESOLVED.
+        Loopback binding prevents that confusing log line entirely.
+        """
+        mock_uvicorn = self._make_uvicorn_mock()
+        mock_dashboard_app = self._make_dashboard_mock()
+
+        passing_preflight = {
+            "python_ok": True,
+            "python_version": "3.13.0",
+            "system": "Darwin",
+            "is_wsl": False,
+            "long_path_enabled": True,
+            "execution_policy": None,
+            "ansi_capable": True,
+            "cli_aws": False,
+            "cli_az": False,
+            "cli_gcloud": False,
+        }
+        with mock.patch("cloud_usage.cli.check_platform", return_value=passing_preflight), \
+             mock.patch("cloud_usage.cli.print_preflight_warnings"), \
+             mock.patch.dict(sys.modules, {
+                 "uvicorn": mock_uvicorn,
+                 "cloud_usage.dashboard.app": mock_dashboard_app,
+             }):
+            result = main(["--web"])
+
+        assert result == 0
+        mock_uvicorn.run.assert_called_once()
+        call_kwargs = mock_uvicorn.run.call_args[1]
+        assert call_kwargs["host"] == "127.0.0.1", (
+            f"Expected host='127.0.0.1' but got host='{call_kwargs['host']}'. "
+            "Binding to 0.0.0.0 causes uvicorn to log 'http://0.0.0.0:8080' "
+            "which browsers cannot resolve (ERR_NAME_NOT_RESOLVED)."
+        )
+
+    def test_web_mode_suppresses_uvicorn_info_logs(self):
+        """--web mode must set log_level='warning' to suppress uvicorn INFO messages.
+
+        Without this, uvicorn prints 'Uvicorn running on http://0.0.0.0:8080'
+        which users mistake for the correct URL, causing ERR_NAME_NOT_RESOLVED.
+        """
+        mock_uvicorn = self._make_uvicorn_mock()
+        mock_dashboard_app = self._make_dashboard_mock()
+
+        passing_preflight = {
+            "python_ok": True,
+            "python_version": "3.13.0",
+            "system": "Darwin",
+            "is_wsl": False,
+            "long_path_enabled": True,
+            "execution_policy": None,
+            "ansi_capable": True,
+            "cli_aws": False,
+            "cli_az": False,
+            "cli_gcloud": False,
+        }
+        with mock.patch("cloud_usage.cli.check_platform", return_value=passing_preflight), \
+             mock.patch("cloud_usage.cli.print_preflight_warnings"), \
+             mock.patch.dict(sys.modules, {
+                 "uvicorn": mock_uvicorn,
+                 "cloud_usage.dashboard.app": mock_dashboard_app,
+             }):
+            result = main(["--web"])
+
+        assert result == 0
+        call_kwargs = mock_uvicorn.run.call_args[1]
+        assert call_kwargs.get("log_level") == "warning", (
+            "log_level must be 'warning' to suppress uvicorn's INFO startup "
+            "message 'Uvicorn running on http://0.0.0.0:8080'."
+        )
+
+    def test_web_mode_uses_correct_port(self):
+        """--web --port N uses port N."""
+        mock_uvicorn = self._make_uvicorn_mock()
+        mock_dashboard_app = self._make_dashboard_mock()
+
+        passing_preflight = {
+            "python_ok": True,
+            "python_version": "3.13.0",
+            "system": "Darwin",
+            "is_wsl": False,
+            "long_path_enabled": True,
+            "execution_policy": None,
+            "ansi_capable": True,
+            "cli_aws": False,
+            "cli_az": False,
+            "cli_gcloud": False,
+        }
+        with mock.patch("cloud_usage.cli.check_platform", return_value=passing_preflight), \
+             mock.patch("cloud_usage.cli.print_preflight_warnings"), \
+             mock.patch.dict(sys.modules, {
+                 "uvicorn": mock_uvicorn,
+                 "cloud_usage.dashboard.app": mock_dashboard_app,
+             }):
+            result = main(["--web", "--port", "9090"])
+
+        assert result == 0
+        call_kwargs = mock_uvicorn.run.call_args[1]
+        assert call_kwargs["port"] == 9090
+
+    def test_web_mode_prints_localhost_url(self, capsys):
+        """--web mode must print http://localhost:<port>, not http://0.0.0.0:<port>."""
+        mock_uvicorn = self._make_uvicorn_mock()
+        mock_dashboard_app = self._make_dashboard_mock()
+
+        passing_preflight = {
+            "python_ok": True,
+            "python_version": "3.13.0",
+            "system": "Darwin",
+            "is_wsl": False,
+            "long_path_enabled": True,
+            "execution_policy": None,
+            "ansi_capable": True,
+            "cli_aws": False,
+            "cli_az": False,
+            "cli_gcloud": False,
+        }
+        with mock.patch("cloud_usage.cli.check_platform", return_value=passing_preflight), \
+             mock.patch("cloud_usage.cli.print_preflight_warnings"), \
+             mock.patch.dict(sys.modules, {
+                 "uvicorn": mock_uvicorn,
+                 "cloud_usage.dashboard.app": mock_dashboard_app,
+             }):
+            main(["--web", "--port", "8080"])
+
+        captured = capsys.readouterr()
+        combined = captured.out + captured.err
+        assert "localhost:8080" in combined, (
+            "CLI must print 'localhost:8080' so users can open the dashboard."
+        )
+        assert "0.0.0.0" not in combined, (
+            "CLI must not print '0.0.0.0' — users would get ERR_NAME_NOT_RESOLVED."
+        )

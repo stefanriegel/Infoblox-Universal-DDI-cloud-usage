@@ -295,8 +295,14 @@ def main(argv: list[str] | None = None) -> int:
         sys.stderr.write(
             f"\nStarting UDDI Cloud Usage Estimator dashboard at "
             f"http://localhost:{args.port}\n"
+            f"Press Ctrl+C to stop.\n"
         )
-        uvicorn.run(create_app(), host="0.0.0.0", port=args.port)
+        uvicorn.run(
+            create_app(),
+            host="127.0.0.1",
+            port=args.port,
+            log_level="warning",
+        )
         return 0
 
     # Determine selected providers
