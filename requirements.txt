@@ -37,6 +37,9 @@ google-api-python-client>=2.100.0
 # Output Dependencies
 xlsxwriter>=3.1.0
 
+# NIOS Grid Backup Parser Dependencies
+lxml>=5.3.0
+
 # Common Dependencies
 tqdm>=4.64.0
 pandas>=1.5.0
