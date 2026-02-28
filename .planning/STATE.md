@@ -1,42 +1,42 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
+milestone: v1.1
+milestone_name: NIOS Grid Analysis
 status: unknown
-last_updated: "2026-02-26T07:29:58.882Z"
+last_updated: "2026-02-28T20:00:18.374Z"
 progress:
-  total_phases: 10
+  total_phases: 11
   completed_phases: 10
-  total_plans: 31
-  completed_plans: 31
+  total_plans: 34
+  completed_plans: 32
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-23)
+See: .planning/PROJECT.md (updated 2026-02-28)
 
-**Core value:** Accurate, auditable UDDI token estimation from cloud discovery -- customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Phase 9: Integration Tech Debt Cleanup
+**Core value:** Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
+**Current focus:** Milestone v1.1 — NIOS Grid Analysis (roadmap defined, ready for Phase 10 planning)
 
 ## Current Position
 
-Phase: 9 of 9 (Integration Tech Debt Cleanup)
-Plan: 1 of 1 in current phase
-Status: Plan 09-01 complete -- Phase 9 complete
-Last activity: 2026-02-26 -- Plan 09-01 complete
+Phase: Phase 10 (not started)
+Plan: —
+Status: Roadmap defined — ready to plan Phase 10
+Last activity: 2026-02-28 — v1.1 roadmap created (6 phases, 37 requirements mapped, 100% coverage)
 
-Progress: [█████████████████████████] 100%
+Progress: [░░░░░░░░░░░░░░░░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
-**Velocity:**
+**Velocity (v1.0 baseline):**
 - Total plans completed: 26
 - Average duration: 8min
 - Total execution time: 3.35 hours
 
-**By Phase:**
+**By Phase (v1.0):**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
@@ -79,6 +79,7 @@ Progress: [███████████████████████
 | Phase 08 P02 | 7min | 2 tasks | 3 files |
 | Phase 09 P01 | 16min | 2 tasks | 9 files |
 | Phase 09 P01 | 16 | 2 tasks | 9 files |
+| Phase 10-nios-parser-and-schema P01 | 35 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -215,18 +216,26 @@ Recent decisions affecting current work:
 - [Phase 09-01]: [09-01]: AWSDiscoveryProvider checkpoint skip guard symmetric with Azure/GCP; skip triggered when account_id in checkpoint.providers['aws'].completed_accounts
 - [Phase 09-01]: [09-01]: asset_dedup.DDI_TYPES replaced with import from categorizer -- removes AWS-only 5-item set, now 16 types covering all 3 providers
 - [Phase 09-01]: [09-01]: DashboardProgressTracker.finish() no longer calls emit_done(); finally block in _run_scan_pipeline is sole owner of scan_complete SSE emission
+- [v1.1 Roadmap]: NIOS pipeline isolated in src/cloud_usage/nios/ -- no imports from providers/, counting/, discovery/, or schema/resource.py
+- [v1.1 Roadmap]: lxml>=5.3.0 is the only new dependency; tarfile r:gz mode (not r|gz) avoids 14x CPython slowdown bug (#121109)
+- [v1.1 Roadmap]: Two-pass parser design: members pass first to build virtual_oid->hostname map, then all objects in second pass with member IDs resolvable
+- [v1.1 Roadmap]: Active IP dedup uses set per network view (not global) -- prevents undercounting in overlapping RFC1918 environments
+- [v1.1 Roadmap]: Phase 15 dashboard upload saves file to disk path before background thread starts -- prevents FastAPI UploadFile closed-before-read bug (#10936)
+- [Phase 10-01]: PROPERTY NAME='__type' VALUE pattern confirmed empirically — elem.get('type') returns None; Plans 02/03 must use PROPERTY child iteration for type extraction
+- [Phase 10-01]: Only LEASE is MEMBER_SCOPED (vnode_id field); all other DHCP/DNS families are GRID_LEVEL in ZF NIOS backup — RESEARCH.md hypothesis was incorrect
+- [Phase 10-01]: Member type is .com.infoblox.one.virtual_node (not 'Member:Grid'); host_name is hostname field; virtual_oid is OID key; DATABASE element has VERSION as XML attribute
 
 ### Pending Todos
 
-None yet.
+None.
 
 ### Blockers/Concerns
 
-- [Research]: Azure ARM tenant-level throttling behavior at 100-500 subscriptions needs pre-implementation research in Phase 3
-- [Research]: GCP aggregatedList availability per resource type needs validation before Phase 4
+- [Phase 11]: Host Object parent-OID field name in onedb.xml requires validation against ZF reference backup during implementation — FEATURES.md rates MEDIUM confidence on exact XML property name
+- [Phase 11]: CNAME condition for Host Object expansion (whether alias is defined) requires validation against ZF backup during implementation
 
 ## Session Continuity
 
-Last session: 2026-02-26
-Stopped at: Completed 09-01-PLAN.md (phase 9 complete - all plans done)
-Resume file: .planning/phases/09-integration-tech-debt-cleanup/09-01-SUMMARY.md
+Last session: 2026-02-28
+Stopped at: v1.1 roadmap created — 6 phases (10-15), 37 requirements mapped 100%
+Resume with: `/gsd:plan-phase 10`
