@@ -299,7 +299,7 @@ Each phase has a hard data-flow dependency on the prior phase output.
 | 7. Integration Gap Closure | 2/2 | Complete    | 2026-02-25 |
 | 8. Dashboard GCP Scan Fix | 2/2 | Complete   | 2026-02-25 |
 | 9. Integration Tech Debt Cleanup | 1/1 | Complete   | 2026-02-26 |
-| 10. NIOS Parser and Schema | 1/3 | In Progress|  |
+| 10. NIOS Parser and Schema | 2/3 | In Progress|  |
 | 11. Filter and Counter | 0/TBD | Not started | - |
 | 12. Scenario Engine | 0/TBD | Not started | - |
 | 13. Output and Runner | 0/TBD | Not started | - |

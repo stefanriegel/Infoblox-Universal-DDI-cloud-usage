@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: NIOS Grid Analysis
 status: unknown
-last_updated: "2026-02-28T20:00:18.374Z"
+last_updated: "2026-02-28T20:11:19.761Z"
 progress:
   total_phases: 11
   completed_phases: 10
   total_plans: 34
-  completed_plans: 32
+  completed_plans: 33
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-02-28)
 
 ## Current Position
 
-Phase: Phase 10 (not started)
-Plan: —
-Status: Roadmap defined — ready to plan Phase 10
-Last activity: 2026-02-28 — v1.1 roadmap created (6 phases, 37 requirements mapped, 100% coverage)
+Phase: Phase 10 — 10-nios-parser-and-schema
+Plan: Plan 02 complete — 10-02-PLAN.md (parse_backup streaming parser)
+Status: In Progress — Plan 03 (inspect_backup) is next
+Last activity: 2026-02-28 — Plan 02 complete: parse_backup() TDD, 10 tests, 4 parser modules
 
-Progress: [░░░░░░░░░░░░░░░░░░░░░░░░░] 0%
+Progress: [==========░░░░░░░░░░░░░░░] Phase 10: 2/3 plans complete
 
 ## Performance Metrics
 
@@ -80,6 +80,7 @@ Progress: [░░░░░░░░░░░░░░░░░░░░░░░
 | Phase 09 P01 | 16min | 2 tasks | 9 files |
 | Phase 09 P01 | 16 | 2 tasks | 9 files |
 | Phase 10-nios-parser-and-schema P01 | 35 | 2 tasks | 6 files |
+| Phase 10-nios-parser-and-schema P02 | 8 | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -224,6 +225,9 @@ Recent decisions affecting current work:
 - [Phase 10-01]: PROPERTY NAME='__type' VALUE pattern confirmed empirically — elem.get('type') returns None; Plans 02/03 must use PROPERTY child iteration for type extraction
 - [Phase 10-01]: Only LEASE is MEMBER_SCOPED (vnode_id field); all other DHCP/DNS families are GRID_LEVEL in ZF NIOS backup — RESEARCH.md hypothesis was incorrect
 - [Phase 10-01]: Member type is .com.infoblox.one.virtual_node (not 'Member:Grid'); host_name is hostname field; virtual_oid is OID key; DATABASE element has VERSION as XML attribute
+- [Phase 10-02]: vnode_id is the attribution field on LEASE objects (not virtual_oid) — lease.vnode_id -> virtual_node.virtual_oid -> host_name
+- [Phase 10-02]: Exact basename match for onedb.xml (Path(member.name).name == 'onedb.xml') — endswith check falsely matched 'notonedb.xml'
+- [Phase 10-02]: lxml 6.x iterparse: options passed as direct kwargs not via XMLParser object — parser= kwarg not supported in lxml 6.x
 
 ### Pending Todos
 
