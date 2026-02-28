@@ -1,216 +1,344 @@
 # Feature Research
 
-**Domain:** Cloud resource discovery and UDDI licensing estimation (pre-sales, enterprise, on-premises CLI tool)
-**Researched:** 2026-02-23
-**Confidence:** HIGH (domain well-understood from existing codebase, PROJECT.md, and industry research)
+**Domain:** NIOS Grid backup parsing and UDDI hybrid licensing analysis (pre-sales, enterprise, on-premises CLI tool)
+**Researched:** 2026-02-28
+**Confidence:** HIGH — domain definition from validated customer backup (ZF: 2.5M objects, 49K subnets, 605K leases), authoritative internal framework doc (do_not_commit/CLAUDE.md), and cross-referenced Infoblox WAPI/NIOS documentation.
+
+---
+
+## Existing Features (v1.0 — Do Not Re-Research)
+
+The following are already built and validated. This research covers only what v1.1 adds.
+
+- Cloud discovery (AWS/Azure/GCP), token calculation, XLS output, web dashboard (FastAPI + HTMX)
+
+---
+
+## NIOS Object Type → UDDI Category Mapping
+
+This is the canonical decision table governing what counts and where. Derived from do_not_commit/CLAUDE.md (the validated framework) and confirmed by Infoblox Universal DDI Licensing documentation.
+
+| NIOS Object Type | UDDI Category | DDI Object | Active IP | Asset | Notes |
+|------------------|--------------|-----------|-----------|-------|-------|
+| DNS Zone | DDI Object | YES | no | no | All zone types: forward, reverse, stub, delegation, forward-only |
+| DNS View | DDI Object | YES | no | no | Each view counts separately |
+| DNS Record (A, AAAA, PTR, CNAME, MX, NS, SOA, SRV, TXT) | DDI Object | YES | no | no | Each record row counts as 1 DDI object |
+| Host Object | DDI Object | YES (expanded) | no | no | Expands to constituent records — see Host Object Expansion below |
+| Host Alias | DDI Object | YES | no | no | Each alias = 1 CNAME record = 1 DDI object |
+| DHCP Range | DDI Object | YES | no | no | Each range row = 1 DDI object |
+| Exclusion Range | DDI Object | YES | no | no | Each exclusion range row = 1 DDI object |
+| Network (subnet) | DDI Object | YES | no | no | Each /N subnet = 1 DDI object |
+| Network Container | DDI Object | YES | no | no | Each address block = 1 DDI object |
+| Network View | DDI Object | YES | no | no | Each IP space = 1 DDI object |
+| DHCP Lease (active/static) | Active IP | no | YES | no | State-filtered — see Lease State Semantics below |
+| Fixed Address | Active IP | no | YES | no | Always counted regardless of state |
+| Host Address (IP portion) | Active IP | no | YES | no | The IP bound to the Host Object |
+| Network Reservation (per subnet) | Active IP | no | YES | no | 2 per subnet: .0 network address + .255/.last broadcast — derived, not a stored object |
+| DTC Server / Pool / LBDN | DDI Object | YES (future) | no | no | Present in backups; v1.1 deferred to v1.2 (NIOS-ADV-05) |
+| NIOS Member / Physical Node | Informational | no | no | no | Used for attribution and split only; not counted toward tokens |
+
+---
+
+## Host Object Expansion Logic
+
+A NIOS Host Object is a composite record that expands into constituent DNS records. This expansion is mandatory — a Host Object must never be counted as a single DDI object.
+
+**Expansion rule (per IP address bound to the host):**
+- 1× A record (IPv4) OR 1× AAAA record (IPv6) — always created
+- 1× PTR record — always created (reverse DNS)
+- 1× CNAME record — created only if a canonical name alias is defined on the host
+
+**Per-host alias:**
+- Each alias on a Host Object (host alias) = 1 additional CNAME record = 1 additional DDI object
+
+**Counting example:**
+- Host Object with 1 IPv4 address, no alias: 2 DDI objects (A + PTR)
+- Host Object with 1 IPv4 address, 1 alias: 3 DDI objects (A + PTR + CNAME)
+- Host Object with 2 IPv4 addresses, no alias: 4 DDI objects (A + PTR + A + PTR)
+
+**Why this matters for scale:**
+At the ZF reference backup scale, the difference between counting Host Objects as 1 each vs. expanding them to 2+ each can represent 100K–500K DDI objects. Expansion is required for licensing accuracy.
+
+**Confidence:** MEDIUM — the constituent record composition (A + PTR + optional CNAME) is confirmed by Infoblox NIOS documentation and the community forum (https://community.infoblox.com/discussion/15621/host-record-a-and-ptr-entries). The exact CNAME condition requires validation against the ZF backup data.
+
+---
+
+## Lease State Semantics
+
+NIOS DHCP leases carry a `binding_state` field. The set of valid states (confirmed by Infoblox WAPI 2.13.7 documentation at https://ipam.illinois.edu/wapidoc/objects/lease.html):
+
+| State | Meaning | Default: Count as Active IP? |
+|-------|---------|------------------------------|
+| ACTIVE | Lease currently in use by a DHCP client | YES |
+| STATIC | Fixed-address lease (bound to a specific MAC) | YES |
+| BACKUP | Owned by the secondary peer in a DHCP failover pair — not currently serving | NO (configurable) |
+| EXPIRED | Lease existed but client never renewed; no longer valid | NO |
+| RELEASED | Client explicitly returned the lease | NO |
+| FREE | Available for assignment; no client | NO |
+| ABANDONED | IP cannot be leased — appliance received a ping response when it tried | NO |
+| DECLINED | Client explicitly rejected the address | NO |
+| OFFERED | Address offered to a client but DHCP handshake not yet complete | NO |
+| RESET | Lease being reset (transient administrative state) | NO |
+
+**Default counting policy (v1.1):** Count ACTIVE + STATIC. This matches the validated framework from do_not_commit/CLAUDE.md ("IP addresses found in new or renew DHCP leases") and is the Infoblox-recommended baseline for licensing sizing.
+
+**Why STATIC is included:** STATIC leases represent fixed-address bindings that are always consuming an IP assignment. Excluding them would undercount managed IPs.
+
+**Why BACKUP is excluded by default:** BACKUP leases belong to the secondary peer in a failover pair — only one peer "owns" the lease at a time. Counting both would double-count failover environments. This is configurable per COUNT-03.
+
+**Raw vs. active count distinction (validated from ZF):**
+- 605,489 raw lease rows in ZF backup
+- 168,295 unique IPs from active-only leases
+- 182,873 unique IPs from active+static+backup
+- This 3.6:1 ratio between raw rows and active-unique IPs is the primary source of "conflicting numbers" in the field
+
+**Deduplication requirement:** Even within active leases, the same IP can appear multiple times (lease renewals create new rows). Final active IP count must deduplicate by IP address within a network view.
+
+---
+
+## Network Reservation Calculation
+
+Network and broadcast addresses are "reserved" by the IP protocol itself — no DHCP client can receive them. They count toward Active IPs because they represent consumed address space managed by NIOS.
+
+**Rule:** For every Network object (subnet), add 2 to the Active IP count:
+- `.0` address (network address)
+- `.255` or last address (broadcast address for /24; varies for other prefix lengths)
+
+**Why this matters:** For a grid with 49,437 networks (ZF), reservations add 98,874 Active IPs to the count — comparable to the entire fixed-address population. Omitting reservations is a systematic undercount.
+
+**Implementation note:** This is a derived count (subnets × 2), not parsed from stored objects. There are no "reservation" rows in onedb.xml — they are implicit.
+
+**Confidence:** HIGH — confirmed by do_not_commit/CLAUDE.md Section 7 ("Reservations (including network and broadcast addresses)") as an agreed Active IP component.
+
+---
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these = tool is unusable for enterprise pre-sales.
+Features that any NIOS backup analysis tool must have. Missing these = the tool cannot be used for pre-sales sizing conversations.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| **Multi-cloud discovery (AWS/Azure/GCP)** | Customers use multiple clouds; a tool missing one provider is dead on arrival for that segment | HIGH | Existing codebase covers all three. Each provider has unique APIs, resource types, and auth flows. Cannot ship with only one provider. |
-| **CLI auth via existing cloud credentials** | Enterprise customers use SSO (`aws sso login`, `az login`, `gcloud auth`). Asking for service account keys or stored credentials is a security non-starter for most enterprises. | MEDIUM | Current codebase already does this. Must support AWS profiles, Azure DefaultAzureCredential chain, GCP application-default credentials. No credential storage. |
-| **Read-only cloud access** | Security teams will reject any tool requesting write permissions during a pre-sales evaluation. Customers audit IAM policies before running third-party tools. | LOW | Design constraint, not implementation effort. Document required IAM policies per provider. |
-| **Accurate token calculation (DDI/25 + IPs/13 + Assets/3)** | The entire purpose of the tool. Wrong numbers destroy trust and kill deals. Must match Infoblox's official sizing methodology exactly. | MEDIUM | Core business logic. Existing calculator covers this but needs validation against edge cases (overlapping IPs across VPCs, subnet reservations, IPv6). |
-| **Per-provider CSV/XLS output with detail + summary sheets** | Sales Engineers need files they can hand to customers and attach to deals. Detail sheet for audit, summary sheet for the sizing conversation. | MEDIUM | Current codebase outputs CSV/TXT/JSON but lacks XLS with multi-sheet support. Need `openpyxl` for proper Excel output. Detail sheet: one row per resource with counted/skipped/category columns. Summary sheet: totals per account by resource type. |
-| **Transparent resource categorization** | Customers must see exactly why each resource was counted or skipped. "Trust the numbers" is the core value prop. Every resource needs: counted yes/no, which category (DDI/IP/Asset), skip reason if excluded. | MEDIUM | Partially exists in current `_format_resource()` with `requires_management_token` field. Needs explicit category assignment and skip-reason fields. |
-| **Scale to 100+ accounts/subscriptions/projects** | Enterprise environments routinely have 100-500+ AWS accounts (via Organizations), Azure subscriptions, or GCP projects. Tool must not fall over or take days. | HIGH | Current codebase has concurrent discovery (ThreadPoolExecutor) for Azure and GCP. AWS discovery is single-account only -- needs multi-account support. Memory management for large result sets is unaddressed. |
-| **Adaptive rate limiting with retry and backoff** | Cloud APIs throttle aggressively at scale (AWS EC2 API: ~100 req/s per region; Azure ARM: 12,000 reads/hr per subscription; GCP: varies by API). Hitting 429s and crashing mid-scan was a primary reason for the rewrite. | HIGH | Azure has `make_retry_policy()`. AWS/GCP have no explicit rate limiting in current code. Need exponential backoff with jitter, respect for Retry-After headers, and configurable concurrency limits. |
-| **Graceful error handling per account** | One failed account must not abort the entire scan. Errors must be logged, reported, and the scan must continue. | MEDIUM | Azure discover.py already does this with per-subscription error collection. AWS and GCP need the same pattern. |
-| **Auth validation before scan ("auth doctor")** | Users waste 20+ minutes discovering auth failures mid-scan. Pre-flight auth check saves time and reduces support tickets. | LOW | Existing `--check-auth` in main.py. Clean implementation, just needs to be consistent across providers. |
-| **Cross-platform support (Windows 11, WSL, macOS)** | Enterprise SEs and customers run Windows primarily. macOS for some SEs. WSL is common for Python tooling on Windows. | MEDIUM | Python is inherently cross-platform. Pain points: path separators, encoding (UTF-8 on Windows), subprocess calls, PowerShell scripts. Current code has `os.environ['PYTHONIOENCODING'] = 'utf-8'` fix. |
-| **Checkpoint/resume for long scans** | Scans of 100+ accounts take 30-60+ minutes. Network blips, laptop sleep, or token expiry can interrupt. Losing all progress is unacceptable. | HIGH | Azure has checkpoint implementation. AWS and GCP lack it. Checkpoint design must handle: TTL expiry, atomic writes, corruption recovery, and cross-provider consistency. |
-| **Token-free resource exclusions** | Resources that do not consume UDDI tokens must be explicitly excluded (EBS Volumes, S3 Buckets, Azure VM Disks, GCP Persistent Disks, etc.). Missing an exclusion = overestimation = customer distrust. | MEDIUM | Defined in PROJECT.md. Must be configurable (not hardcoded) so exclusion list can be updated without code changes. |
-| **Progress indication during scan** | A CLI tool scanning 100+ accounts for 30+ minutes with no output looks hung. Users will kill it. | LOW | Azure/GCP show `[N/total]` progress. AWS shows nothing during region scanning. Need consistent progress output across all providers. |
+| **Streaming parse of .tar.gz / onedb.xml** | Backup files are 2 GB+ for enterprise grids (ZF: 2.5M objects). Loading the full XML into memory is impractical. Any analysis tool that can't handle the actual backup file is dead on arrival. | HIGH | Use `tarfile` + `xml.etree.ElementTree.iterparse` with `elem.clear()` after each object. Alternatively SAX for true streaming. Must handle the flat `<OBJECT><PROPERTY>` structure of NIOS onedb.xml. |
+| **Member identity map (virtual_oid → hostname/FQDN)** | Member IDs are integers (e.g., 83, 102) in object rows. A report showing member "83" is not actionable in a customer meeting. Identity resolution is required before any per-member output. | MEDIUM | Parse Member and PhysicalNode objects first (or in pass-1 of a two-pass parse). Build virtual_oid→hostname map before attributing objects. |
+| **Per-object-type counts with "counts toward DDI?" flag** | Customers need to understand what was counted. A raw number of 2.5M objects without breakdown destroys trust. The Object Counters sheet (OUT-01) is the transparency layer. | MEDIUM | Maintain per-type counters. Track separately: total parsed, total counted as DDI, total counted as Active IP, total informational-only. |
+| **Active IP calculation (leases + fixed + host + reservations)** | This is the most-contested number in the field. "605K leases" vs "168K active IPs" — the tool must produce the defensible number with clear derivation. | HIGH | Four components, each with different source: leases (state-filtered), fixed addresses (all), host addresses (all IP-bound hosts), reservations (2 × subnet count). Deduplicate final set by IP address within each network view. |
+| **DDI object count with correct Host Object expansion** | Host Objects are the most common source of miscounting. A customer with 50K Host Objects expects ~100K–150K DDI records from expansion, not 50K. Wrong expansion = wrong token total. | HIGH | Per NIOS docs: each Host Object → at minimum A + PTR = 2 DDI objects per IP address. CNAME added if alias defined. Must not count the Host Object container row itself. |
+| **Dual token formula (NIOS Object vs UDDI native)** | The hybrid licensing model has two formulas: NIOS Object (DDI/50 + IPs/25 + Assets/13) for NIOS-remaining members; UDDI native (DDI/25 + IPs/13 + Assets/3) for NIOSX-migrated members. Applying only one formula is wrong for hybrid analysis. | MEDIUM | Both formulas must be available. Formula selection is per-member-group. Token ceiling division: `ceil(count / divisor)` with 0-guard (no minimum-of-1 rule). |
+| **Three scenario views** | Pre-sales customers need to see: what they have today, what hybrid costs, and what full migration costs — as three side-by-side numbers. Showing only one number ends the conversation. | MEDIUM | SCEN-01 (current grid, NIOS Object formula for all), SCEN-02 (hybrid split, dual formula), SCEN-03 (full migration, UDDI native for all). SCEN-02 requires migration split input; SCEN-01 and SCEN-03 do not. |
+| **Member attribution table** | Without per-member breakdown, customers cannot validate whether the big-DDI-count members are going to NIOS or NIOSX. The member attribution table is the audit trail for the hybrid scenario. | MEDIUM | Per member: virtual_oid, hostname/FQDN, group (nios/niosx/unassigned), DHCP lease count, DDI object count, Active IP count, token contribution. Must resolve virtual_oid→hostname before outputting. |
+| **XLS report with multiple sheets** | Output must be a file customers can attach to a deal. A text blob or single-tab spreadsheet is not usable in a licensing discussion. The multi-sheet XLS is the deliverable. | MEDIUM | Sheets: Object Counters, DDI Objects, Active IP by Type, Scenario Comparison, Member Attribution. Use `xlsxwriter` (same library as v1.0 cloud output). |
+| **Report traceability headers** | Two reports from different backup dates must be unambiguously distinguishable. NIOS version, backup date, filter config, and migration split must appear in the report header. | LOW | Parse NIOS version from DATABASE element in onedb.xml. Backup snapshot date from tar archive metadata. Filter/split config recorded verbatim. |
+| **Configurable lease state inclusion** | The "active only vs active+static+backup" decision affects licensing totals by ~8% (ZF: 168K vs 183K). Customers and their Infoblox SEs need to agree on this before the number is final. Default is active+static; expanding to backup is a toggle. | LOW | COUNT-03: configurable per analysis run via CLI flag or config file. Must log the policy applied in the report. |
+| **Structural integrity check** | A corrupted or partial backup must not silently produce wrong counts. The parser must report which object families were found, what row counts are present, and flag missing expected families (e.g., a backup with no Member rows is suspicious). | MEDIUM | PARSE-13: output a parse_summary dict before computing tokens. Check: members found (≥1), networks found, leases found. Warn if any expected family has 0 rows. |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set the product apart from generic cloud discovery tools. Not required, but valuable for the pre-sales use case.
+Features that distinguish a good hybrid licensing analysis tool from a basic object-counter.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| **Web dashboard (Flask/FastAPI + HTML)** | Visual progress monitoring and results browsing without CLI expertise. SEs can demo results to customers in a browser. Transforms a CLI-only tool into something presentable in a meeting. | HIGH | No HTML exists in current codebase. Needs: progress SSE/WebSocket feed, results viewer with filtering, token calculation summary. Keep it Python-native (Flask/FastAPI + vanilla HTML/JS) for auditability -- no React/Node build step. |
-| **Auditable proof manifest (SHA-256 hashes)** | Customers and their security teams can verify that output files have not been tampered with. Manifest includes scope, ratios, breakdowns, and resource-set hash. Unique to this tool. | LOW | Already implemented in `export_proof_manifest()`. Needs cleanup and documentation but the concept is sound and differentiating. |
-| **Code auditability (single-language, clear structure)** | Enterprise security teams review the source code before allowing it to run in their environment. Python-only with no compiled dependencies, no obfuscation, no data exfiltration. This is a trust signal that closed-source competitors cannot match. | MEDIUM | Architecture decision, not a feature to build. Enforced by: single language (Python), no network calls except cloud APIs, no telemetry, no phone-home. Document this explicitly. |
-| **Account/subscription/project filtering** | Let users scope discovery to specific accounts or exclude sandbox/dev environments. Reduces scan time and focuses results on production infrastructure that matters for licensing. | LOW | GCP has `--include-projects` / `--exclude-projects` with glob patterns. AWS and Azure lack filtering. Easy to add. |
-| **PowerShell setup scripts (signed)** | Windows-first enterprises often require signed scripts. Self-signed is acceptable for internal tools. Lowers the barrier for non-Python-savvy SEs on Windows. | LOW | Mentioned in PROJECT.md constraints. Simple wrapper scripts for venv creation, dependency install, and tool execution. |
-| **Estimator CSV (yellow-cell format)** | Direct feed into Infoblox's sizing Excel spreadsheet. SEs copy-paste one row of numbers. Eliminates transcription errors between the tool output and the official sizing workbook. | LOW | Already implemented in `export_estimator_csv()`. Just needs to match the latest Excel template format. |
-| **Concurrent multi-account discovery** | Scan multiple accounts/subscriptions/projects in parallel. At 100+ accounts, sequential scanning is too slow. Configurable worker count lets users tune for their API rate limits. | MEDIUM | Azure and GCP have this. AWS needs it. Key design decision: shared credential singleton (avoid interactive auth in worker threads), per-account error isolation, thread-safe result aggregation. |
-| **IP-space-aware deduplication** | The same RFC1918 IP (e.g., 10.0.0.1) can exist in multiple VPCs. Naive global dedup undercounts. IP-space-aware dedup (per-VPC/VNet/network) gives accurate numbers. | MEDIUM | Already implemented in `ResourceCounter._infer_ip_space()`. Differentiating because most discovery tools do not handle this correctly. |
-| **Dry-run / what-if mode** | Show what would be scanned (accounts, regions, resource types) without making API calls. Useful for validating scope and getting security team approval before running the actual scan. | LOW | Not in current codebase. Easy to implement: enumerate accounts/regions, print the plan, exit. |
+| **Member whitelist/blacklist filtering** | Enterprise grids include lab members, retired members, and dev environments that should not count toward production licensing. Without filtering, every analysis is an overestimate. This is required for any grid-to-UDDI sizing engagement. | MEDIUM | FILTER-01/02: glob pattern or virtual_oid list. Whitelist-first semantics (FILTER-03). All excluded objects logged in the filter summary for the output report. |
+| **Migration split wizard (web dashboard)** | The most friction-heavy input for a hybrid scenario is the member split assignment. A wizard that lists all members with lease counts and lets the SE toggle each to NIOSX in a browser is dramatically faster than editing a YAML file. | HIGH | MIGR-02: dedicated wizard step in the dashboard. Must list: hostname/FQDN, virtual_oid, lease count, DDI object count. Toggle each member to NIOS vs NIOSX. Produce the same config output as the CLI YAML path. |
+| **Configurable default migration group** | Some customers want "all members default to NIOSX except these few that stay on NIOS." Others want "all default to NIOS except these few moving to NIOSX." Supporting both dramatically reduces the number of explicit assignments needed for large grids. | LOW | MIGR-03: `--default-group [nios|niosx]` flag or config key. Changes which direction the toggle goes when members are unassigned. |
+| **Confidence levels per metric** | The framework (do_not_commit/CLAUDE.md) specifies: High (directly derived and reconciled), Medium (derived with documented assumptions), Low (unresolved source conflict). Surfacing confidence prevents "provisional numbers becoming final." | MEDIUM | Future v1.2 (NIOS-ADV-02). For v1.1: mark any metric that relies on configurable policy (lease state, reservation estimate) as "Medium" with the policy logged. |
+| **Assumption logging** | When a default policy is applied (e.g., lease state = active+static, reservations = 2/subnet), the assumption must be logged explicitly in the report so it can be challenged. Silent defaults are a trust risk. | LOW | OUT-04 footnotes. Log per-metric: policy applied, alternative values, delta if policy changed. |
+| **Cross-source reconciliation flag** | Customers often have existing capacity reports or summary exports. The tool should flag when its counts differ significantly from those sources. Even just showing the delta by category helps. | MEDIUM | Future v1.2 (NIOS-ADV-01). For v1.1: include total object counts by type in a format that can be manually compared. |
+| **Versioned ruleset / analysis timestamp** | Calculator version drift is a real sales risk (per do_not_commit/CLAUDE.md). Each report must record the tool version and effective date of the counting rules so two reports from different tool versions can be compared. | LOW | Record in report header: tool version string, ruleset effective date. Makes it unambiguous when "we re-ran with the updated formula." |
+| **Dashboard NIOS Analysis tab** | The web dashboard is already established for cloud analysis. Adding a NIOS Analysis tab with file upload and migration split wizard makes the tool the single entry point for all UDDI sizing — cloud and on-premises together. | HIGH | INTEG-02. Requires: file upload endpoint, parsing progress SSE, migration split wizard step, results display. Same architectural pattern as cloud scan tabs. |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
-Features to explicitly NOT build. These seem good but create problems for this specific tool's use case.
-
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| **Real-time / scheduled / recurring discovery** | "Can it run on a schedule and track changes over time?" | This is a point-in-time estimation tool for pre-sales, not an operational monitoring system. Adding scheduling creates: state management complexity, stale credential handling, daemon process management, and scope creep toward a full CMDB. Infoblox already has Universal Asset Insights for continuous discovery. | Run the tool manually when needed. Each run produces timestamped output. Compare outputs manually if trend analysis is needed. |
-| **Infoblox Portal API integration** | "Can it push results directly to the Infoblox portal?" | Adds network dependency, auth complexity (portal API tokens), and data exfiltration risk. Customers specifically chose a local tool because data must not leave their machine. | Export CSV/XLS files. SEs upload manually to portal. Clean separation of concerns. |
-| **Multi-cloud aggregation in single report** | "Can I get one file with AWS + Azure + GCP combined?" | Provider-specific resource types, naming conventions, and token calculations differ. Combining them creates confusing output. Customers often only care about one cloud. SEs handle aggregation in their sizing spreadsheet. | One output file per provider. Estimator CSV has a consistent format across providers for easy spreadsheet aggregation. |
-| **SaaS / hosted deployment** | "Can we host this as a service?" | The tool runs locally specifically because enterprise customers will not send cloud inventory data to a third party. Any hosted version would face: SOC2 compliance requirements, data residency concerns, multi-tenancy complexity, and would undermine the trust story. | Local execution only. No cloud hosting. No data leaves the customer's machine. |
-| **Database backend (SQLite/PostgreSQL)** | "Store results in a database for querying." | Adds deployment complexity (database setup), migration management, and is overkill for a point-in-time estimation tool that produces flat files. Enterprise customers want files they can email/share, not a database they need to query. | CSV/XLS files with detail + summary sheets. JSON proof manifest for programmatic access. |
-| **Credential storage / management** | "Store credentials so users do not have to re-auth." | Massive security liability. Enterprise security teams will reject a pre-sales tool that stores cloud credentials. Any credential leak would damage Infoblox's reputation. | Leverage existing cloud CLI auth (`aws sso login`, `az login`, `gcloud auth`). The tool never sees or stores credentials directly. |
-| **Plugin / extension system** | "Let customers add their own resource types." | Adds complexity without value. The resource types and token calculations are defined by Infoblox licensing, not by customers. A plugin system creates: untested code paths, version compatibility issues, and support burden. | Update the tool's resource type definitions in new releases. Keep the exclusion list configurable (config file, not code). |
-| **Mobile support** | "Can the dashboard work on phones?" | Desktop/laptop only use case. SEs use the tool in meetings on their laptops. No one runs cloud discovery from a phone. Responsive design effort is wasted. | Desktop/laptop browsers only. Minimum viewport: 1024px. |
-| **NIOS Grid integration** | "Can it also count NIOS objects?" | NIOS licensing is handled separately by different tools. Mixing NIOS and cloud native objects in the same estimation would confuse both the calculation and the customer conversation. NIOS objects (Views, ACL Rules, Filter Rules, Exclusion Ranges) are not discoverable from cloud APIs. | Explicitly out of scope. Document this clearly in the tool's help output and README. |
+| **Count all lease states (including expired/released/free)** | "We want to know the maximum ever used." | Expired, released, and free leases are not active IPs. Using them as a licensing metric would massively overestimate (ZF: 605K raw rows vs 168K active IPs — 3.6× overcounting). Infoblox SEs explicitly flag this as the #1 source of conflicting numbers in the field. | Default to active+static. Expose backup as a configurable add-on with explicit warning that it is a conservative worst-case, not a current-usage metric. |
+| **Count discovery IPs automatically** | "Network Insight discovers all devices — those should count too." | Discovery IP inclusion depends on whether the customer has Network Insight licensed and deployed, which members it runs on, and whether discovered IPs overlap with lease/fixed-address IPs. Silent inclusion without policy confirmation produces incorrect counts. | Mark discovery IPs as a separate component. Surface the raw count. Require explicit opt-in with a note: "Confirm with customer whether Network Insight is licensed and contributing data." (do_not_commit/CLAUDE.md Section 11 flags this as unresolved.) |
+| **Global IP deduplication across network views** | "De-dup all IPs so we don't double-count." | The same RFC1918 address (e.g., 10.0.0.1) can legitimately appear in multiple NIOS network views — each view is an independent IP space. Global dedup would undercount environments that reuse the same address ranges across views. | Deduplicate within each network view, not globally. This mirrors the cloud tool's per-VPC dedup logic (already implemented). |
+| **Combine NIOS analysis + cloud analysis in one report** | "Give me one total number across cloud and NIOS." | NIOS objects and cloud objects are licensed differently (different token formulas). Combining them in a single output obscures which formula applied to which count and makes the number unauditable. | Produce separate reports. The SE combines them in the Infoblox sizing spreadsheet, which already has rows for both NIOS Object and Native Object token inputs. |
+| **Live NIOS API connection** | "Can it pull data directly from the grid instead of needing a backup?" | The tool is deliberately offline/standalone. A live NIOS connection requires: WAPI credentials, network access to the Grid Manager, and permission from the customer's security team — all of which slow down a pre-sales evaluation. Live data also introduces real-time inconsistency (leases changing mid-scan). | Backup-based analysis is point-in-time, reproducible, and requires no additional credentials. Document the backup export procedure clearly. |
+| **Count DTC/LBDN objects in v1.1** | "DTC is complex configuration — it should count toward tokens." | DTC objects (Servers, Pools, LBDNs, Health Monitors, Topology Rules) are present in NIOS backups but their UDDI licensing treatment is unclear in current documentation. Including them without confirmed semantics risks over- or under-counting. They require a separate governance sign-off. | Defer to v1.2 (NIOS-ADV-05). For v1.1: parse and count them in the Object Counters sheet as informational only (not included in DDI total or token calculation). |
+| **Count NIOS Views/ACLs/Filter Rules as DDI objects in v1.1** | "All managed objects should be in the count." | ACL Rules, Filter Rules, and similar administrative objects are explicitly out of scope per REQUIREMENTS.md and the existing v1.0 exclusion policy. They do not represent DNS/DHCP/IPAM service delivery and are not counted toward UDDI DDI tokens. | Log their presence in the Object Counters sheet as informational. Do not include in DDI token calculation. |
+| **Automatic backup file integrity validation (hash check)** | "Make sure the backup is not corrupted." | NIOS backup files do not include an embedded hash manifest in the standard format. The tar.gz container provides basic integrity via the tar header, but there is no cryptographic guarantee for onedb.xml content. Advertising integrity validation that cannot be delivered is worse than not having it. | Perform structural integrity validation (PARSE-13): check that mandatory object families are present, counts are non-zero, and member references are resolvable. This is semantic integrity, which is more actionable than a hash check. |
+| **Incremental / differential backup parsing** | "Can it parse only the changes since the last backup?" | NIOS Grid backups are always full exports — NIOS does not produce incremental onedb.xml backups. Any attempt to "diff" two backups requires parsing both in full and comparing, which doubles the compute cost with limited analytical benefit for a point-in-time sizing tool. | Snapshot date discipline: label every report with its backup date. If two reports from different dates are needed, run the tool twice and compare the output XLS files. |
+
+---
 
 ## Feature Dependencies
 
 ```
-[CLI Auth Validation] ──requires──> [Cloud Provider SDK Auth]
+[Backup File Input (.tar.gz)]
+    └──required by──> [Streaming XML Parser]
+                          └──required by──> [Object Extraction]
+                                                ├──required by──> [Member Identity Map]
+                                                ├──required by──> [Per-Type Object Counts]
+                                                ├──required by──> [Active IP Calculation]
+                                                └──required by──> [DDI Object Count (with Host Expansion)]
 
-[Multi-Cloud Discovery]
-    ├──requires──> [CLI Auth Validation]
-    ├──requires──> [Rate Limiting / Retry]
-    └──requires──> [Resource Type Registry]
+[Member Identity Map]
+    └──required by──> [Member Whitelist/Blacklist Filter]
+    └──required by──> [Member Attribution Table]
+    └──required by──> [Migration Split Assignment]
 
-[Token Calculation]
-    ├──requires──> [Multi-Cloud Discovery]
-    ├──requires──> [Resource Categorization (DDI/IP/Asset)]
-    ├──requires──> [IP-Space-Aware Deduplication]
-    └──requires──> [Token-Free Exclusions]
+[Member Whitelist/Blacklist Filter]
+    └──required by──> [All Counts] (filter must be applied before counting)
 
-[CSV/XLS Output]
-    ├──requires──> [Token Calculation]
-    └──requires──> [Resource Categorization]
+[Per-Type Object Counts] ──requires──> [Object Extraction]
+[DDI Object Count (with Host Expansion)] ──requires──> [Per-Type Object Counts]
+[Active IP Calculation] ──requires──> [Per-Type Object Counts]
 
-[Proof Manifest]
-    └──requires──> [Token Calculation]
+[Migration Split Assignment] ──requires──> [Member Identity Map]
+    └──required by──> [Hybrid UDDI Scenario (SCEN-02)]
 
-[Checkpoint/Resume]
-    └──requires──> [Multi-Cloud Discovery]
+[Dual Token Formula]
+    ├──requires──> [DDI Object Count]
+    ├──requires──> [Active IP Calculation]
+    └──requires──> [Migration Split Assignment] (for SCEN-02)
 
-[Concurrent Multi-Account]
-    ├──requires──> [CLI Auth Validation]
-    ├──requires──> [Rate Limiting / Retry]
-    └──enhances──> [Multi-Cloud Discovery]
+[Three Scenario Views]
+    ├──SCEN-01──requires──> [Dual Token Formula (NIOS Object formula only)]
+    ├──SCEN-02──requires──> [Migration Split Assignment + Dual Token Formula]
+    └──SCEN-03──requires──> [Dual Token Formula (UDDI native formula only)]
 
-[Web Dashboard]
-    ├──requires──> [Multi-Cloud Discovery]
-    ├──requires──> [Token Calculation]
-    └──enhances──> [Progress Indication]
+[XLS Report]
+    ├──requires──> [Three Scenario Views]
+    ├──requires──> [Member Attribution Table]
+    ├──requires──> [Active IP by Type breakdown]
+    └──requires──> [Object Counters per type]
 
-[Account Filtering]
-    └──enhances──> [Multi-Cloud Discovery]
+[Web Dashboard NIOS Tab]
+    ├──requires──> [Streaming XML Parser]
+    ├──requires──> [Three Scenario Views]
+    └──enhances──> [Migration Split Wizard]
 
-[Dry-Run Mode]
-    ├──requires──> [CLI Auth Validation]
-    └──enhances──> [Account Filtering]
+[Structural Integrity Check]
+    └──required by──> [Any output] (must pass before token calculation is surfaced)
 ```
 
 ### Dependency Notes
 
-- **Token Calculation requires IP-Space-Aware Deduplication:** Without per-VPC/VNet dedup, Active IP counts will be wrong for environments with overlapping RFC1918 ranges. This must be in place before token calculation can be trusted.
-- **Concurrent Multi-Account requires Rate Limiting:** Parallel API calls without rate limiting will trigger 429 throttling, especially on Azure ARM (12,000 reads/hr per sub) and AWS EC2 APIs. Rate limiting must be built before concurrency is enabled.
-- **Web Dashboard requires Multi-Cloud Discovery + Token Calculation:** The dashboard displays progress and results. Both must be stable before adding a UI layer.
-- **Checkpoint/Resume enhances but does not block Multi-Cloud Discovery:** Discovery works without checkpointing; checkpointing just makes it resilient to interruption. Can be added after basic discovery works.
-- **Account Filtering is independent:** Can be added at any time without affecting other features. Low risk.
+- **Member Identity Map must be built before filtering:** You cannot apply a hostname glob filter (FILTER-01) if virtual_oid→hostname resolution has not been done. The parser must complete member object extraction before applying any filter.
+- **Filter must be applied before counting:** All object counts, Active IP calculations, and token totals must reflect only post-filter objects. Applying filter after counting produces wrong per-scenario totals.
+- **Host Object expansion must happen in DDI counting, not in parsing:** The parser extracts Host Object rows. The DDI counter expands each Host Object to its constituent record count (A + PTR + optional CNAME × alias). The expansion logic belongs in the counting layer, not the parse layer.
+- **Deduplication is per-network-view, not global:** Active IP deduplication must be scoped to each NIOS Network View (equivalent to UDDI IP Space). The same IP in two different views counts twice.
+- **SCEN-02 (Hybrid) is the only scenario that requires migration split input:** SCEN-01 and SCEN-03 can run without any split definition. This means the tool must produce SCEN-01 and SCEN-03 from a backup alone — the migration split is optional.
+
+---
 
 ## MVP Definition
 
-### Launch With (v1)
+### Launch With (v1.1 — Milestone Must-Haves)
 
-Minimum viable product -- what is needed for SEs to run the tool and produce a sizing estimate.
+Minimum required for v1.1 to be usable in a pre-sales sizing engagement.
 
-- [ ] **AWS/Azure/GCP discovery** -- all three providers with concurrent multi-account support
-- [ ] **CLI auth validation** -- pre-flight check before scan starts
-- [ ] **Adaptive rate limiting with retry/backoff** -- handle 429s gracefully at scale
-- [ ] **Token calculation** -- DDI/25 + IPs/13 + Assets/3 with IP-space dedup
-- [ ] **Resource categorization** -- every resource labeled: counted (yes/no), category (DDI/IP/Asset), skip reason
-- [ ] **CSV/XLS output** -- per-provider files with detail + summary sheets
-- [ ] **Proof manifest** -- SHA-256 hashed JSON for auditability
-- [ ] **Checkpoint/resume** -- for all three providers
-- [ ] **Progress indication** -- consistent `[N/total]` output across providers
-- [ ] **Graceful per-account error handling** -- one failure does not abort the scan
-- [ ] **Cross-platform** -- Windows 11, WSL, macOS
+- [ ] **Streaming onedb.xml parser** — handles 2 GB+ without memory exhaustion (PARSE-01, PARSE-02)
+- [ ] **Member identity map** — virtual_oid → hostname/FQDN (PARSE-04)
+- [ ] **DDI object extraction with Host Object expansion** — A + PTR + CNAME per IP per Host Object (PARSE-05 through PARSE-12, COUNT-01)
+- [ ] **Active IP calculation** — leases (active+static default) + fixed + host + reservations (COUNT-02, COUNT-03)
+- [ ] **Structural integrity check** — mandatory object families present, member references resolvable (PARSE-13)
+- [ ] **Dual token formula** — NIOS Object (DDI/50 + IPs/25 + Assets/13) and UDDI native (DDI/25 + IPs/13 + Assets/3) (COUNT-04, COUNT-05)
+- [ ] **Three scenario views** — current grid / hybrid UDDI / full migration (SCEN-01, SCEN-02, SCEN-03)
+- [ ] **Member attribution table** — per member with virtual_oid, hostname, group, counts, tokens (COUNT-06, OUT-03)
+- [ ] **XLS report (5 sheets)** — Object Counters, DDI Objects, Active IP by Type, Scenario Comparison, Member Attribution (OUT-01, OUT-02, OUT-04, OUT-05)
+- [ ] **CLI integration** — `python -m cloud_usage.cli --nios <backup.tar.gz>` (INTEG-01)
+- [ ] **Member whitelist/blacklist** — hostname glob or virtual_oid list, whitelist-first semantics (FILTER-01, FILTER-02, FILTER-03, FILTER-04)
+- [ ] **Migration split via config file** — YAML/JSON `niosx:` member list (MIGR-01, MIGR-03, MIGR-04)
 
-### Add After Validation (v1.x)
+### Add After Validation (v1.1.x — When Core Is Deployed)
 
-Features to add once the core is deployed and validated with real customer environments.
+Features to add after first customer use validates the core analysis.
 
-- [ ] **Web dashboard** -- Flask/FastAPI + HTML for progress monitoring and results browsing. Trigger: SEs request a visual interface for customer-facing demos.
-- [ ] **Account/subscription/project filtering** -- `--include` / `--exclude` with glob patterns for all three providers. Trigger: customers with 200+ accounts need to scope scans.
-- [ ] **Dry-run mode** -- show scan plan without API calls. Trigger: security teams want to review scope before approving the scan.
-- [ ] **PowerShell setup scripts (signed)** -- Windows onboarding. Trigger: SEs report friction with manual Python/pip setup on Windows.
-- [ ] **Estimator CSV refinement** -- match the latest Infoblox sizing Excel yellow-cell format exactly. Trigger: updated sizing spreadsheet from product team.
+- [ ] **Web dashboard NIOS Analysis tab** — file upload, migration split wizard, results display (INTEG-02, MIGR-02). Trigger: SE reports needing a visual interface for customer meetings.
+- [ ] **Configurable default group** (nios vs niosx) — reduces explicit member assignments for large grids (MIGR-03 extended). Trigger: customer with 200+ members where bulk default is needed.
 
-### Future Consideration (v2+)
+### Future Consideration (v1.2+)
 
-Features to defer until the tool is stable and widely deployed.
+- [ ] **Confidence scoring per metric** — High/Medium/Low with explanation (NIOS-ADV-02). Defer: governance sign-off on policy needed first.
+- [ ] **Assumption log in report** — explicit notation of every default applied (NIOS-ADV-03). Defer: can be added to report footnotes without changing the core model.
+- [ ] **Cross-source reconciliation** — compare backup counts against grid exports, flag unexplained deltas (NIOS-ADV-01). Defer: requires second input file (external grid export), adds UI complexity.
+- [ ] **DTC/LBDN objects in DDI count** — DNS Traffic Control objects present in backups (NIOS-ADV-05). Defer: licensing semantics not confirmed; need Infoblox product sign-off.
+- [ ] **Snapshot date comparison** — delta report between two backup runs (NIOS-ADV-04). Defer: point-in-time tool; manual comparison of two XLS outputs is sufficient initially.
 
-- [ ] **Configurable exclusion lists** -- external config file for token-free resource types. Defer: hardcoded list is sufficient until licensing model changes.
-- [ ] **Historical comparison** -- diff two scan outputs to show environment growth. Defer: manual comparison is sufficient initially.
-- [ ] **Structured logging (JSON)** -- machine-readable logs for CI/CD integration. Defer: human-readable console output is sufficient for the pre-sales use case.
+---
 
 ## Feature Prioritization Matrix
 
 | Feature | User Value | Implementation Cost | Priority |
 |---------|------------|---------------------|----------|
-| Multi-cloud discovery (AWS/Azure/GCP) | HIGH | HIGH | P1 |
-| Token calculation (DDI/IP/Asset) | HIGH | MEDIUM | P1 |
-| Rate limiting / retry / backoff | HIGH | HIGH | P1 |
-| CSV/XLS output (detail + summary) | HIGH | MEDIUM | P1 |
-| CLI auth validation | HIGH | LOW | P1 |
-| Resource categorization (counted/skipped/reason) | HIGH | MEDIUM | P1 |
-| Checkpoint/resume (all providers) | HIGH | HIGH | P1 |
-| Concurrent multi-account discovery | HIGH | MEDIUM | P1 |
-| Graceful per-account error handling | HIGH | LOW | P1 |
-| Progress indication | MEDIUM | LOW | P1 |
-| Cross-platform (Win/WSL/macOS) | HIGH | MEDIUM | P1 |
-| IP-space-aware deduplication | HIGH | MEDIUM | P1 |
-| Token-free exclusions | HIGH | LOW | P1 |
-| Proof manifest (SHA-256) | MEDIUM | LOW | P1 |
-| Web dashboard | MEDIUM | HIGH | P2 |
-| Account filtering (include/exclude) | MEDIUM | LOW | P2 |
-| Dry-run mode | LOW | LOW | P2 |
-| PowerShell setup scripts | MEDIUM | LOW | P2 |
-| Estimator CSV (yellow-cell format) | MEDIUM | LOW | P2 |
-| Configurable exclusion lists | LOW | MEDIUM | P3 |
-| Historical comparison | LOW | MEDIUM | P3 |
-| Structured logging | LOW | LOW | P3 |
+| Streaming XML parser | HIGH | HIGH | P1 |
+| Member identity map | HIGH | LOW | P1 |
+| DDI object count + Host expansion | HIGH | HIGH | P1 |
+| Active IP calculation (4 components) | HIGH | HIGH | P1 |
+| Dual token formula | HIGH | MEDIUM | P1 |
+| Three scenario views | HIGH | MEDIUM | P1 |
+| XLS report (5 sheets) | HIGH | MEDIUM | P1 |
+| Structural integrity check | HIGH | LOW | P1 |
+| Member attribution table | HIGH | MEDIUM | P1 |
+| CLI integration | HIGH | LOW | P1 |
+| Member whitelist/blacklist | MEDIUM | MEDIUM | P1 |
+| Migration split via config file | MEDIUM | LOW | P1 |
+| Configurable lease state | MEDIUM | LOW | P1 |
+| Web dashboard NIOS tab | MEDIUM | HIGH | P2 |
+| Dashboard migration split wizard | MEDIUM | HIGH | P2 |
+| Configurable default group | LOW | LOW | P2 |
+| Confidence scoring | MEDIUM | MEDIUM | P3 |
+| Assumption log in report | MEDIUM | LOW | P3 |
+| Cross-source reconciliation | LOW | HIGH | P3 |
+| DTC/LBDN in DDI count | LOW | MEDIUM | P3 |
 
 **Priority key:**
-- P1: Must have for launch -- tool is broken or unusable without it
-- P2: Should have, add when core is stable
-- P3: Nice to have, future consideration
+- P1: Must have for v1.1 launch — analysis is incorrect or undeliverable without it
+- P2: Should have — significant SE or customer friction without it
+- P3: Nice to have — future milestone
 
-## Competitor Feature Analysis
+---
 
-| Feature | ServiceNow CLE | Flexera Cloud | This Tool (UDDI Estimator) |
-|---------|----------------|---------------|---------------------------|
-| Multi-cloud support | AWS + Azure (no GCP in CLE) | AWS, Azure, GCP, OCI | AWS, Azure, GCP |
-| Deployment model | SaaS (ServiceNow instance) | SaaS | Local CLI (no data leaves customer machine) |
-| Auth method | Service account credentials | Service account / API keys | CLI-based SSO (no stored credentials) |
-| Licensing model support | ServiceNow ITOM/CCM licensing | Multi-vendor (Microsoft, Oracle, SAP) | Infoblox UDDI-specific (25/13/3 ratios) |
-| Output format | PDF report | Dashboard + exports | CSV/XLS + JSON proof manifest |
-| Auditability | Closed source, SaaS | Closed source, SaaS | Open source Python, customer-auditable |
-| Cost | ServiceNow license required | Flexera license required | Free (pre-sales tool) |
-| Scale | Enterprise (via ServiceNow infra) | Enterprise (via SaaS infra) | 100+ accounts (local machine resources) |
-| Setup complexity | Mid-server + service accounts | Agent + credentials | `pip install` + existing cloud CLI auth |
-| Resource-level transparency | Summary counts only | Aggregated dashboards | Per-resource detail with counted/skipped/reason |
+## Edge Cases at Scale (2.5M Objects, 605K Leases, 49K Networks)
 
-**Key differentiators vs. competitors:**
-1. **Local execution** -- data never leaves the customer's machine. Competitors are SaaS.
-2. **Code auditability** -- single-language Python, no obfuscation. Competitors are closed source.
-3. **Zero cost** -- pre-sales tool, not a licensed product. Competitors require platform licenses.
-4. **Resource-level transparency** -- every resource shows counted/skipped/reason. Competitors show summary counts.
-5. **No credential storage** -- leverages existing CLI auth. Competitors require service account setup.
+These are not feature requests but failure modes that must be designed against.
+
+| Edge Case | What Goes Wrong | Prevention |
+|-----------|----------------|------------|
+| **Member resolution failure** | Some lease or network rows reference a virtual_oid that has no corresponding Member object. If unresolved, these objects cannot be attributed to a member and are silently dropped from per-member counts. | Track unresolved virtual_oid references. Surface them as "unattributed" objects in the report. Do not silently drop. |
+| **Duplicate lease rows for the same IP** | Lease renewals create new rows in onedb.xml. A single IP may have 5–10 rows from sequential renewals, all in ACTIVE state. Naive counting would count it 5–10×. | Deduplicate leases by IP address within each network view after state filtering. Use the most-recent lease row (by expiry or bind timestamp) if state matters. |
+| **Host Objects with multiple IPs** | A Host Object can bind multiple IP addresses (e.g., a server with 4 NICs). Each IP bound to the host generates A + PTR records. Expansion must multiply by the number of IPs, not just count the host object once. | Expand per IP address in the Host Object's address list. Count constituent records per address, not per host object. |
+| **Network View overlap** | The same subnet CIDR (e.g., 10.0.0.0/8) can exist in multiple NIOS Network Views, each representing an independent routing domain. They are distinct DDI objects and should be counted separately. | Count networks per (CIDR, network_view) tuple, not by CIDR alone. Dedup Active IPs per network view as separate IP spaces. |
+| **Very large member counts (239 members in ZF)** | Grids with hundreds of members generate large member attribution tables. The web dashboard migration split wizard must be paginated or filterable. | Pagination on the member list in the wizard. Sort by lease count descending (high-impact members first). |
+| **Missing NIOS version in DATABASE element** | Older backups may lack the version string in the expected location. | Log "NIOS version: unknown" rather than crashing. Warn in the report header. |
+| **Empty network views** | Some backups include Network View objects with no associated networks (e.g., a view used only for DNS, not IPAM). These views still count as DDI objects. | Count Network View rows regardless of whether they have child networks. Do not skip empty views. |
+| **Exclusion ranges with no parent DHCP range** | Orphaned exclusion range objects (range deleted, exclusion not cleaned up). | Count them as DDI objects regardless. Orphan detection is informational only — do not exclude orphaned ranges from the DDI count. |
+| **Backup file with only partial object extraction** | A truncated tar.gz or corrupted XML mid-parse. | Catch `xml.etree.ElementTree.ParseError` and `tarfile.TarError`. Report partial parse result with a WARNING: object counts are incomplete. Do not produce token totals from a partial parse. |
+
+---
+
+## Object Types: UDDI DDI vs Informational-Only
+
+**Count toward DDI objects (include in token calculation):**
+DNS Zones, DNS Views, DNS Records (all types including SOA/NS), Host Objects (expanded), Host Aliases, DHCP Ranges, Exclusion Ranges, Networks (subnets), Network Containers, Network Views.
+
+**Count toward Active IPs:**
+Active+Static DHCP lease IPs (deduplicated), Fixed Address IPs, Host Object IPs, Reservation IPs (2 × subnet count, derived).
+
+**Count toward Assets:**
+Currently none explicitly defined for NIOS in v1.1 — NIOS managed assets are the domain of Network Insight discovery, which is a separate opt-in (see Anti-Features for why discovery IPs are excluded by default).
+
+**Informational only (do not count toward tokens):**
+NIOS Members, Physical Nodes, DTC Servers/Pools/LBDNs (v1.1 only — defer to v1.2), ACL Rules, Filter Rules, DDNS Zones.
+
+---
 
 ## Sources
 
-- Existing codebase analysis: `main.py`, `shared/licensing_calculator.py`, `shared/resource_counter.py`, `aws_discovery/discover.py`, `azure_discovery/discover.py`, `gcp_discovery/discover.py`
-- [ServiceNow ITOM Cloud License Estimator](https://store.servicenow.com/store/app/c44eef2a1b646a50a85b16db234bcb38) -- closest competitor in the "license estimation" space
-- [Flexera Cloud License Management](https://www.flexera.com/products/flexera-one/cloud-license-management) -- enterprise multi-vendor license management
-- [AWS API throttling best practices](https://docs.aws.amazon.com/ec2/latest/devguide/ec2-api-throttling.html) -- rate limiting patterns
-- [Azure ARM throttling guidance](https://learn.microsoft.com/en-us/graph/throttling) -- per-subscription rate limits
-- [Infoblox Universal DDI Licensing](https://docs.infoblox.com/space/BloxOneDDI/846954761/Universal+DDI+Licensing) -- official token ratios
-- PROJECT.md constraints and requirements (authoritative for this specific tool)
+- `do_not_commit/CLAUDE.md` — authoritative framework document from the February 27, 2026 customer meeting (ZF Friedrichshafen engagement). Defines Active IP components, canonical NIOS→UDDI mapping, lease state semantics, and verification gates. (Confidence: HIGH — validated with customer data)
+- `.planning/REQUIREMENTS.md` — v1.1 requirements definition (37 requirements across PARSE/FILTER/COUNT/MIGR/SCEN/OUT/INTEG)
+- `.planning/PROJECT.md` — token ratios, reference backup stats, dual formula definition
+- [Infoblox WAPI Lease Object Documentation](https://ipam.illinois.edu/wapidoc/objects/lease.html) — complete binding_state enumeration (ACTIVE, STATIC, BACKUP, EXPIRED, RELEASED, FREE, ABANDONED, DECLINED, OFFERED, RESET) with definitions
+- [Host Record A and PTR Entries — Infoblox Community](https://community.infoblox.com/discussion/15621/host-record-a-and-ptr-entries) — confirms A + PTR constituent record generation per host IP
+- [Universal DDI Licensing — Infoblox Documentation](https://docs.infoblox.com/space/BloxOneDDI/846954761/Universal+DDI+Licensing) — NIOS Object vs Native Object token categories
+- [Universal DDI and NIOS Grid Hybrid Deployment](https://infoblox-docs.atlassian.net/wiki/spaces/BloxOneDDI/pages/290685907/Universal+DDI+and+NIOS+Grid+Hybrid+Deployment) — hybrid deployment token accounting
+- [Python iterparse for large XML files](https://www.iditect.com/faq/python/using-python-iterparse-for-large-xml-files.html) — streaming parse + `elem.clear()` pattern for memory efficiency
+- ZF Friedrichshafen reference backup: 2,506,601 total objects, 239 members, 49,437 networks, 605,489 raw lease rows, 168,295 unique active-only IPs, 182,873 active+static+backup IPs (validated baseline)
 
 ---
-*Feature research for: Cloud resource discovery and UDDI licensing estimation*
-*Researched: 2026-02-23*
+*Feature research for: NIOS Grid backup parsing and UDDI hybrid licensing analysis*
+*Researched: 2026-02-28*

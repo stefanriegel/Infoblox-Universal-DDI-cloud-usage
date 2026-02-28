@@ -1,269 +1,230 @@
 # Project Research Summary
 
-**Project:** Infoblox Universal DDI Cloud Usage Estimator
-**Domain:** Multi-cloud resource discovery CLI + local web dashboard (Python)
-**Researched:** 2026-02-23
+**Project:** Universal DDI Cloud Usage Estimator — v1.1 NIOS Grid Analysis
+**Domain:** NIOS Grid backup parsing and UDDI hybrid licensing token estimation
+**Researched:** 2026-02-28
 **Confidence:** HIGH
 
 ## Executive Summary
 
-The Universal DDI Cloud Usage Estimator is a point-in-time, local-execution pre-sales tool that discovers cloud resources across AWS, Azure, and GCP and translates them into Infoblox UDDI token estimates. Experts build this class of tool as a CLI-first Python application with optional lightweight web dashboard — single language, no build toolchain, no external services, and no credential storage. The trust story is the product: enterprise security teams audit the source before running it, so clarity and minimalism are non-negotiable constraints that must drive every architectural decision.
+This milestone adds NIOS Grid backup analysis to an existing, validated Python tool that already handles cloud discovery (AWS/Azure/GCP), token calculation, and XLS report generation. The v1.1 addition is architecturally independent: a new `nios/` package under `src/cloud_usage/` that reads a `.tar.gz` NIOS backup file, streams the 2GB+ `onedb.xml` database using `lxml.etree.iterparse`, counts DDI objects and Active IPs per member, applies dual token formulas, and produces a 5-sheet XLS report with three licensing scenario views. The only new library dependency is `lxml>=5.3.0`; everything else (openpyxl, PyYAML, tarfile, Pydantic) is already in the stack. The project has a validated reference dataset — ZF Friedrichshafen (2.5M objects, 605K raw lease rows, 49K networks, 239 members) — that provides concrete acceptance criteria for every phase.
 
-The recommended approach is a clean rewrite of the existing codebase using FastAPI (ASGI) + HTMX for the optional dashboard, `asyncio.to_thread()` wrapping synchronous cloud SDKs for concurrency, a single-level ThreadPoolExecutor (no nesting) governed by per-provider semaphores, and JSONL streaming to disk instead of in-memory list accumulation. The existing codebase has partially correct implementations across all three providers, but contains five structural defects — nested thread pools, uncoordinated rate limiting, monolithic discovery functions, duplicated post-processing pipelines, and in-memory resource accumulation — that prevent reliable scale beyond ~10 accounts without a redesign.
+The recommended approach is a sequential 6-phase build: parser and schema first (foundation), then filter and counter (counting rules), then scenario engine (token math), then XLS output and runner (integration), then CLI wiring, and finally the web dashboard tab. This order respects strict data-flow dependencies: member identity must be resolved before filtering, filtering must gate object ingestion before counting begins, and counting must complete before scenarios are computed. The architecture enforces these constraints by making each phase's outputs the typed inputs of the next phase, so violations become compile-time (type checker) rather than runtime errors.
 
-The primary risk is scale failure: the existing patterns look correct at small scale and fail silently at 100+ accounts. The antidotes are JSONL streaming, a shared rate-limiting abstraction built before any provider code is written, token expiry detection at scan start, and a provider-agnostic error taxonomy that surfaces actionable user messages instead of opaque SDK exceptions. Phases 1 and 2 of the roadmap carry the highest risk; getting the infrastructure layer right in Phase 1 determines whether the provider implementations in Phase 2 are reliable at enterprise scale.
-
----
+The dominant risks are correctness risks, not infrastructure risks. Three silent errors could produce plausible-looking but wrong numbers: counting raw lease rows instead of unique IPs inflates Active IP totals by 3-4x; failing to expand Host Objects to constituent DNS records produces wrong DDI totals at enterprise scale; applying UDDI native formula divisors to NIOS-remaining members (who should use NIOS Object divisors) overstates their token contribution by 2x. Each has a concrete prevention strategy with a verifiable acceptance test against the ZF reference numbers. Establishing these tests in the counting phase (Phase 11 in this numbering) before any output or integration work begins is the single most important schedule risk mitigation.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The stack is entirely Python, with no Node.js build toolchain anywhere. FastAPI (>=0.115) with Uvicorn provides the ASGI server needed for SSE-based progress streaming; Flask is explicitly ruled out because SSE requires async. HTMX 2.x handles all frontend interactivity via HTML fragments, eliminating the need for any JavaScript framework. Pico CSS provides professional styling in 12KB with no PostCSS build step. All cloud SDKs (boto3, azure-mgmt-*, google-cloud-*) are synchronous and should be wrapped with `asyncio.to_thread()` — not replaced with async wrappers like aioboto3, which add dependency complexity with no benefit for a single-run tool. uv replaces pip + pip-tools + virtualenv as the package manager, and Ruff replaces flake8 + black + isort. pandas is explicitly removed from the dependency tree (replaced by stdlib csv + openpyxl), reducing install size by ~150MB.
+The existing stack handles everything this milestone needs. The single new dependency is `lxml>=5.3.0` — its C-backed `iterparse` keeps peak memory at 50-100MB while processing 2.5M objects, versus unbounded memory growth with stdlib `ElementTree.iterparse` due to a known CPython bug (issues #102055 and #35502). Two critical pattern decisions: use `tarfile.open(mode="r:gz")` (colon, not pipe) for seeking access to the compressed archive — the pipe mode `r|gz` has a known 14x performance regression (cpython #121109, open as of Feb 2026); and always call `elem.clear()` plus delete preceding siblings after processing each `<OBJECT>` element or RAM grows linearly to process completion on a 2GB file.
 
 **Core technologies:**
-- **Python 3.12+**: Runtime — 3.12 is the floor for performance improvements and improved error messages; 3.13 is the recommended target
-- **FastAPI + Uvicorn**: HTTP API + HTML serving — async-native, built-in Pydantic, trivial SSE support
-- **HTMX 2.x + Pico CSS**: Frontend — zero JavaScript to write, zero build toolchain, vendored for air-gapped installs
-- **sse-starlette**: Server-Sent Events — W3C spec compliant, handles heartbeats and proxy timeouts automatically
-- **boto3 / azure-mgmt-* / google-cloud-***: Cloud SDKs — official, synchronous, wrapped via `asyncio.to_thread()`
-- **tenacity + asyncio.Semaphore**: Retry and rate limiting — exponential backoff with jitter, provider-scoped concurrency limits
-- **openpyxl + stdlib csv**: Export — replaces pandas for 1/50th the install footprint
-- **uv + pyproject.toml**: Package management — cross-platform lockfile, replaces pip + venv + pip-tools
-- **Pydantic v2 + pydantic-settings**: Data models + config — Rust-core validation, type-safe settings from env vars
-- **pytest + pytest-asyncio + moto**: Testing — async test support, AWS API mocking without live credentials
+- `lxml>=5.3.0`: Streaming XML parse of 2GB+ `onedb.xml` — C-backed iterparse with `huge_tree=True` and `recover=True`; `elem.clear()` + sibling deletion keeps memory flat at 50-100MB regardless of file size
+- `tarfile` stdlib (`r:gz` mode): In-memory access to `onedb.xml` inside `.tar.gz` via `extractfile()` — no disk extraction, no new dependency, no temp files
+- `PyYAML>=6.0.2`: Parse `--nios-config` YAML file (member filters, migration split, lease states) — already a transitive dependency; `yaml.safe_load()` only, never `yaml.load()`
+- `openpyxl` (existing): 5-sheet XLS report output — same library as cloud output, separate new file `nios/output/nios_xlsx.py`
+- `Pydantic v2` (existing): `NiosConfig` dataclass validation; existing `CloudResource` schema completely untouched
 
 ### Expected Features
 
-**Must have (table stakes, v1):**
-- Multi-cloud discovery (AWS/Azure/GCP) with concurrent multi-account support — missing one provider = tool is dead on arrival for that cloud segment
-- CLI auth via existing SSO credentials (`aws sso login`, `az login`, `gcloud auth`) — no credential storage, non-negotiable security constraint
-- Adaptive rate limiting with exponential backoff + jitter — the primary reason for the rewrite; 429 cascades at scale are fatal
-- Accurate token calculation (DDI/25 + IPs/13 + Assets/3) with IP-space-aware deduplication — wrong numbers destroy trust
-- Resource categorization: every resource labeled counted/skipped with explicit skip reason — "trust the numbers" is the core value proposition
-- CSV/XLS output per provider with detail + summary sheets — sales engineers need files to hand to customers
-- Checkpoint/resume for all three providers — 30-60 minute scans on 100+ accounts cannot afford to restart from zero
-- Graceful per-account error handling — one failed account must not abort the scan
-- Progress indication — a CLI that shows nothing for 30 minutes looks hung; users kill it and lose progress
-- Cross-platform (Windows 11, WSL, macOS) — enterprise SEs are primarily on Windows
-- Proof manifest (SHA-256 hashed JSON) — auditability differentiator
-- Auth validation pre-flight ("auth doctor") — prevent mid-scan auth failures
+See `.planning/research/FEATURES.md` for the full decision table, dependency graph, and edge cases.
 
-**Should have (competitive, v1.x):**
-- Web dashboard (FastAPI + HTMX) — transforms CLI tool into something presentable in a customer meeting
-- Account/subscription/project filtering with glob patterns — production scope management for 200+ account environments
-- Dry-run / what-if mode — security team approval before running the actual scan
-- PowerShell setup scripts (signed) — Windows onboarding for non-Python-savvy SEs
-- Estimator CSV in yellow-cell format — direct feed into Infoblox sizing spreadsheet
+**Must have (table stakes — v1.1 launch blockers):**
+- Streaming `.tar.gz` / `onedb.xml` parser — handles 2GB+ without memory exhaustion (PARSE-01, PARSE-02)
+- Member identity map — `virtual_oid` to hostname/FQDN resolution before filtering or counting (PARSE-04)
+- DDI object extraction with Host Object expansion — A + PTR + optional CNAME per IP per Host Object, not counting the Host Object container row (COUNT-01)
+- Active IP calculation — deduplicated leases (active+static default) + fixed addresses + host IPs + 2 per subnet network/broadcast reservations (COUNT-02, COUNT-03)
+- Structural integrity check — mandatory object families present, member references resolvable, raw vs. unique IP counts reported (PARSE-13)
+- Dual token formula — NIOS Object (DDI/50 + IPs/25 + Assets/13) for NIOS-remaining, UDDI native (DDI/25 + IPs/13 + Assets/3) for NIOSX-migrated (COUNT-04, COUNT-05)
+- Three scenario views — current grid (NIOS Object for all), hybrid UDDI (split formula), full migration (UDDI native for all) (SCEN-01, SCEN-02, SCEN-03)
+- Member attribution table — per member: `virtual_oid`, hostname, group, DDI count, Active IP count, token contribution (COUNT-06, OUT-03)
+- XLS report (5 sheets) — Object Counters, DDI Objects, Active IP by Type, Scenario Comparison, Member Attribution (OUT-01 through OUT-05)
+- CLI integration — `--nios <backup.tar.gz>` and `--nios-config <config.yaml>` (INTEG-01)
+- Member whitelist/blacklist — hostname glob or `virtual_oid` list, whitelist-first semantics (FILTER-01 through FILTER-04)
+- Migration split via YAML config file — `niosx:` member list, configurable default group (MIGR-01, MIGR-03)
 
-**Defer (v2+):**
-- Configurable exclusion lists (external config file) — hardcoded list is sufficient until licensing model changes
-- Historical comparison between scan outputs — manual file comparison is sufficient initially
-- Structured logging (JSON) — human-readable output is sufficient for pre-sales use case
+**Should have (significant SE friction without — v1.1.x after core validated):**
+- Web dashboard NIOS Analysis tab — file upload wizard, member list with group toggles, results display (INTEG-02, MIGR-02)
+- Configurable default migration group — "all default to NIOSX except these few" reduces explicit assignments for 200+ member grids (MIGR-03 extended)
 
-**Anti-features (explicitly do not build):**
-- Recurring/scheduled discovery — scope creep toward a CMDB; Infoblox has Universal Asset Insights for that
-- Infoblox Portal API push — violates the "data never leaves customer machine" trust constraint
-- Multi-cloud aggregated report — provider-specific naming/types make combined output confusing
-- Database backend (SQLite/PostgreSQL) — customers want files they can email, not a database to query
-- Credential storage — security teams will reject any pre-sales tool that stores cloud credentials
+**Defer (v1.2+):**
+- Confidence scoring per metric (NIOS-ADV-02) — needs governance sign-off first
+- DTC/LBDN objects in DDI count (NIOS-ADV-05) — licensing semantics unconfirmed with Infoblox product team
+- Cross-source reconciliation (NIOS-ADV-01) — second input file adds UI complexity
+- Snapshot date delta comparison (NIOS-ADV-04) — manual XLS comparison is sufficient initially
+
+**Anti-features explicitly excluded:**
+- Count all lease states including expired/released/free — produces 3.6x overcount (605K rows vs 168K active IPs at ZF scale)
+- Global IP deduplication across network views — undercounts environments with overlapping RFC1918 address ranges across NIOS Network Views
+- Live NIOS API connection — requires credentials, network access to Grid Manager, and customer security approval; backup-based analysis is point-in-time, reproducible, and offline
+- Count DTC/LBDN objects in v1.1 — licensing semantics not confirmed; count as informational-only in Object Counters sheet
 
 ### Architecture Approach
 
-The target architecture separates the tool into eight components with strict one-way dependencies: CLI/Web UI calls the Orchestrator, the Orchestrator dispatches to Provider Modules (one per cloud) via a single-level ThreadPoolExecutor, Provider Modules acquire and release provider-specific Rate Limiters before API call batches, results stream to the Result Collector as JSONL on disk (not a Python list), and post-processing runs sequentially through Resource Counter, Licensing Calculator, and Report Generator using the common resource schema. The Web UI (FastAPI + SSE) is an optional overlay on the same Orchestrator; removing it does not affect CLI operation. The core innovation over the existing architecture is moving concurrency governance up to the Orchestrator level (single thread pool, semaphore per provider) and moving result storage down to disk (JSONL streaming), eliminating both nested-pool deadlock risk and memory exhaustion at scale.
+The NIOS pipeline is fully isolated in a new `src/cloud_usage/nios/` package. It imports nothing from `providers/`, `counting/`, `discovery/`, or `schema/resource.py`. The only shared infrastructure is openpyxl (same library, separate output file) and the entry points (`cli.py` with an additive `elif args.nios:` branch; `dashboard/` with additive routes). This isolation is enforced, not aspirational: the NIOS data model (`NiosObject` subclasses) is incompatible with `CloudResource`, and the token formulas have different divisors per licensing category. The pipeline is synchronous, single-threaded, and completes in seconds to low minutes for a 2GB file — it does not use `DiscoveryOrchestrator`, ThreadPoolExecutor, or SSE progress streaming (simple polling is sufficient).
 
 **Major components:**
-1. **Orchestrator** (`core/orchestrator.py`) — account enumeration, concurrency management, checkpoint coordination, progress tracking; the single integration point between UI and providers
-2. **Provider Modules** (`providers/aws/`, `providers/azure/`, `providers/gcp/`) — one package per cloud with auth, discovery, and config; conforms to abstract base interface; never imports orchestrator
-3. **Rate Limiter** (`core/rate_limiter.py`) — per-provider semaphore + token bucket; Azure gets tenant-level coordination; injected by orchestrator, not instantiated by providers
-4. **Result Collector** (`core/result_collector.py`) — append-only JSONL temp file; thread-safe writes; provides iterator for post-processing; constant memory regardless of resource count
-5. **Resource Counter** (`counting/resource_counter.py`) — classifies resources into DDI/IP/Asset; IP-space-aware deduplication per VPC/VNet; operates on common schema only
-6. **Licensing Calculator** (`licensing/calculator.py`) — pure math: token ratios applied to counts; no cloud SDK imports
-7. **Report Generator** (`reporting/generator.py`) — CSV + XLS (openpyxl) with detail and summary sheets; reads JSONL collector for detail rows
-8. **Web UI** (`web/app.py`) — FastAPI with SSE endpoint for progress; Jinja2 templates; HTMX frontend; optional, not required for CLI operation
+1. `nios/parser/` — `tarfile.extractfile()` yields `onedb.xml` file handle; `lxml.etree.iterparse` with `huge_tree=True` streams typed `NiosObject` instances; two-pass design builds member map first, then streams all other objects with member IDs resolvable
+2. `nios/filter.py` — resolves effective member set from whitelist/blacklist patterns before any object counting; filter is applied at ingestion time, not display time
+3. `nios/counter.py` — accumulates `MemberCounts` per `virtual_oid`; DDI (with Host Object expansion precedence rule), Active IPs (deduplicated set per network view), Assets (none in v1.1); NIOS Object and UDDI native formula constants defined here only
+4. `nios/scenarios.py` — pure computation over `GridCounts`; applies correct formula per member group; hybrid sub-totals must sum to combined total; verified by unit test before any output work
+5. `nios/output/nios_xlsx.py` — 5-sheet XLS using openpyxl; structurally separate from cloud `output/xlsx_report.py`; header block includes NIOS version, snapshot date, filter config, migration split, formula constants used
+6. `nios/runner.py` — top-level orchestrator wiring parse → filter → count → scenarios → output; called directly from CLI or dashboard thread; no dependency on cloud pipeline
 
 ### Critical Pitfalls
 
-1. **Auth token expiry mid-scan** — SSO/OAuth tokens expire during long scans (1-4 hours). Module-level credential singletons have no TTL check. Fix: check token expiry at scan start, compare against estimated scan duration, warn users; add per-account credential refresh boundaries. Address in Phase 1 before any provider code runs.
+1. **iterparse accumulates the entire XML tree unless elements are explicitly cleared** — stdlib `ElementTree.iterparse` builds a growing in-memory tree despite appearing to stream (CPython issues #102055, #35502). After processing each `<OBJECT>`, call `elem.clear()` and delete preceding siblings. With lxml, the sibling deletion loop (`while elem.getprevious(): del elem.getparent()[0]`) is also required. Without this, a 2.5M-object file OOM-kills the process. Must be established in Phase 10 before any performance testing — never retrofit.
 
-2. **Azure ARM tenant-level rate limiting cascade** — ARM throttles at 25 reads/sec across the entire tenant (not per subscription). With 4 concurrent subscription workers each making 50+ API calls, cascading 429s stall the entire scan. Fix: tenant-level semaphore limiting total concurrent ARM requests to ~10-15/sec; exponential backoff with full jitter (not fixed intervals); respect `Retry-After` and `x-ms-ratelimit-remaining-tenant-reads` headers. Must be designed into Azure provider, not retrofitted.
+2. **Counting raw lease rows instead of unique IPs inflates Active IP totals by 3-4x** — ZF reference: 605,489 raw rows vs 168,295 unique active-only IPs. NIOS stores one row per lease lifecycle event, not one row per currently-active IP. The Active IP pipeline must be: apply state filter → extract IP field → add to a `set` → `len(set)` is the contribution. Raw row count must never enter the token formula. Acceptance criterion: ZF reference produces exactly 168,295 active-only IPs, not 605,489.
 
-3. **Memory exhaustion at scale** — all resources accumulated in a Python list; 100+ accounts with large environments can exceed 2GB RAM. Fix: JSONL streaming to disk — each account's results appended atomically; post-processing reads line-by-line. This requires architectural commitment in Phase 2; cannot be retrofitted.
+3. **Host Object expansion double-counts DNS records if raw A/PTR/CNAME records are also counted** — `onedb.xml` stores Host Objects AND the DNS records they generate as independent objects. Counting both inflates DDI totals by hundreds of thousands at ZF scale. Prevention: collect all Host Object OIDs during the parse pass; when processing independent DNS record objects, skip any whose `parent_oid` is in the Host Object OID set.
 
-4. **Signal handler state loss and checkpoint corruption** — Ctrl+C calls a signal handler that cannot access local scan state, so "saving checkpoint" prints but no checkpoint is saved. Atomic checkpoint writes (`fsync` + `os.rename`) and `threading.Event`-based graceful shutdown prevent both partial writes and state loss. Checkpoint format must include a schema version field for forward compatibility.
+4. **Filter applied after counting instead of before — member whitelist/blacklist has no effect on token totals** — filter must gate object ingestion during the parse pass, not filter the display table after counts are accumulated. The effective member set must be computed before the main parse begins. Verification: changing whitelist/blacklist config must change both member attribution table rows AND summary token totals.
 
-5. **Broad exception handling masks actionable errors** — 60+ `except Exception` instances in the current codebase swallow the distinction between throttling (retry), permission denied (fix IAM), API disabled (enable the API), and genuine bugs. Fix: define a provider-agnostic error taxonomy (`ThrottlingError`, `AuthExpiredError`, `PermissionDeniedError`, `ApiDisabledError`) and map each cloud SDK exception to it in a single module per provider. Must be established in Phase 1 before any provider code is written.
+5. **Dual formula misapplication in hybrid scenario** — the existing `token_calculator.py` uses UDDI native divisors (25/13/3); NIOS-remaining members require NIOS Object divisors (50/25/13). Passing NIOS counts to the existing calculator silently overstates NIOS-remaining tokens by 2x. Prevention: define NIOS Object formula constants in `nios/counter.py` only; never import or call the cloud `calculate_tokens()` function from the NIOS pipeline. Unit test: same input counts produce different totals under each formula.
 
----
+6. **FastAPI `UploadFile` is closed before background thread reads it** — Starlette closes the `SpooledTemporaryFile` after the HTTP response is sent; the background thread receives a closed file handle and the parse silently produces zero objects. Prevention: save the uploaded file to a known disk path within the request handler (before returning); pass the path string — not the file handle — to the background thread via `run_in_executor`.
 
 ## Implications for Roadmap
 
-Based on research, the architecture defines a clear dependency graph that translates directly into phases. Phase 1 is the highest-leverage investment: four of the six critical pitfalls must be addressed there before any cloud API code is written.
+The ARCHITECTURE.md build order maps directly to phases. The phase numbering continues from existing phases (the project is at Phase 9 of a prior roadmap).
 
-### Phase 1: Core Infrastructure and Framework
+### Phase 10: NIOS Parser and Schema (Foundation)
 
-**Rationale:** Everything downstream depends on the resource schema, error taxonomy, rate limiter interface, result collector, and checkpoint abstraction. Building provider code before these exist forces retrofitting — which is precisely how the current codebase accumulated its structural defects. Phase 1 has no cloud API dependencies, making it fully testable in isolation.
+**Rationale:** Every subsequent module depends on the typed `NiosObject` stream and the member identity map. The parser is the only module that reads raw XML; schema defines the data model. The two-pass design (members first, all objects second) must be established here so filter and counter can rely on resolved member IDs at ingestion time. This phase carries the highest infrastructure risk (memory management, streaming correctness) and must be proven with memory profiling tests before building on top of it.
 
-**Delivers:** A working foundation: common resource schema (TypedDict/dataclass), abstract provider base class, provider-agnostic error taxonomy with SDK exception mapping stubs, rate limiter with configurable semaphore, JSONL-based result collector, atomic checkpoint save/load with schema versioning, progress tracking abstraction (CLI print + SSE event generation), and token-expiry-aware credential wrapper interface.
+**Delivers:** `nios/schema.py` (typed dataclasses for all object types), `nios/parser/extractor.py` (tar.gz streaming via `tarfile.extractfile()`), `nios/parser/streaming_xml.py` (lxml iterparse with `elem.clear()` + sibling deletion), `nios/parser/object_types.py` (XML type name constants), two-pass member map build
 
-**Addresses features:** CLI auth validation, graceful error handling, checkpoint/resume foundation, progress indication framework, cross-platform path handling (pathlib.Path throughout)
+**Addresses:** PARSE-01, PARSE-02, PARSE-04, PARSE-13 (structural integrity foundation)
 
-**Avoids pitfalls:** Auth token expiry mid-scan (credential TTL wrapper), broad exception masking (error taxonomy), checkpoint corruption (atomic writes + schema versioning), signal handler state loss (threading.Event shutdown pattern)
+**Avoids:** iterparse memory leak (Pitfall 1), tar.gz disk extraction double I/O (Pitfall 2), orphaned lease silent drop (Pitfall 3)
 
-**Research flag:** Standard patterns — well-documented Python infrastructure; no phase research needed.
+**Research flag:** No additional research needed. lxml iterparse and tarfile patterns are fully specified with verified code examples in STACK.md and PITFALLS.md.
 
----
+### Phase 11: Filter and Counter (Counting Rules)
 
-### Phase 2: AWS Provider + End-to-End Pipeline
+**Rationale:** Contains the highest correctness risk of the entire milestone. The counting rules — Host Object expansion, lease deduplication, network reservation derivation, whitelist-first filter semantics, and dual formula constants — must be unit-tested against the ZF reference values (168,295 active-only IPs from 605,489 rows) before any downstream work begins. A wrong count silently propagates through scenarios, XLS output, and customer-facing numbers. Acceptance tests here are the primary regression protection for the entire milestone.
 
-**Rationale:** AWS has the simplest rate limiting model (per-account per-region, not tenant-level) and the most straightforward auth chain (credential file / SSO token cache). Building the first end-to-end pipeline — CLI invocation through AWS discovery through JSONL collection through token calculation through CSV/XLS output — validates the entire architecture before Azure's more complex rate limiting or GCP's quota model is introduced.
+**Delivers:** `nios/filter.py` (whitelist/blacklist resolution, effective member set, filter applied at ingestion), `nios/counter.py` (DDI/IP/Asset counting per member with Host Object expansion precedence rule, lease dedup set, network reservation derivation, both formula constant sets), `nios/config.py` (NiosConfig dataclass)
 
-**Delivers:** Fully working AWS discovery with multi-account support via Organizations or explicit account list, concurrent account workers using Phase 1 rate limiter, JSONL result streaming, end-to-end token calculation and XLS output, and the first integration test proving the full pipeline.
+**Addresses:** FILTER-01 through FILTER-04, COUNT-01 through COUNT-06
 
-**Addresses features:** AWS multi-account discovery, AWS token calculation, CSV/XLS output with detail + summary sheets, proof manifest, IP-space-aware deduplication, resource categorization
+**Avoids:** lease row count inflation (Pitfall 4), Host Object expansion double-count (Pitfall 5), filter-after-count (Pitfall 6), dual formula misapplication (Pitfall 7)
 
-**Avoids pitfalls:** Memory exhaustion (JSONL streaming committed from the start), nested thread pools (single-level ThreadPoolExecutor), per-region API fan-out (sequential region iteration within account workers)
+**Research flag:** No additional research needed. Counting rules are fully specified in FEATURES.md (object type table, lease state semantics, Host Object expansion rules, network reservation derivation) with ZF reference acceptance values.
 
-**Uses:** boto3, tenacity, asyncio.Semaphore, openpyxl, moto for tests
+### Phase 12: Scenario Engine
 
-**Research flag:** Standard patterns — AWS SDK and concurrent discovery patterns are well-documented. No phase research needed.
+**Rationale:** Pure computation over `GridCounts` (output of Phase 11). No file I/O, no parsing, no output formatting. The most logic-rich module in isolation; benefits from clean unit testing with constructed `GridCounts` objects. The hybrid scenario (SCEN-02) requires explicit formula-per-group separation: NIOS-remaining members use NIOS Object divisors, NIOSX-migrated members use UDDI native divisors, and both sub-totals must sum to the combined total. This invariant must be a unit test before Phase 13 begins.
 
----
+**Delivers:** `nios/scenarios.py` with three scenario computations: SCEN-01 (all members NIOS Object formula), SCEN-02 (dual formula with migration split, sub-totals independently calculated and summed), SCEN-03 (all members UDDI native formula)
 
-### Phase 3: Azure Provider
+**Addresses:** SCEN-01, SCEN-02, SCEN-03, MIGR-01, MIGR-03, MIGR-04
 
-**Rationale:** Azure is the most complex provider: tenant-level rate limits, the longest scan times (many subscriptions), the highest chance of mid-scan token expiry, and the most nuanced credential chain (InteractiveBrowserCredential must be warmed on the main thread). Tackling it as a discrete phase after the AWS pipeline is proven lets the team focus on Azure's unique challenges without simultaneously solving pipeline bugs.
+**Avoids:** hybrid sub-total blending error (SCEN-02 must apply formula per group, not blend counts then apply single formula)
 
-**Delivers:** Azure subscription enumeration, concurrent subscription workers behind a tenant-level semaphore, resource discovery (VMs, VNets, DNS zones, subnets, NICs, load balancers), per-subscription error isolation, and checkpoint/resume for Azure scans.
+**Research flag:** No additional research needed. Formula constants and scenario logic fully specified in FEATURES.md and ARCHITECTURE.md.
 
-**Addresses features:** Azure multi-subscription discovery, Azure rate limiting, Azure checkpoint/resume, Azure token calculation
+### Phase 13: Output and Runner
 
-**Avoids pitfalls:** ARM tenant-level rate limiting cascade (tenant semaphore + full jitter backoff + Retry-After header respect), Azure InteractiveBrowserCredential threading deadlock (main-thread credential warm-up), SubscriptionClient pagination (materialize to list immediately), ResourceManagementClient file descriptor leak (context managers throughout)
+**Rationale:** XLS output depends on `ScenarioResults` (Phase 12). Runner wires all components and defines the public API (`run_nios_analysis()`) that CLI and dashboard both call. The dashboard upload endpoint (Phase 15) depends on this API being stable. Integration testing with the ZF reference backup (or a synthetic large fixture) validates the complete pipeline before CLI or UI work begins.
 
-**Uses:** azure-identity, azure-mgmt-compute, azure-mgmt-network, azure-mgmt-dns, azure-mgmt-privatedns, azure-mgmt-resource
+**Delivers:** `nios/output/nios_xlsx.py` (5-sheet XLS with header block, formula footnotes, member attribution table), `nios/runner.py` (parse → filter → count → scenarios → output orchestration), `nios/__init__.py` (public API export)
 
-**Research flag:** Phase research recommended — Azure ARM throttling edge cases and subscription-scale testing are complex enough to warrant pre-implementation research during planning.
+**Addresses:** OUT-01 through OUT-05
 
----
+**Research flag:** No additional research needed. openpyxl multi-sheet pattern is identical to existing cloud output; runner wiring follows ARCHITECTURE.md component boundary definitions.
 
-### Phase 4: GCP Provider
+### Phase 14: CLI Integration
 
-**Rationale:** GCP's multi-project discovery pattern is already partially prototyped in the existing codebase (shared compute clients injection is implemented), providing a starting point. However, GCP's quota model (all API calls billed to a single quota project regardless of target project) requires specific design decisions. Building GCP after Azure means the rate limiter and result collector are already proven at scale.
+**Rationale:** Clean `elif` branch in `cli.py`. Minimal surface area — no existing code path is touched. Validates the full pipeline end-to-end via command line before dashboard adds UI complexity. Serves as the first integration acceptance test: `python -m cloud_usage.cli --nios backup.tar.gz` must produce `nios_analysis_<timestamp>.xlsx` containing correct counts per the ZF reference values.
 
-**Delivers:** GCP project enumeration (Resource Manager), multi-project concurrent discovery using `aggregatedList` endpoints (40x fewer API calls than per-region listing), per-project error isolation, quota-project awareness, and DNS zone caching across GCPDiscovery instances.
+**Delivers:** Modified `cli.py` with `--nios <backup.tar.gz>` and `--nios-config <config.yaml>` arguments; `elif args.nios:` branch calling `nios.runner.run_nios_analysis()`; end-to-end acceptance test (INTEG-01)
 
-**Addresses features:** GCP multi-project discovery, GCP token calculation, GCP checkpoint/resume
+**Addresses:** INTEG-01
 
-**Avoids pitfalls:** GCP API quota exhaustion (`aggregatedList` instead of per-region calls, quota-project monitoring, wave-based scanning for 500+ project orgs), DNS zone listing repeated per project (module-level cache), full API response stored in details field (extract only licensing-relevant fields during discovery)
+**Research flag:** No additional research needed. Additive argparse pattern with no existing code path touched.
 
-**Uses:** google-cloud-compute, google-cloud-dns, google-cloud-resource-manager, google-cloud-service-usage, google-auth
+### Phase 15: Dashboard Integration (NIOS Tab)
 
-**Research flag:** Standard patterns for `aggregatedList` usage — GCP Compute API is well-documented. Quota-project mechanics may need validation during planning.
+**Rationale:** Highest UI complexity phase; depends on all prior phases being stable. Introduces the `UploadFile` → disk → background thread pattern (Pitfall 8 prevention), new HTMX routes, `NiosAnalysisState` enum independent of cloud `ScanState`, and the migration split wizard. Building this last means the underlying pipeline is proven and the dashboard integration adds UI layer only, not logic changes.
 
----
+**Delivers:** New routes in `dashboard/routes/` (upload, start, status, tab, wizard steps), `ScanManager` NIOS state fields (additive, independent from cloud scan state), NIOS tab templates (file upload wizard → member list with toggles → review → results), tab bar entry, path-based upload dispatch (file saved to disk before background thread starts)
 
-### Phase 5: Web Dashboard
+**Addresses:** INTEG-02, MIGR-02
 
-**Rationale:** The dashboard sits entirely on top of the complete discovery pipeline. FastAPI is already the web framework for the CLI server, and the SSE progress infrastructure was designed into Phase 1's progress tracking abstraction. Phase 5 is "wire up the UI layer" — not architectural work. Building it last means the underlying discovery is already reliable and the dashboard can display real results.
+**Avoids:** UploadFile closed before background task (Pitfall 8) by saving to disk path first; SpooledTemporaryFile spool limit (Pitfall 9) by closing `UploadFile` after save; ScanManager/EventBridge coupling with cloud pipeline by using separate `NiosAnalysisState` enum and `nios_*` event names
 
-**Delivers:** FastAPI app with Jinja2 templates and HTMX frontend, SSE-based real-time progress stream, results viewer with per-provider summary and resource detail, export download links, and browser auto-open on scan start.
-
-**Addresses features:** Web dashboard, progress indication (visual), results browsing without CLI expertise
-
-**Avoids pitfalls:** No build toolchain (HTMX + Pico CSS vendored; no npm/Node.js), no WebSocket complexity (SSE is sufficient for server-to-client progress), mobile support explicitly out of scope (desktop/laptop only)
-
-**Uses:** FastAPI, sse-starlette, Jinja2, HTMX 2.x, Pico CSS 2.x (both vendored)
-
-**Research flag:** Standard patterns — FastAPI + HTMX + SSE is well-documented with multiple worked examples. No phase research needed.
-
----
-
-### Phase 6: Hardening, Cross-Platform, and Polish
-
-**Rationale:** Once all three providers and the dashboard work functionally, a dedicated hardening phase addresses the "looks done but isn't" checklist: cross-platform path handling, file descriptor limits on macOS, Windows PowerShell setup scripts, output file completeness metadata, dry-run mode, and account filtering. These are individually low-risk but need systematic validation across platforms.
-
-**Delivers:** PowerShell setup scripts (signed), Windows CI matrix, output file scan metadata headers (scanned/failed/skipped accounts), dry-run / what-if mode, account/subscription/project filtering with glob patterns, macOS file descriptor limit detection, security log sanitization (bearer token stripping), and checkpoint file permissions hardening.
-
-**Addresses features:** Cross-platform (Windows 11, WSL, macOS), PowerShell setup scripts, dry-run mode, account filtering, estimator CSV yellow-cell format alignment
-
-**Avoids pitfalls:** Cross-platform file paths (pathlib.Path audit), file descriptor exhaustion (ulimit detection + warning), output completeness gaps (scan metadata in report headers), credential logging leaks (exception message sanitization)
-
-**Research flag:** Windows-specific PowerShell script signing may need targeted research. Otherwise standard patterns.
-
----
+**Research flag:** Review the existing `_run_scan_pipeline()` executor dispatch pattern in `scan.py` before implementation to ensure consistency. FastAPI UploadFile prevention pattern is fully specified in PITFALLS.md with code example.
 
 ### Phase Ordering Rationale
 
-The dependency chain from ARCHITECTURE.md maps cleanly to this phase sequence:
-
-- **Phase 1 is foundational and non-negotiable as first.** Four of six critical pitfalls from PITFALLS.md must be addressed in the core framework before provider code exists. The error taxonomy, credential TTL wrapper, and checkpoint abstraction are the most impactful structural investments in the entire project.
-- **Phase 2 (AWS) before Azure/GCP** because AWS has the simplest rate model, validating the full pipeline before complexity is added. The ARCHITECTURE.md build order recommendation explicitly calls out this sequence.
-- **Phase 3 (Azure) before GCP** because Azure's tenant-level rate limiting is the hardest coordination problem in the project. Solving it second, with a working pipeline already proven, reduces debugging surface area.
-- **Phase 5 (Dashboard) last among features** because it depends on all three providers having stable progress APIs and results. Building it early would require mocking discovery — adding work, not reducing it.
-- **Phase 6 (Hardening) as dedicated final phase** because cross-platform testing and security review require a complete, stable codebase. Interleaving this work with feature development creates a moving target.
+- Phases 10-12 are sequential with hard data-flow dependencies: typed schema before filter, effective member set before counter, `GridCounts` before `ScenarioResults`. There is no parallelism available within this core pipeline.
+- Phase 13 (output + runner) is the integration point; it cannot begin until Phases 10-12 are complete and unit-tested.
+- Phase 14 (CLI) begins as soon as Phase 13's public API is stable; it is the first integration validation and provides end-to-end test coverage before any UI work.
+- Phase 15 (dashboard) is last because it has the highest surface area and can only be built on top of a stable Phase 13 `run_nios_analysis()` API. UI bugs are less costly than counting bugs.
+- Correctness-critical code (counting rules, formula constants) is built and acceptance-tested in Phases 10-11 before any deadline pressure from UI implementation exists.
 
 ### Research Flags
 
-**Phases needing deeper research during planning:**
-- **Phase 3 (Azure):** Azure ARM tenant-level throttling behavior at 100-500 subscription scale is well-documented but the interaction between adaptive concurrency, Retry-After headers, and concurrent subscription workers has subtleties that warrant pre-implementation spike work. Specifically: validate the tenant-level semaphore value (2-4 concurrent subscription workers is the research recommendation; confirm with ARM documentation).
-- **Phase 6 (Hardening):** PowerShell script signing requirements vary by enterprise policy. Research the self-signed certificate workflow for Windows 11 and validate against `Set-ExecutionPolicy` requirements before writing setup scripts.
+**Phases needing deeper research during planning:** None. All patterns are fully specified in the research files with concrete code examples. The ZF reference dataset provides acceptance criteria for every counting rule. No novel technical decisions remain unresolved.
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 1:** Pure Python infrastructure — error taxonomy, JSONL file I/O, threading primitives, checkpoint JSON. All standard library or well-documented patterns.
-- **Phase 2 (AWS):** boto3 multi-account, ThreadPoolExecutor, moto testing. All well-documented with official examples.
-- **Phase 4 (GCP):** `aggregatedList` endpoints and ADC auth are documented in GCP official docs. Shared compute client pattern already prototyped in existing codebase.
-- **Phase 5 (Dashboard):** FastAPI + HTMX + SSE has multiple worked examples in official docs. Zero novel patterns.
-
----
+**Phases with standard patterns (all phases skip research-phase):**
+- **Phase 10:** lxml iterparse and tarfile patterns are fully specified with code in STACK.md and PITFALLS.md; CPython memory bug behavior is traced to specific issue numbers
+- **Phase 11:** All counting rules fully specified in FEATURES.md with ZF reference values as acceptance criteria
+- **Phase 12:** Formula constants and scenario computation fully specified; only pure Python arithmetic
+- **Phase 13:** openpyxl multi-sheet pattern matches existing cloud output; runner wiring is direct function composition
+- **Phase 14:** Additive argparse pattern; no new technical decisions
+- **Phase 15:** FastAPI upload-to-disk-then-thread pattern fully specified with code example in PITFALLS.md; HTMX tab pattern follows existing cloud scan tab
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All technologies verified via PyPI with specific version numbers. Rationale for every exclusion (pandas, Flask, aioboto3, Node.js) is documented and cross-checked against project constraints. |
-| Features | HIGH | Derived from existing codebase analysis + PROJECT.md (authoritative) + competitor analysis (ServiceNow CLE, Flexera). Feature dependencies are explicit. MVP definition is clear. |
-| Architecture | HIGH | Component design is directly informed by existing codebase defects (nested pools, in-memory accumulation, copy-pasted pipelines). Build order derived from data dependency graph, not opinion. |
-| Pitfalls | HIGH | Six critical pitfalls all identified from codebase analysis + official cloud provider rate limit documentation + SDK issue trackers. Each has specific line references in existing code. |
+| Stack | HIGH | Single new dependency (lxml 6.0.2). All patterns verified against official lxml docs, CPython issue tracker with specific issue numbers, PyPI version pages. No version conflicts with existing stack identified. tarfile and PyYAML are already present. |
+| Features | HIGH | Canonical object-type decision table derived from validated customer backup (ZF Friedrichshafen) and authoritative internal framework doc (do_not_commit/CLAUDE.md). Lease state semantics confirmed by Infoblox WAPI 2.13.7 documentation. Host Object expansion confirmed by Infoblox community forum. ZF reference numbers provide quantitative acceptance criteria. |
+| Architecture | HIGH | Based on direct codebase analysis of all relevant modules. Build order verified against REQUIREMENTS.md dependency graph. Component boundaries explicitly defined with rationale for anti-patterns. NIOS isolation from cloud pipeline is enforced by data model incompatibility, not just convention. |
+| Pitfalls | HIGH | Nine critical pitfalls documented; six are critical, three are dashboard-specific. Each traced to a specific CPython or FastAPI issue number with an open/confirmed status. Prevention strategies are concrete code patterns with warning signs and a recovery cost table. Each pitfall maps to a specific phase. |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Azure ARM adaptive concurrency threshold:** The research recommends 2-4 concurrent subscription workers for large tenants, but the exact value that avoids throttling without unnecessarily serializing discovery depends on the customer's tenant size and ARM subscription quota tier. This can only be validated with a real-scale test against a large Azure tenant. Plan a dedicated Azure load test in Phase 3.
+- **Host Object parent-OID field name in onedb.xml:** The exact NIOS XML property name that identifies an independent DNS record as "generated by a Host Object" (used in Pitfall 5 / Host Object expansion double-count prevention) requires validation against the ZF reference backup. FEATURES.md rates this MEDIUM confidence. During Phase 11 implementation, inspect the actual `onedb.xml` structure for A/PTR/CNAME records that have a Host Object parent to confirm the field name before finalizing the precedence rule.
 
-- **GCP `aggregatedList` availability per resource type:** The recommendation to use `aggregatedList` instead of per-region listing (40x API call reduction) applies to Compute Engine resources. Verify which specific resource types (instances, networks, subnetworks, addresses) support `aggregatedList` versus requiring per-zone calls before writing GCP discovery code in Phase 4.
+- **CNAME condition for Host Object expansion:** Whether a Host Object generates a CNAME record depends on whether a canonical name alias is defined on the host. The exact `onedb.xml` property that signals this condition requires confirmation from the ZF backup data. Phase 11 should validate the expansion rule against the reference backup before the DDI counter is finalized. FEATURES.md rates this MEDIUM confidence.
 
-- **Windows PowerShell script signing mechanics:** PROJECT.md requires signed `.ps1` scripts. The exact signing workflow (self-signed certificate creation, code signing, execution policy requirements) has not been fully researched. Validate before writing setup scripts in Phase 6.
+- **DTC/LBDN licensing semantics (deferred to v1.2):** Requires Infoblox product team sign-off on whether DTC Server, Pool, LBDN, Health Monitor, and Topology Rule objects count toward UDDI DDI tokens. Do not include in v1.1 DDI count. Parse and report them as informational-only in the Object Counters sheet so the data is available when governance decision is made.
 
-- **Token calculation edge cases (IPv6, overlapping CIDRs):** The core DDI/IP/Asset token ratios are well-understood, but edge cases — IPv6 subnets, VPC peering with overlapping RFC1918 ranges, Azure Hybrid Benefit implications — are noted as unvalidated. These should be verified against Infoblox's official sizing methodology during Phase 2 implementation.
-
----
+- **Network Insight discovery IP policy (out of scope v1.1):** Excluded from Active IP count by default per FEATURES.md anti-features. Requires explicit customer confirmation of Network Insight licensing and deployment scope before enabling. Flag as "unresolved per do_not_commit/CLAUDE.md Section 11" in report output when the raw discovered IP count is shown.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- **Existing codebase** (`main.py`, `shared/`, `aws_discovery/`, `azure_discovery/`, `gcp_discovery/`) — authoritative source for current behavior, defects, and patterns
-- **PROJECT.md** — authoritative constraints document; defines tool scope, platform requirements, and feature set
-- [PyPI verified versions](https://pypi.org) — all stack versions confirmed for FastAPI 0.129.0, Pydantic 2.13.1, boto3 1.42.x, azure-identity 1.25.2, azure-mgmt-compute 37.2.0, azure-mgmt-network 30.2.0, google-cloud-compute 1.40.0, uv 0.6+, Ruff 0.15.2, pytest 9.0.2
-- [Azure ARM throttling documentation](https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/request-limits-and-throttling) — tenant-level rate limits, throttling headers
-- [GCP Compute Engine rate quotas](https://cloud.google.com/compute/api-quota) — per-project quota, quota project scoping
-- [Python devguide: Version status](https://devguide.python.org/versions/) — Python 3.12/3.13 support timelines
+- `do_not_commit/CLAUDE.md` — authoritative framework from ZF Friedrichshafen customer meeting (Feb 27, 2026); defines Active IP components, NIOS-to-UDDI category mapping, lease state semantics, member attribution requirements, and verification gates
+- `.planning/REQUIREMENTS.md` — 37 requirements across PARSE/FILTER/COUNT/MIGR/SCEN/OUT/INTEG families
+- `.planning/PROJECT.md` — dual token formula constants, reference backup statistics, phase context
+- [lxml PyPI page](https://pypi.org/project/lxml/) — version 6.0.2 confirmed, Python 3.9 wheel support confirmed
+- [lxml performance benchmarks](https://lxml.de/performance.html) — iterparse throughput vs stdlib ElementTree
+- [lxml API: iterparse](https://lxml.de/api/lxml.etree.iterparse-class.html) — `huge_tree`, `recover`, `resolve_entities` parameters
+- [Python tarfile stdlib docs](https://docs.python.org/3/library/tarfile.html) — `extractfile()` behavior, seeking (`r:gz`) vs pipe (`r|gz`) mode distinction
+- [PyYAML PyPI](https://pypi.org/project/PyYAML/) — version 6.0.3, `safe_load()` requirement
+- [Infoblox WAPI Lease Object Docs](https://ipam.illinois.edu/wapidoc/objects/lease.html) — complete `binding_state` enumeration (ACTIVE, STATIC, BACKUP, EXPIRED, RELEASED, FREE, ABANDONED, DECLINED, OFFERED, RESET)
 
 ### Secondary (MEDIUM confidence)
-- [HTMX GitHub releases](https://github.com/bigskysoftware/htmx/releases) — version 2.0.8 confirmed; SSE extension behavior verified
-- [ServiceNow ITOM Cloud License Estimator](https://store.servicenow.com/store/app/c44eef2a1b646a50a85b16db234bcb38) — competitor feature comparison
-- [Flexera Cloud License Management](https://www.flexera.com/products/flexera-one/cloud-license-management) — competitor feature comparison
-- [boto3 SSO token expiry (GitHub #4119)](https://github.com/boto/boto3/issues/4119) — SSO non-refresh behavior confirmed
-- [Azure InteractiveBrowserCredential threading issues (GitHub #23721)](https://github.com/Azure/azure-sdk-for-python/issues/23721) — main-thread requirement confirmed
-- [Python signal handler + ThreadPoolExecutor deadlock (CPython #121649)](https://github.com/python/cpython/issues/121649) — SIGINT handling behavior
-- `.planning/codebase/CONCERNS.md` — documented tech debt and known bugs in existing codebase
+- [Infoblox Community: Host Record A and PTR](https://community.infoblox.com/discussion/15621/host-record-a-and-ptr-entries) — constituent record composition per host IP confirmed
+- [Universal DDI Licensing — Infoblox Docs](https://docs.infoblox.com/space/BloxOneDDI/846954761/Universal+DDI+Licensing) — NIOS Object vs Native Object token categories
+- [Nick Janetakis: lxml 20x faster XML parsing](https://nickjanetakis.com/blog/how-i-used-the-lxml-library-to-parse-xml-20x-faster-in-python) — practical benchmark
+- [WebScraping.AI: lxml memory management](https://webscraping.ai/faq/lxml/what-are-the-best-practices-for-managing-memory-usage-when-using-lxml) — `elem.clear()` + sibling deletion pattern
 
-### Tertiary (MEDIUM-LOW confidence)
-- [Strapi Blog: FastAPI vs Flask 2025](https://strapi.io/blog/fastapi-vs-flask-python-framework-comparison) — adoption data (38% FastAPI adoption cited)
-- [JetBrains PyCharm Blog: Django vs Flask vs FastAPI](https://blog.jetbrains.com/pycharm/2025/02/django-flask-fastapi/) — framework comparison
-- [Infoblox Universal DDI Licensing](https://docs.infoblox.com/space/BloxOneDDI/846954761/Universal+DDI+Licensing) — token ratios (DDI/25, IPs/13, Assets/3)
+### Issue Trackers (HIGH confidence for specific bugs)
+- CPython issue #102055 — ElementTree iterparse memory non-release root cause (open)
+- CPython issue #35502 — iterparse memory leak historical context
+- CPython issue #121109 — tarfile `r|gz` 14x slowdown bug (open, Feb 2026)
+- FastAPI discussion #10936 — UploadFile closed before background task executes
+- FastAPI issue #5777 — SpooledTemporaryFile spool limit ignored in UploadFile
 
 ---
-
-*Research completed: 2026-02-23*
+*Research completed: 2026-02-28*
 *Ready for roadmap: yes*
