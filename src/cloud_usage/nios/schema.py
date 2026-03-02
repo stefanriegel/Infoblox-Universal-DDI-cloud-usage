@@ -20,7 +20,7 @@ from dataclasses import dataclass
 
 
 class NiosFamily:
-    """String constants for all 21 NIOS object families.
+    """String constants for all 26 NIOS object families.
 
     These constants are used as the family field in NiosObject and as keys in
     IntegrityReport.families_found. All values are lowercase snake_case strings.
@@ -28,6 +28,8 @@ class NiosFamily:
     The 13 minimum families required by PARSE-05 through PARSE-12 are present,
     plus additional families discovered in the ZF Friedrichshafen reference backup
     (do_not_commit/ZF-database-11_1752136302416.bak.reset.tar.gz, discovered 2026-02-28).
+    Five DTC (DNS Traffic Control) families were added in Phase 16 (2026-03-02) based
+    on spec derivation; their XML __type strings are unverified against a real backup.
 
     Note on member attribution (critical for Phase 10 two-pass parser design):
     - MEMBER is the identity object; its virtual_oid is the key in the member map.
@@ -35,6 +37,7 @@ class NiosFamily:
     - Other DHCP families (NETWORK, FIXED_ADDRESS, DHCP_RANGE, etc.) do not carry a direct
       member attribution field in this NIOS version — they reference network_view instead.
     - DNS families are grid-level: no member attribution by design.
+    - DTC families are grid-level: no member attribution (DTC-07).
     """
 
     MEMBER = "member"
@@ -58,13 +61,19 @@ class NiosFamily:
     EXCLUSION_RANGE = "exclusion_range"
     NETWORK_CONTAINER = "network_container"
     NETWORK_VIEW = "network_view"
+    # ---- DTC (DNS Traffic Control) ----
+    DTC_LBDN = "dtc_lbdn"
+    DTC_POOL = "dtc_pool"
+    DTC_SERVER = "dtc_server"
+    DTC_MONITOR = "dtc_monitor"
+    DTC_TOPOLOGY = "dtc_topology"
 
 
 @dataclass(frozen=True)
 class NiosObject:
     """A single extracted NIOS Grid object, fully member-resolved.
 
-    Yielded by parse_backup() for every object across all 21 known families.
+    Yielded by parse_backup() for every object across all 26 known families.
     The parser resolves member identity internally; callers receive only resolved instances.
 
     Args:
