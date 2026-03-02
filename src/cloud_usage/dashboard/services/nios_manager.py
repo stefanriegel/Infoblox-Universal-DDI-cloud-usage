@@ -42,6 +42,7 @@ class NiosScanManager:
         _output_path: Path to generated .xlsx output file.
         _error: Error message if state is ERROR.
         _scenario_suite: ScenarioSuite from completed analysis (for summary card).
+        _current_progress: Latest progress step dict from the pipeline.
     """
 
     def __init__(self) -> None:
@@ -52,6 +53,12 @@ class NiosScanManager:
         self._output_path: Optional[str] = None
         self._error: Optional[str] = None
         self._scenario_suite = None
+        self._current_progress: dict = {
+            "step": 0,
+            "total": 6,
+            "label": "Starting\u2026",
+            "elapsed_seconds": 0.0,
+        }
 
     @property
     def state(self) -> NiosState:
@@ -89,6 +96,12 @@ class NiosScanManager:
         with self._lock:
             return self._scenario_suite
 
+    @property
+    def current_progress(self) -> dict:
+        """Latest progress step dict. Thread-safe read."""
+        with self._lock:
+            return dict(self._current_progress)
+
     def set_upload(self, path: str, filename: str) -> None:
         """Store upload path and original filename. Thread-safe.
 
@@ -103,7 +116,7 @@ class NiosScanManager:
     def reset(self) -> None:
         """Reset analysis state to IDLE. Called on re-upload. Thread-safe.
 
-        Clears output_path, error, and scenario_suite.
+        Clears output_path, error, scenario_suite, and current_progress.
         Does NOT clear upload_path or original_filename.
         """
         with self._lock:
@@ -111,6 +124,12 @@ class NiosScanManager:
             self._output_path = None
             self._error = None
             self._scenario_suite = None
+            self._current_progress = {
+                "step": 0,
+                "total": 6,
+                "label": "Starting\u2026",
+                "elapsed_seconds": 0.0,
+            }
 
     def can_start(self) -> bool:
         """True when not RUNNING. Thread-safe.
@@ -132,6 +151,33 @@ class NiosScanManager:
                 msg = "Cannot start analysis: already running"
                 raise RuntimeError(msg)
             self._state = NiosState.RUNNING
+
+    def set_progress(
+        self,
+        step: int,
+        total: int,
+        label: str,
+        elapsed_seconds: float,
+    ) -> None:
+        """Store the latest pipeline progress step. Thread-safe.
+
+        Called from the background pipeline thread before each
+        nios_progress SSE emit. Route handler reads this via
+        current_progress property to render the progress display.
+
+        Args:
+            step: Current step number (1-based).
+            total: Total number of steps.
+            label: Human-readable step name.
+            elapsed_seconds: Seconds elapsed since pipeline start.
+        """
+        with self._lock:
+            self._current_progress = {
+                "step": step,
+                "total": total,
+                "label": label,
+                "elapsed_seconds": elapsed_seconds,
+            }
 
     def set_complete(self, output_path: str, scenario_suite=None) -> None:
         """Transition to COMPLETE with output path and ScenarioSuite. Thread-safe.
