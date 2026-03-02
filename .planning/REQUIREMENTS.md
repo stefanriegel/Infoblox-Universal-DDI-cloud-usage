@@ -1,53 +1,53 @@
 # Requirements: Universal DDI Cloud Usage Estimator
 
-**Defined:** 2026-03-02
+**Defined:** 2026-03-03
 **Core Value:** Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
 
-## v1.2 Requirements
+## v1.3 Requirements
 
-Requirements for the DTC/LBDN DDI Support milestone.
+Requirements for the Enhanced WebUI Experience milestone. Phases 18–20.
 
-All DTC (DNS Traffic Control) object types from NIOS Grid backups must be recognized by the parser and counted toward the DDI bucket at the existing NIOS Object formula rate (DDI/50 for NIOS-managed, DDI/25 for NIOSX-native in hybrid scenarios). XML type strings are spec-derived — not empirically confirmed from a real DTC-containing backup.
+### Progress Feedback
 
-### DTC Parser
+- [ ] **PROG-01**: User sees named step labels during NIOS analysis (e.g., "Inspecting backup", "Counting objects", "Writing report")
+- [ ] **PROG-02**: User sees current step number out of total steps during NIOS analysis (e.g., "Step 3 of 6")
+- [ ] **PROG-03**: User sees elapsed time while NIOS analysis is running
 
-- [x] **DTC-01**: Parser recognizes all DTC LBDN objects as a distinct `dtc_lbdn` family
-- [x] **DTC-02**: Parser recognizes DTC Pool objects as a distinct `dtc_pool` family
-- [x] **DTC-03**: Parser recognizes DTC Server objects as a distinct `dtc_server` family
-- [x] **DTC-04**: Parser recognizes all DTC Monitor subtypes (http, icmp, pdp, sip, snmp, tcp) as a single `dtc_monitor` family
-- [x] **DTC-05**: Parser recognizes DTC Topology objects (label, rule) as a single `dtc_topology` family
+### Token Breakdown
 
-### DTC Counter
+- [ ] **BRKDN-01**: User can view DDI object count, Active IP count, and Asset count per scenario in the WebUI after NIOS analysis
+- [ ] **BRKDN-02**: User can see formula derivation per scenario inline (e.g., "1,234 DDI ÷ 50 = 24.7 tokens") in the WebUI
+- [ ] **BRKDN-03**: User can view a per-member breakdown table showing each member's DDI/IP/Asset counts and token contribution in the WebUI
+- [ ] **BRKDN-04**: User can see NIOS vs NIOSX group label on each row in the member breakdown table
 
-- [x] **DTC-06**: All DTC families count +1 toward DDI per object (no special expansion logic, unlike HOST_OBJECT)
-- [x] **DTC-07**: DTC objects are grid-level (`member_hostname=None`) — no member attribution expected
+### Migration Wizard
 
-### Scenario & Output
-
-- [ ] **DTC-08**: DTC DDI counts flow through all three scenarios (current grid, hybrid, full migration) without changes to scenarios.py
-- [ ] **DTC-09**: DTC families appear in the Object Counters sheet of the XLS report with correct per-family counts
-- [ ] **DTC-10**: `inspect_backup()` includes all DTC families in `families_found` (zero-baseline pre-populated from `ALL_EXPECTED_FAMILIES`)
-
-### Quality Gate
-
-- [x] **DTC-11**: All DTC XML type strings in `_XML_TYPE_TO_FAMILY` are annotated with `# spec-derived, unverified — no empirical backup observed` comments
+- [ ] **WIZ-01**: User sees explanatory text describing what NIOS and NIOSX group assignments mean for token calculation before assigning members
+- [ ] **WIZ-02**: User can select all or deselect all members with a single click in the migration assignment step
+- [ ] **WIZ-03**: User sees a live count of NIOS vs NIOSX assigned members as they toggle assignments
+- [ ] **WIZ-04**: The wizard steps are clearly numbered and labeled (Step 1: Upload Backup, Step 2: Assign Members, Step 3: Run Analysis)
 
 ## Future Requirements
 
-### Validation
+### Extended Analytics
 
-- **DTC-V01**: Empirically confirm DTC XML __type strings against a real DTC-containing customer backup
-- **DTC-V02**: Validate DTC object counts against a known reference (customer report or manual count)
+- **ANA-01**: User can view per-object-family DDI breakdown (HOST_RECORD: 234, DHCP_RANGE: 156, DTC_LBDN: 12, etc.) in the WebUI
+- **ANA-02**: User can filter the member breakdown table by member name or group in the WebUI
+- **ANA-03**: User can sort the member breakdown table by any column
+
+### Cloud Scan UI
+
+- **CLOUD-01**: Cloud Summary tab shows formula derivation for cloud token totals (DDI ÷ 25 + IPs ÷ 13 + Assets ÷ 3)
+- **CLOUD-02**: Cloud Summary tab shows per-resource-type breakdown per provider
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Multi-backup delta analysis (NIOS-ADV-04) | Not needed per v1.2 scope decision |
-| GCP 87-project production validation (REF-01) | Still blocked — no live GCP environment |
-| DTC-specific IP contribution | DTC objects are DNS/LB constructs — they do not contribute Active IPs |
-| Per-DTC-type separate families (6 monitor types) | Grouped into dtc_monitor family — simpler, fewer constants, no counter difference |
-| Discovery data as Active IP source | Outside DTC scope; UDDI spec confirmation still pending |
+| Live token impact preview while assigning members | Requires re-running full pipeline on every toggle — too expensive for large grids |
+| Re-run without re-upload | Backup file is streamed twice already; state management for cached runs adds complexity |
+| Charts / visualizations | Text tables are sufficient and consistent with enterprise audit expectations |
+| Copy-to-clipboard for token totals | Nice-to-have; deferred to future |
 
 ## Traceability
 
@@ -55,23 +55,23 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DTC-01 | Phase 16 | Complete |
-| DTC-02 | Phase 16 | Complete |
-| DTC-03 | Phase 16 | Complete |
-| DTC-04 | Phase 16 | Complete |
-| DTC-05 | Phase 16 | Complete |
-| DTC-06 | Phase 16 | Complete |
-| DTC-07 | Phase 16 | Complete |
-| DTC-08 | Phase 17 | Pending |
-| DTC-09 | Phase 17 | Pending |
-| DTC-10 | Phase 17 | Pending |
-| DTC-11 | Phase 16 | Complete |
+| PROG-01 | Phase 18 | Pending |
+| PROG-02 | Phase 18 | Pending |
+| PROG-03 | Phase 18 | Pending |
+| BRKDN-01 | Phase 19 | Pending |
+| BRKDN-02 | Phase 19 | Pending |
+| BRKDN-03 | Phase 19 | Pending |
+| BRKDN-04 | Phase 19 | Pending |
+| WIZ-01 | Phase 20 | Pending |
+| WIZ-02 | Phase 20 | Pending |
+| WIZ-03 | Phase 20 | Pending |
+| WIZ-04 | Phase 20 | Pending |
 
 **Coverage:**
-- v1.2 requirements: 11 total
+- v1.3 requirements: 11 total
 - Mapped to phases: 11
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-03-02*
-*Last updated: 2026-03-02 — traceability updated after roadmap creation*
+*Requirements defined: 2026-03-03*
+*Last updated: 2026-03-03 — traceability confirmed during roadmap creation*

@@ -5,6 +5,7 @@
 - ✅ **v1.0 Cloud Discovery MVP** — Phases 1–9 (shipped 2026-02-26)
 - ✅ **v1.1 NIOS Grid Analysis** — Phases 10–15 (shipped 2026-03-02)
 - ✅ **v1.2 DTC/LBDN DDI Support** — Phases 16–17 (shipped 2026-03-02)
+- 🚧 **v1.3 Enhanced WebUI Experience** — Phases 18–20 (in progress)
 
 ## Phases
 
@@ -40,56 +41,63 @@ Archive: `.planning/milestones/v1.1-ROADMAP.md`
 
 </details>
 
-### ✅ v1.2 DTC/LBDN DDI Support (Completed 2026-03-02)
+<details>
+<summary>✅ v1.2 DTC/LBDN DDI Support (Phases 16–17) — SHIPPED 2026-03-02</summary>
 
-**Milestone Goal:** All DTC object types recognized by the NIOS parser and counted toward DDI, flowing through all three scenarios and the XLS report unchanged.
+- [x] Phase 16: DTC Parser and Counter (2/2 plans) — completed 2026-03-02
+- [x] Phase 17: DTC Integration Verification (2/2 plans) — completed 2026-03-02
 
-- [x] **Phase 16: DTC Parser and Counter** — Add five DTC families to schema, parser, and counter (completed 2026-03-02)
-- [x] **Phase 17: DTC Integration Verification** — Confirm scenarios, XLS report, and inspect_backup all surface DTC counts correctly (completed 2026-03-02)
+Archive: `.planning/milestones/v1.2-ROADMAP.md`
+
+</details>
+
+### 🚧 v1.3 Enhanced WebUI Experience (In Progress)
+
+**Milestone Goal:** Make the NIOS analysis feel polished and informative — progress steps during long runs, rich token breakdown with formula derivation, and a guided member assignment wizard.
+
+- [x] **Phase 18: NIOS Pipeline Progress Events** — Emit step-level SSE events from the NIOS analysis pipeline and surface named steps, step counters, and elapsed time in the dashboard UI (completed 2026-03-02)
+- [ ] **Phase 19: Token Breakdown WebUI** — Enrich the NIOS results screen with per-scenario formula derivation and a per-member attribution table with NIOS/NIOSX group labels
+- [ ] **Phase 20: Migration Wizard UX** — Improve the NIOS member assignment step with explanatory text, select-all control, live group counts, and clearly numbered step labels
 
 ## Phase Details
 
-### Phase 16: DTC Parser and Counter
-**Goal**: All five DTC object families are recognized by the parser and counted toward DDI
-**Depends on**: Phase 15 (v1.1 NIOS stack)
-**Requirements**: DTC-01, DTC-02, DTC-03, DTC-04, DTC-05, DTC-06, DTC-07, DTC-11
+### Phase 18: NIOS Pipeline Progress Events
+**Goal**: Users see meaningful, named progress steps — with a step counter and elapsed time — while NIOS analysis runs, so long-running jobs feel responsive and trustworthy
+**Depends on**: Phase 17 (v1.2 complete)
+**Requirements**: PROG-01, PROG-02, PROG-03
 **Success Criteria** (what must be TRUE):
-  1. Running the parser against a synthetic backup containing DTC XML objects produces non-zero counts for all five families: dtc_lbdn, dtc_pool, dtc_server, dtc_monitor, dtc_topology
-  2. DTC object counts appear in the DDI bucket total — the counter adds them using +1 per object with no special expansion
-  3. DTC objects carry member_hostname=None (grid-level) — no member attribution rows are produced
-  4. Every DTC XML type string entry in `_XML_TYPE_TO_FAMILY` has the spec-derived annotation comment
-  5. All existing v1.1 tests continue to pass — zero regressions from adding DTC families
-**Plans**: 2/2 (complete 2026-03-02)
+  1. While NIOS analysis runs, the dashboard displays a named step label (e.g., "Inspecting backup", "Counting objects", "Writing report") that updates as each pipeline stage begins
+  2. The progress area shows a step counter of the form "Step N of M" that advances through each stage of the pipeline
+  3. An elapsed time indicator is visible and increments while the analysis is running
+  4. The progress display clears or transitions to results when analysis completes
+**Plans**: TBD
 
-### Phase 17: DTC Integration Verification
-**Goal**: DTC counts flow end-to-end through scenarios, XLS report, and inspect_backup with no code changes required
-**Depends on**: Phase 16
-**Requirements**: DTC-08, DTC-09, DTC-10
+### Phase 19: Token Breakdown WebUI
+**Goal**: The NIOS results screen exposes the full derivation of token totals — raw object/IP/asset counts, formula steps, and per-member attribution — so customers can audit and trust every number
+**Depends on**: Phase 18
+**Requirements**: BRKDN-01, BRKDN-02, BRKDN-03, BRKDN-04
 **Success Criteria** (what must be TRUE):
-  1. A NIOS analysis run with a DTC-containing backup produces DDI token estimates that include DTC objects in all three scenario outputs (current grid, hybrid UDDI split, full migration)
-  2. The Object Counters sheet in the XLS report shows a row for each DTC family with the correct count
-  3. `inspect_backup()` output lists all five DTC families in `families_found`, including zero-count families pre-populated from `ALL_EXPECTED_FAMILIES`
-**Plans**: 2/2 (complete 2026-03-02)
+  1. After analysis completes, the user can view DDI object count, Active IP count, and Asset count for each scenario (current grid, hybrid split, full migration) in the WebUI
+  2. Each scenario block shows formula derivation inline — e.g., "1,234 DDI ÷ 50 = 24.7 tokens" — so the math is self-evident without opening the XLS report
+  3. A per-member breakdown table is visible in the WebUI showing each member's DDI count, Active IP count, Asset count, and token contribution
+  4. Each row in the member table is labeled with its group assignment — NIOS or NIOSX — so the licensing split is immediately visible
+**Plans**: TBD
+
+### Phase 20: Migration Wizard UX
+**Goal**: The NIOS/NIOSX member assignment step in the dashboard wizard is clear, efficient, and self-explanatory — users understand what they are doing, can assign members quickly, and see the impact of their choices as they work
+**Depends on**: Phase 19
+**Requirements**: WIZ-01, WIZ-02, WIZ-03, WIZ-04
+**Success Criteria** (what must be TRUE):
+  1. Before assigning members to NIOS or NIOSX groups, the user sees explanatory text that describes what each group means for token calculation (NIOS Object formula vs UDDI native formula)
+  2. A "Select All" / "Deselect All" control lets the user assign or clear all member assignments in the current group with a single click
+  3. As the user toggles member assignments, a live counter updates to show the current count of NIOS-assigned members and NIOSX-assigned members
+  4. The wizard step progression is labeled with clear step numbers and titles — e.g., "Step 1: Upload Backup", "Step 2: Assign Members", "Step 3: Run Analysis" — visible throughout the wizard
+**Plans**: TBD
 
 ## Progress
 
-| Phase | Milestone | Plans Complete | Status | Completed |
-|-------|-----------|----------------|--------|-----------|
-| 1. Core Infrastructure | v1.0 | 4/4 | Complete | 2026-02-23 |
-| 2. AWS Provider | v1.0 | 6/6 | Complete | 2026-02-23 |
-| 2.1. Wire RateLimiter (INSERTED) | v1.0 | 2/2 | Complete | 2026-02-24 |
-| 3. Azure Provider | v1.0 | 4/4 | Complete | 2026-02-24 |
-| 4. GCP Provider | v1.0 | 4/4 | Complete | 2026-02-24 |
-| 5. Web Dashboard | v1.0 | 4/4 | Complete | 2026-02-24 |
-| 6. Platform Hardening | v1.0 | 2/2 | Complete | 2026-02-25 |
-| 7. Integration Gap Closure | v1.0 | 2/2 | Complete | 2026-02-25 |
-| 8. Dashboard GCP Scan Fix | v1.0 | 2/2 | Complete | 2026-02-25 |
-| 9. Integration Tech Debt Cleanup | v1.0 | 1/1 | Complete | 2026-02-26 |
-| 10. NIOS Parser and Schema | v1.1 | 3/3 | Complete | 2026-02-28 |
-| 11. Filter and Counter | v1.1 | 3/3 | Complete | 2026-03-02 |
-| 12. Scenario Engine | v1.1 | 2/2 | Complete | 2026-03-02 |
-| 13. Output and Runner | v1.1 | 2/2 | Complete | 2026-03-02 |
-| 14. CLI Integration | v1.1 | 2/2 | Complete | 2026-03-02 |
-| 15. Dashboard Integration | v1.1 | 2/2 | Complete | 2026-03-02 |
-| 16. DTC Parser and Counter | v1.2 | 2/2 | Complete | 2026-03-02 |
-| 17. DTC Integration Verification | v1.2 | 2/2 | Complete | 2026-03-02 |
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 18. NIOS Pipeline Progress Events | 2/2 | Complete    | 2026-03-02 |
+| 19. Token Breakdown WebUI | 0/TBD | Not started | - |
+| 20. Migration Wizard UX | 0/TBD | Not started | - |

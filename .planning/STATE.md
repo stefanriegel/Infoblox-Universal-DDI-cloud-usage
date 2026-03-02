@@ -1,47 +1,48 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.2
-milestone_name: DTC/LBDN DDI Support
+milestone: v1.3
+milestone_name: Enhanced WebUI Experience
 status: unknown
-last_updated: "2026-03-02T22:30:00.000Z"
+last_updated: "2026-03-02T23:32:06.568Z"
 progress:
-  total_phases: 12
-  completed_phases: 12
-  total_plans: 35
-  completed_plans: 35
+  total_phases: 11
+  completed_phases: 11
+  total_plans: 33
+  completed_plans: 33
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-02 after v1.2 milestone archived)
+See: .planning/PROJECT.md (updated 2026-03-03 after v1.3 milestone started)
 
 **Core value:** Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Between milestones — v1.2 archived; planning next milestone
+**Current focus:** Phase 18 — NIOS Pipeline Progress Events (ready to plan)
 
 ## Current Position
 
-Phase: 17 of 17 (DTC Integration Verification)
-Plan: 2 of 2 in current phase
-Status: Complete
-Last activity: 2026-03-02 - Completed quick task 4: dashboard UI overhaul — professional enterprise design
+Phase: 18 of 20 (NIOS Pipeline Progress Events)
+Plan: — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-03-03 — v1.3 roadmap created (3 phases, 11 requirements mapped)
 
-Progress: [██████████] 100%
+Progress: [░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2 (v1.2 only)
-- Average duration: ~9 min/plan
-- Total execution time: ~18 min
+- Total plans completed: 0 (v1.3)
+- Average duration: ~9 min/plan (v1.2 baseline)
+- Total execution time: 0 min
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 16. DTC Parser and Counter | 2 | ~18min | ~9min |
-| 17. DTC Integration Verification | 2 | ~15min | ~8min |
+| 18. NIOS Pipeline Progress Events | TBD | - | - |
+| 19. Token Breakdown WebUI | TBD | - | - |
+| 20. Migration Wizard UX | TBD | - | - |
 
 *Updated after each plan completion*
 
@@ -49,33 +50,16 @@ Progress: [██████████] 100%
 
 ### Decisions
 
-- v1.2 scope: DTC-08, DTC-09, DTC-10 require verification only — scenarios.py and output.py need no code changes because they consume `grid_ddi` total which now includes DTC
-- DTC XML type strings are spec-derived, not empirically confirmed — all carry annotation comment (DTC-11); ZF reference backup has no DTC objects, synthetic test data used
-- DTC objects are grid-level (member_hostname=None); no member attribution, no IP contribution
-- 5 DTC NiosFamily constants: DTC_LBDN, DTC_POOL, DTC_SERVER, DTC_MONITOR, DTC_TOPOLOGY
-- 11 DTC entries in _XML_TYPE_TO_FAMILY (6 monitor subtypes + 2 topology subtypes all collapsed to single family constants)
-- 5 DTC constants in _DDI_FAMILIES; +1 DDI per DTC object (no special expansion)
-
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 1 | update the readme and add how to use | 2026-03-02 | 7d593f0 | [1-update-the-readme-and-add-how-to-use](./quick/1-update-the-readme-and-add-how-to-use/) |
-| 2 | fix cloud-usage command-not-found — add pyproject.toml | 2026-03-02 | 517fcd2 | [2-fix-cloud-usage-command-not-found-add-py](./quick/2-fix-cloud-usage-command-not-found-add-py/) |
-| 3 | fix NIOS dashboard upload button doing nothing after selecting tar.gz | 2026-03-02 | 285a6e2 | [3-fix-nios-dashboard-upload-button-doing-n](./quick/3-fix-nios-dashboard-upload-button-doing-n/) |
-| 4 | dashboard UI overhaul — professional enterprise design | 2026-03-02 | e741607 | [4-dashboard-ui-overhaul-professional-desig](./quick/4-dashboard-ui-overhaul-professional-desig/) |
+- v1.2 scope: DTC objects are grid-level (member_hostname=None); no member attribution, no IP contribution
+- DTC XML type strings are spec-derived — synthetic test data used; ZF backup has no DTC objects
+- v1.3 scope: Three distinct feature areas (PROG, BRKDN, WIZ) map cleanly to three phases; phases are sequential because BRKDN requires the results data that PROG produces, and WIZ improves the wizard that precedes analysis
 
 ### Blockers/Concerns
 
-- DTC XML __type strings unverified against real backup — tests use synthetic data; empirical confirmation deferred to DTC-V01/V02 (future requirements)
+- DTC XML __type strings unverified against real backup — carry-over from v1.2; non-blocking for v1.3
+- NIOS pipeline currently emits coarse SSE events — Phase 18 requires step-level event emission from the pipeline itself, not just the HTTP layer
 
 ## Session Log
 
-- 2026-03-02: v1.2 milestone started — DTC/LBDN DDI support scope confirmed
-- 2026-03-02: Roadmap created — Phase 16 (parser/counter) and Phase 17 (integration verification)
-- 2026-03-02: Phase 16 complete — 5 NiosFamily DTC constants, 11 _XML_TYPE_TO_FAMILY entries, 5 _DDI_FAMILIES entries, 6 new tests (3 parser + 3 counter), 188 total tests pass
-- 2026-03-02: Phase 17 complete — output.py extended to 26 families, 7 new tests (DTC-08 x3, DTC-09 x2, DTC-10 x2), 105 tests pass across test_nios_output/scenarios/inspect; v1.2 milestone complete
-- 2026-03-02: v1.2 milestone archived — ROADMAP.md collapsed, REQUIREMENTS.md archived to milestones/v1.2-REQUIREMENTS.md, git tag v1.2 created
-- 2026-03-02: Quick task 3 planned — fix NIOS dashboard upload button (htmx-indicator bug + HTMX v2 silent error handling)
-- 2026-03-02: Quick task 3 complete — replaced inline style="display:none" with class="htmx-indicator", added hx-on:htmx:responseError on form, added global error handler in base.html
-- 2026-03-02: Quick task 4 complete — dashboard UI overhaul: enterprise CSS palette, dark site-header, hero token cards for NIOS results, SVG icon stat cards for summary
+- 2026-03-03: v1.3 milestone started — requirements defined (PROG-01–03, BRKDN-01–04, WIZ-01–04)
+- 2026-03-03: Roadmap created — Phases 18–20, 11 requirements, 100% coverage
