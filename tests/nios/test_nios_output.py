@@ -672,7 +672,7 @@ def test_object_counters_sheet_index(
     assert wb.sheetnames[1] == "Object Counters"
 
 
-def test_object_counters_has_21_data_rows(
+def test_object_counters_has_26_data_rows(
     tmp_path,
     minimal_integrity_report,
     minimal_count_result,
@@ -681,7 +681,7 @@ def test_object_counters_has_21_data_rows(
     minimal_member_map,
     minimal_ip_by_type,
 ):
-    """Object Counters sheet has exactly 21 data rows (one per NiosFamily), plus header."""
+    """Object Counters sheet has exactly 26 data rows (21 original + 5 DTC), plus header."""
     wb = _write_fixture(
         tmp_path, minimal_integrity_report, minimal_count_result,
         minimal_scenario_suite, minimal_filter_config, minimal_member_map, minimal_ip_by_type,
@@ -690,7 +690,7 @@ def test_object_counters_has_21_data_rows(
     rows = _sheet_values(ws)
     # Subtract 1 for header row
     data_rows = rows[1:]
-    assert len(data_rows) == 21
+    assert len(data_rows) == 26
 
 
 def test_object_counters_ddi_families_marked_yes(
@@ -1670,3 +1670,135 @@ def test_run_nios_analysis_produces_6_sheets(tmp_path):
 
     wb = openpyxl.load_workbook(out)
     assert len(wb.sheetnames) == 6
+
+
+# ---------------------------------------------------------------------------
+# DTC Integration Verification Tests (Phase 17)
+# ---------------------------------------------------------------------------
+
+# --- DTC-09: Object Counters sheet shows all five DTC families ---
+
+
+def test_object_counters_sheet_shows_dtc_families(tmp_path: Path) -> None:
+    """DTC-09: Object Counters sheet includes all 5 DTC families with correct counts and DDI flag."""
+    from cloud_usage.nios.output import write_nios_xlsx_report
+    from cloud_usage.nios.parser._families import ALL_EXPECTED_FAMILIES
+    from cloud_usage.nios.scenarios import compute_scenarios
+
+    dtc_counts = {
+        NiosFamily.DTC_LBDN: 3,
+        NiosFamily.DTC_POOL: 2,
+        NiosFamily.DTC_SERVER: 4,
+        NiosFamily.DTC_MONITOR: 1,
+        NiosFamily.DTC_TOPOLOGY: 5,
+    }
+    families_found = {f: 0 for f in ALL_EXPECTED_FAMILIES}
+    families_found.update(dtc_counts)
+
+    integrity = IntegrityReport(
+        families_found=families_found,
+        warnings=[],
+        nios_version="9.0.6-test",
+        snapshot_date="2026-03-02",
+    )
+    # Minimal CountResult
+    grid = MemberCounts(
+        member_hostname="__grid__",
+        ddi_count=sum(dtc_counts.values()),
+        active_ip_count=0,
+        lease_count=0,
+        asset_count=0,
+    )
+    count_result = CountResult(member_counts=[], grid_counts=grid)
+
+    suite = compute_scenarios(count_result, split_config=None)
+
+    filter_config = FilterConfig(whitelist=[], blacklist=[], lease_states=["active"])
+
+    filepath = str(tmp_path / "dtc09_test.xlsx")
+    write_nios_xlsx_report(
+        filepath=filepath,
+        integrity_report=integrity,
+        count_result=count_result,
+        scenario_suite=suite,
+        filter_config=filter_config,
+        split_config=None,
+        analysis_timestamp="2026-03-02 00:00:00 UTC",
+        member_map={},
+        ip_by_type={"leases": 0, "fixed": 0, "host": 0, "reservations": 0},
+    )
+
+    wb = openpyxl.load_workbook(filepath)
+    assert "Object Counters" in wb.sheetnames
+    ws = wb["Object Counters"]
+
+    # Build a dict: family_name -> (count, uddi_flag, reason)
+    row_data = {}
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if row[0] is not None:
+            row_data[row[0]] = (row[1], row[2], row[3])
+
+    for family, expected_count in dtc_counts.items():
+        assert family in row_data, (
+            f"DTC family '{family}' missing from Object Counters sheet. "
+            f"Rows found: {list(row_data.keys())}"
+        )
+        actual_count, uddi_flag, reason = row_data[family]
+        assert actual_count == expected_count, (
+            f"DTC family '{family}': expected count {expected_count}, got {actual_count}"
+        )
+        assert uddi_flag == "Yes", (
+            f"DTC family '{family}' should be DDI-contributing (Yes), got '{uddi_flag}'"
+        )
+        # DTC families are DDI-contributing — reason should be empty string
+        assert reason == "" or reason is None, (
+            f"DTC family '{family}' should have empty reason, got '{reason}'"
+        )
+
+
+def test_object_counters_sheet_shows_all_26_families(tmp_path: Path) -> None:
+    """DTC-09 regression: Object Counters sheet has 26 rows (21 original + 5 DTC)."""
+    from cloud_usage.nios.output import write_nios_xlsx_report, _ALL_FAMILIES_ORDERED  # noqa: F401
+    from cloud_usage.nios.parser._families import ALL_EXPECTED_FAMILIES
+    from cloud_usage.nios.scenarios import compute_scenarios
+
+    families_found = {f: 1 for f in ALL_EXPECTED_FAMILIES}
+
+    integrity = IntegrityReport(
+        families_found=families_found,
+        warnings=[],
+        nios_version="9.0.6-test",
+        snapshot_date="2026-03-02",
+    )
+    grid = MemberCounts(
+        member_hostname="__grid__",
+        ddi_count=len(ALL_EXPECTED_FAMILIES),
+        active_ip_count=0,
+        lease_count=0,
+        asset_count=0,
+    )
+    count_result = CountResult(member_counts=[], grid_counts=grid)
+    suite = compute_scenarios(count_result, split_config=None)
+    filter_config = FilterConfig(whitelist=[], blacklist=[], lease_states=["active"])
+
+    filepath = str(tmp_path / "dtc09_26families.xlsx")
+    write_nios_xlsx_report(
+        filepath=filepath,
+        integrity_report=integrity,
+        count_result=count_result,
+        scenario_suite=suite,
+        filter_config=filter_config,
+        split_config=None,
+        analysis_timestamp="2026-03-02 00:00:00 UTC",
+        member_map={},
+        ip_by_type={"leases": 0, "fixed": 0, "host": 0, "reservations": 0},
+    )
+
+    wb = openpyxl.load_workbook(filepath)
+    ws = wb["Object Counters"]
+
+    # Count data rows (skip header at row 1)
+    data_rows = [r for r in ws.iter_rows(min_row=2, values_only=True) if r[0] is not None]
+    assert len(data_rows) == 26, (
+        f"Expected 26 rows in Object Counters (21 original + 5 DTC), got {len(data_rows)}"
+    )
