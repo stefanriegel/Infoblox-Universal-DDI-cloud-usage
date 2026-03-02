@@ -23,5 +23,13 @@
     </main>
     <script src="{{ url_for('static', path='htmx.min.js') }}"></script>
     <script src="{{ url_for('static', path='sse.js') }}"></script>
+    <script>
+      // Global HTMX v2 error handler — surfaces silent 4xx/5xx failures to the console.
+      // Element-level hx-on:htmx:responseError handlers take precedence for specific forms.
+      document.body.addEventListener('htmx:responseError', function(evt) {
+        console.error('[HTMX] Request failed:', evt.detail.requestConfig.path,
+                      'Status:', evt.detail.xhr.status, evt.detail.xhr.statusText);
+      });
+    </script>
 </body>
 </html>
