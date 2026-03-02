@@ -309,7 +309,7 @@ def main(argv: list[str] | None = None) -> int:
             return 1
 
         sys.stderr.write(
-            f"\nStarting UDDI Cloud Usage Estimator dashboard at "
+            f"\nStarting UDDI Estimator dashboard at "
             f"http://localhost:{args.port}\n"
             f"Press Ctrl+C to stop.\n"
         )

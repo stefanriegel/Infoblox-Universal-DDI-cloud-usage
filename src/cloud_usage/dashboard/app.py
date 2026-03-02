@@ -1,6 +1,6 @@
 """FastAPI app factory with lifespan, static mount, and route registration.
 
-Creates the UDDI Cloud Usage Estimator dashboard application. Uses the
+Creates the UDDI Estimator dashboard application. Uses the
 modern lifespan context manager pattern (not deprecated on_event) for
 startup/shutdown lifecycle management of EventBridge and ScanManager.
 """
@@ -79,7 +79,7 @@ def create_app() -> FastAPI:
         Configured FastAPI application instance.
     """
     app = FastAPI(
-        title="UDDI Cloud Usage Estimator",
+        title="UDDI Estimator",
         lifespan=lifespan,
     )
 
