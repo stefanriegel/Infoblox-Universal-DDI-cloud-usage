@@ -31,6 +31,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 # These will fail with ImportError until _parse.py is implemented (RED phase).
 from cloud_usage.nios.parser import parse_backup
 from cloud_usage.nios.errors import NiosParseError
+from cloud_usage.nios.schema import NiosFamily
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +84,54 @@ def _zone_object(fqdn: str = "example.com") -> str:
   <PROPERTY NAME="__type" VALUE=".com.infoblox.dns.zone"/>
   <PROPERTY NAME="fqdn" VALUE="{fqdn}"/>
 </OBJECT>"""
+
+
+def _dtc_lbdn_object(**extra_props: str) -> str:
+    """Build an XML OBJECT snippet for a DTC LBDN object (grid-level, spec-derived type)."""
+    extra = "".join(f'  <PROPERTY NAME="{n}" VALUE="{v}"/>\n' for n, v in extra_props.items())
+    return f"""<OBJECT>
+  <PROPERTY NAME="__type" VALUE=".com.infoblox.dns.dtc_lbdn"/>
+{extra}</OBJECT>"""
+
+
+def _dtc_pool_object(**extra_props: str) -> str:
+    """Build an XML OBJECT snippet for a DTC Pool object (grid-level, spec-derived type)."""
+    extra = "".join(f'  <PROPERTY NAME="{n}" VALUE="{v}"/>\n' for n, v in extra_props.items())
+    return f"""<OBJECT>
+  <PROPERTY NAME="__type" VALUE=".com.infoblox.dns.dtc_pool"/>
+{extra}</OBJECT>"""
+
+
+def _dtc_server_object(**extra_props: str) -> str:
+    """Build an XML OBJECT snippet for a DTC Server object (grid-level, spec-derived type)."""
+    extra = "".join(f'  <PROPERTY NAME="{n}" VALUE="{v}"/>\n' for n, v in extra_props.items())
+    return f"""<OBJECT>
+  <PROPERTY NAME="__type" VALUE=".com.infoblox.dns.dtc_server"/>
+{extra}</OBJECT>"""
+
+
+def _dtc_monitor_object(subtype: str = "http", **extra_props: str) -> str:
+    """Build an XML OBJECT snippet for a DTC Monitor object.
+
+    Args:
+        subtype: One of http, icmp, pdp, sip, snmp, tcp. Default: http.
+    """
+    extra = "".join(f'  <PROPERTY NAME="{n}" VALUE="{v}"/>\n' for n, v in extra_props.items())
+    return f"""<OBJECT>
+  <PROPERTY NAME="__type" VALUE=".com.infoblox.dns.dtc_monitor_{subtype}"/>
+{extra}</OBJECT>"""
+
+
+def _dtc_topology_object(subtype: str = "label", **extra_props: str) -> str:
+    """Build an XML OBJECT snippet for a DTC Topology object.
+
+    Args:
+        subtype: One of label, rule. Default: label.
+    """
+    extra = "".join(f'  <PROPERTY NAME="{n}" VALUE="{v}"/>\n' for n, v in extra_props.items())
+    return f"""<OBJECT>
+  <PROPERTY NAME="__type" VALUE=".com.infoblox.dns.dtc_topology_{subtype}"/>
+{extra}</OBJECT>"""
 
 
 def _make_backup(xml_content: str, tmp_path: Path, filename: str = "onedb.xml") -> Path:
@@ -249,4 +298,78 @@ def test_parse_backup_is_generator(tmp_path: Path) -> None:
 
     assert isinstance(result, types.GeneratorType), (
         f"parse_backup() must return a GeneratorType, got {type(result)}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# DTC (DNS Traffic Control) Parser Tests (Phase 16: DTC-01 through DTC-05)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_backup_recognizes_dtc_families(tmp_path: Path) -> None:
+    """Synthetic backup with one object per DTC family yields correct family for each.
+
+    Success criteria (Phase 16):
+    - parse_backup() produces non-zero count for all five DTC families
+    - All DTC objects have member_hostname=None (grid-level)
+    """
+    xml = _build_onedb_xml(
+        _dtc_lbdn_object(),
+        _dtc_pool_object(),
+        _dtc_server_object(),
+        _dtc_monitor_object(subtype="http"),
+        _dtc_topology_object(subtype="label"),
+    )
+    backup = _make_backup(xml, tmp_path)
+
+    objects = list(parse_backup(backup))
+
+    families = {o.family for o in objects}
+    assert NiosFamily.DTC_LBDN in families, f"dtc_lbdn not found; got: {families}"
+    assert NiosFamily.DTC_POOL in families, f"dtc_pool not found; got: {families}"
+    assert NiosFamily.DTC_SERVER in families, f"dtc_server not found; got: {families}"
+    assert NiosFamily.DTC_MONITOR in families, f"dtc_monitor not found; got: {families}"
+    assert NiosFamily.DTC_TOPOLOGY in families, f"dtc_topology not found; got: {families}"
+
+    # All DTC objects are grid-level (member_hostname=None)
+    dtc_families = {
+        NiosFamily.DTC_LBDN, NiosFamily.DTC_POOL, NiosFamily.DTC_SERVER,
+        NiosFamily.DTC_MONITOR, NiosFamily.DTC_TOPOLOGY,
+    }
+    for obj in objects:
+        if obj.family in dtc_families:
+            assert obj.member_hostname is None, (
+                f"{obj.family} should be grid-level but has member_hostname={obj.member_hostname!r}"
+            )
+
+
+def test_parse_backup_dtc_monitor_all_subtypes(tmp_path: Path) -> None:
+    """All 6 DTC monitor subtypes map to the single dtc_monitor family (no per-subtype families)."""
+    subtypes = ["http", "icmp", "pdp", "sip", "snmp", "tcp"]
+    xml = _build_onedb_xml(*[_dtc_monitor_object(subtype=s) for s in subtypes])
+    backup = _make_backup(xml, tmp_path)
+
+    objects = list(parse_backup(backup))
+
+    assert len(objects) == 6, f"Expected 6 monitor objects, got {len(objects)}"
+    families = {o.family for o in objects}
+    assert families == {NiosFamily.DTC_MONITOR}, (
+        f"Expected only dtc_monitor family, got: {families}"
+    )
+
+
+def test_parse_backup_dtc_topology_both_subtypes(tmp_path: Path) -> None:
+    """Both DTC topology subtypes (label, rule) map to the single dtc_topology family."""
+    xml = _build_onedb_xml(
+        _dtc_topology_object(subtype="label"),
+        _dtc_topology_object(subtype="rule"),
+    )
+    backup = _make_backup(xml, tmp_path)
+
+    objects = list(parse_backup(backup))
+
+    assert len(objects) == 2, f"Expected 2 topology objects, got {len(objects)}"
+    families = {o.family for o in objects}
+    assert families == {NiosFamily.DTC_TOPOLOGY}, (
+        f"Expected only dtc_topology family, got: {families}"
     )
