@@ -8,88 +8,88 @@ A pre-sales licensing estimation tool that calculates Infoblox Universal DDI man
 
 Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
 
-## Current Milestone: v1.1 NIOS Grid Analysis
-
-**Goal:** Add NIOS Grid backup analysis so customers can calculate UDDI tokens from their existing NIOS Grid data, model hybrid migration scenarios (which members stay on NIOS, which move to NIOSX), and understand the licensing impact of connecting a NIOS Grid to the UDDI platform.
-
-**Target features:**
-- Parse NIOS Grid backup (.tar.gz / onedb.xml) — streaming, handles 2GB+ files
-- Extract and count all DDI objects, Active IPs, and Assets from NIOS backup data
-- Whitelist/blacklist NIOS members for scoped analysis
-- Member migration split: define which members move to NIOSX vs stay on NIOS
-- Three scenario views: current grid | hybrid UDDI (NIOS + NIOSX split) | full migration
-- Dual token formulas: NIOS Object rates (DDI/50 + IPs/25 + Assets/13) for NIOS-remaining members; native UDDI rates (DDI/25 + IPs/13 + Assets/3) for NIOSX-migrated members
-- XLS report with per-scenario totals, member attribution table, and full traceability
-
 ## Requirements
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ AWS discovery and token estimation — v1.0 (Phase 2)
+- ✓ Azure discovery and token estimation — v1.0 (Phase 3)
+- ✓ GCP discovery and token estimation — v1.0 (Phase 4)
+- ✓ Web dashboard with real-time SSE progress and results browsing — v1.0 (Phase 5)
+- ✓ Cross-platform: Windows 11, WSL, macOS — v1.0 (Phase 6)
+- ✓ Rate limiting and checkpoint resilience — v1.0 (Phases 7–9)
+- ✓ NIOS Grid backup parsing — streaming lxml iterparse, 2-pass member resolution, 26 object families (incl. 5 DTC) — v1.1/v1.2 (Phases 10, 16–17)
+- ✓ Member whitelist/blacklist filter with whitelist-first semantics — v1.1 (Phase 11)
+- ✓ Per-member DDI/IP/Asset counting with 4-source Active IP deduplication — v1.1 (Phase 11)
+- ✓ Three licensing scenarios: current grid, hybrid UDDI split, full migration — v1.1 (Phase 12)
+- ✓ 5-sheet NIOS XLS report with per-scenario comparison and member attribution — v1.1 (Phase 13)
+- ✓ CLI `--nios` and `--nios-config` flags — v1.1 (Phase 14)
+- ✓ Dashboard NIOS Analysis tab with file upload wizard and migration split toggles — v1.1 (Phase 15)
+
+## Current Milestone: v1.2 DTC/LBDN DDI Support (COMPLETE)
+
+**Goal:** Add all DTC (DNS Traffic Control) object types to the NIOS DDI counter so customers with DTC-enabled Grids receive correct token estimates.
+
+**Delivered:**
+- Recognize all DTC object families in the NIOS backup parser (LBDN, Pool, Server, Monitors, Topology)
+- Count all DTC objects as +1 DDI using the existing NIOS Object formula (DDI/50 NIOS, DDI/25 NIOSX in hybrid)
+- DTC counts flow through all three scenarios and XLS report unchanged
 
 ### Active
 
-- [ ] Discover cloud resources across AWS, Azure, and GCP
-- [ ] Count DDI objects: DNS zones, DNS records, subnets, DHCP option sets per cloud provider
-- [ ] Count Active IPs: all private + public IPs attached to resources, de-duplicated
-- [ ] Count Managed Assets: resources with IPs, excluding token-free assets
-- [ ] Token calculation: DDI/25 + IPs/13 + Assets/3 = tokens needed (native objects only)
-- [ ] Token-free exclusions — AWS: EBS Volumes, S3 Buckets; Azure: VM Disks, Management Groups, VM Monitoring Stats, Network Watcher Flow Logs, Network Watchers, Storage Accounts, Storage Containers, Subscription Tenants, Traffic Manager Profiles; GCP: Compute Persistent Disks, Instance Groups, URL Maps, Cloud Monitoring Metric Stats, Network Connectivity Locations, Cloud Storage Bucket Policies, Cloud Storage Buckets
-- [ ] Output 3 CSV/XLS files (one per cloud provider) with detail sheet (one row per resource) and summary sheet (totals per account/subscription/project by resource type)
-- [ ] Detail sheet shows per-resource: counted toward license (yes/no), which category (DDI/IP/Asset), reason if skipped
-- [ ] Scale to 100+ accounts/subscriptions/projects without API rate limiting failures
-- [ ] Adaptive rate limiting and retry with backoff for cloud API throttling
-- [ ] Authentication via existing cloud CLI: AWS SSO/profiles, Azure `az login`, GCP `gcloud auth`
-- [ ] Read-only cloud access (no write permissions needed)
-- [ ] Web dashboard (Python-native: Flask/FastAPI + HTML) showing discovery progress and results
-- [ ] Cross-platform: Windows 11, WSL, macOS
-- [ ] PowerShell setup scripts signed (self-signed OK)
-- [ ] Code auditable by customers — single language (Python), clear structure, no obfuscation
-- [ ] NIOS/NIOS Grid objects explicitly out of scope — no Views, ACL Rules, Filter Rules, Exclusion Ranges
+- [x] DTC/LBDN DDI support — all DTC object types recognized and counted toward DDI (v1.2, Phases 16–17)
 
 ### Out of Scope
 
-- DTC/LBDN objects (Servers, Pools, Topology Rules, Health Checks) from cloud APIs — not discoverable
-- DDNS Zones — NIOS-specific concept
-- Real-time / scheduled / recurring discovery — this is a point-in-time estimation tool
-- Infoblox Portal API integration — tool is standalone
-- Multi-cloud aggregation in single report — one file per provider by design
+- DTC/LBDN objects from cloud APIs — not discoverable from cloud provider APIs
+- DDNS Zones — NIOS-specific concept not mapped to UDDI
+- Real-time / scheduled / recurring discovery — point-in-time estimation tool only
+- Infoblox Portal API integration — standalone tool; no Portal dependency
+- Multi-cloud aggregation in single report — one report per provider/source by design
 - Mobile support — desktop/laptop browsers only
+- NIOS live API discovery — tool is standalone, offline, backup-based; no live NIOS connections
+- Multi-backup delta analysis — point-in-time only (deferred to v1.2+ as NIOS-ADV-04)
 
 ## Context
 
-- Existing Python codebase exists but is being rewritten from scratch due to widespread customer errors (auth failures, API throttling, mid-scan crashes, checkpoint bugs)
+### Current State (after v1.1)
+
+- **v1.1 shipped 2026-03-02** — NIOS Grid backup analysis fully integrated
+- NIOS package: `src/cloud_usage/nios/` — 2,417 lines of Python, 181 tests passing
+- Full stack: FastAPI + HTMX dashboard, CLI, 3 cloud providers, NIOS analysis
+- Validated reference backup: ZF Friedrichshafen — 2.5M objects, 304,730 unique Active IPs (4-source dedup confirmed)
+- Tech stack: Python 3.9+ (guarded), FastAPI, lxml, xlsxwriter, pyyaml, moto (tests)
+- Platform validated: macOS (primary dev), CI matrix for Windows 11/WSL
+
+### Enterprise Context
+
 - Customers are enterprise organizations evaluating UDDI licensing before purchase
-- Environments range from a handful of accounts to 100+ across providers
-- Authentication is always via enterprise SSO / CLI-based auth (no service account keys)
+- Environments range from a handful of accounts to 100+ across providers; NIOS Grids from dozens to thousands of members
+- Authentication: enterprise SSO / CLI-based auth (no service account keys); NIOS: offline backup files
 - Output must be transparent: customers and their security teams audit the code and the results
 - The tool runs locally on customer machines — no cloud hosting, no data leaves the machine
-- Native UDDI token ratios: 25 DDI objects/token, 13 Active IPs/token, 3 Assets/token
-- NIOS Object token ratios (hybrid UDDI, NIOS-managed objects): 50 DDI objects/token, 25 Active IPs/token, 13 Assets/token
-- NIOS Grid backup format: tar.gz archive containing onedb.xml (flat `<OBJECT><PROPERTY>` XML, 2GB+ for large grids)
-- Member identity: NIOS members identified by virtual_oid (integer) mapped to hostname/FQDN
-- Validated reference backup: ZF Friedrichshafen — 2.5M objects, 49K subnets, 605K leases, 168K active lease IPs
 
-### Validated Reference Data (from existing codebase)
+### Token Formulas
 
-**GCP:** Validated with 87 projects — discovery logic and resource counting confirmed correct.
+| Formula | Applies to | DDI divisor | IP divisor | Asset divisor |
+|---------|-----------|-------------|------------|---------------|
+| UDDI native | NIOSX-native objects, cloud resources | 25 | 13 | 3 |
+| NIOS Object | NIOS-managed objects in hybrid UDDI | 50 | 25 | 13 |
 
-**Azure:** Validated with customer environment (2026-02-23):
-- 13,363 resources discovered across 14 types
-- Resource types: 731 VNets, 1614 subnets, 1535 NSGs, 901 routes, 991 VMs, 310 public IPs, 1904 endpoints, 95 load balancers, 85 gateways, 471 DNS zones, 4161 DNS records, 510 VMSS instances, 49 AKS clusters, 6 firewalls
-- DDI Objects: 7,026 | Active IPs: 33,214
-- Output files: licensing CSV, licensing summary TXT, estimator CSV, proof manifest JSON
-- Customer feedback: "Worked well and was surprisingly fast"
+### Known Technical Debt / Open Items
 
-**AWS:** Not yet validated at scale — priority for testing during Phase 2.
+- REF-01: GCP 87-project production validation deferred — no live GCP environment available (v1.0 carry-over, not a v1.2 blocker)
+- Python 3.9 venv causes 8 pre-existing test failures on CLI `main()` version guard — known, non-blocking
+- NIOS DHCP Range/Exclusion Range objects: included in DDI count as per UDDI spec; no customer validation yet
+- DTC/LBDN objects in NIOS backups: present in ZF backup but excluded; need UDDI spec confirmation before adding
 
 ## Constraints
 
-- **Tech stack**: Python-only (Flask/FastAPI + HTML for web UI) — single language for auditability
+- **Tech stack**: Python-only (FastAPI + HTML for web UI) — single language for auditability
 - **Platform**: Must work on Windows 11, WSL on Windows 11, and macOS
-- **Auth**: Leverage existing cloud CLI auth only (aws sso, az login, gcloud auth) — no credential storage
+- **Auth**: Cloud: leverage existing cloud CLI auth only (aws sso, az login, gcloud auth) — no credential storage. NIOS: offline backup files only — no live NIOS API connections
 - **Access**: Read-only cloud permissions — tool must never request write access
-- **Scale**: Must handle 100+ accounts without hitting API rate limits or running out of memory
+- **Scale**: Must handle 100+ cloud accounts and 2GB+ NIOS backup files without hitting rate limits or running out of memory
 - **Security**: PS1 scripts must be signed (self-signed acceptable); no secrets in code or output
 - **Deployment**: Local execution only — no SaaS, no data exfiltration, runs entirely on customer machine
 
@@ -97,13 +97,17 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Clean rewrite over incremental fix | Current codebase has deep structural issues (error handling, checkpoint bugs, rate limiting) that make patching harder than rebuilding | — Pending |
-| Python-native web (Flask/FastAPI + HTML) | Single language keeps audit story clean, no Node/npm complexity for customers to review | — Pending |
-| One CSV/XLS per cloud provider | Keeps output simple and provider-specific; customers often only care about one cloud | — Pending |
-| Native objects only (not NIOS) — v1.0 decision reversed in v1.1 | NIOS licensing is now in scope: customers migrating from NIOS need UDDI token estimates from their grid backup data | ⚠️ Revisit |
-| Dual token formula (NIOS Object vs UDDI native) | Hybrid UDDI deployment licenses NIOS-managed objects at DDI/50 + IPs/25 + Assets/13; NIOSX-native at DDI/25 + IPs/13 + Assets/3 | — Pending |
-| Migration split via config file + dashboard wizard | CLI users need a config file; dashboard users need a wizard step — both inputs produce identical analysis | — Pending |
-| CLI auth only (no service accounts) | Enterprise customers use SSO/CLI auth; storing credentials adds security risk | — Pending |
+| Clean rewrite over incremental fix | v0 codebase had deep structural issues (error handling, checkpoint bugs, rate limiting) | ✓ Good — v1.0 shipped in 4 days, all core providers working |
+| Python-native web (FastAPI + HTML) | Single language keeps audit story clean, no Node/npm complexity for customers to review | ✓ Good — HTMX vendored, zero npm/Node dependency |
+| One CSV/XLS per cloud provider | Keeps output simple and provider-specific | ✓ Good — customers appreciated simplicity |
+| NIOS analysis in same tool (not standalone) | Customers need both cloud and NIOS estimates in one tool for pre-sales conversations | ✓ Good — CLI flag and dashboard tab are fully additive |
+| Isolated `nios/` package — no shared code with cloud | NIOS data model, formulas, and output are fundamentally different; sharing creates coupling risk | ✓ Good — zero regressions across v1.0 phases during v1.1 |
+| Dual token formula (NIOS Object vs UDDI native) | Hybrid UDDI deployment licenses NIOS-managed objects at DDI/50 + IPs/25 + Assets/13; NIOSX-native at DDI/25 + IPs/13 + Assets/3 | ✓ Good — confirmed by UDDI spec; validated in scenario engine |
+| Migration split via config file + dashboard wizard | CLI users need a config file; dashboard users need a wizard step — both inputs produce identical analysis | ✓ Good — `MigrationSplitConfig` frozen dataclass handles both inputs cleanly |
+| 4-source Active IP deduplication | UDDI spec defines Active IPs from 4 sources; summing independently would double-count shared IPs | ✓ Good — single global set[str] dedup; empirically validated at 304,730 ZF total |
+| FilterConfig default lease_states = ('active',) | Static binding_state is a manually-configured DHCP static assignment, not a dynamic lease per UDDI spec | ✓ Good — confirmed by ZF reference run; static leases were excluded |
+| HOST_ADDRESS raw_attrs key = 'address' (not 'ip_address') | Empirically confirmed from ZF Friedrichshafen backup — wrong key caused COUNT-02 mismatch | ✓ Good — GAP-01 resolved; 304,730 confirmed |
+| CLI auth only (no service accounts) | Enterprise customers use SSO/CLI auth; storing credentials adds security risk | ✓ Good — no credential storage ever added |
 
 ---
-*Last updated: 2026-02-28 after v1.1 milestone start*
+*Last updated: 2026-03-02 after v1.2 milestone complete*

@@ -4,7 +4,7 @@
 
 - ✅ **v1.0 Cloud Discovery MVP** — Phases 1–9 (shipped 2026-02-26)
 - ✅ **v1.1 NIOS Grid Analysis** — Phases 10–15 (shipped 2026-03-02)
-- 🚧 **v1.2 DTC/LBDN DDI Support** — Phases 16–17 (in progress)
+- ✅ **v1.2 DTC/LBDN DDI Support** — Phases 16–17 (shipped 2026-03-02)
 
 ## Phases
 
@@ -40,12 +40,12 @@ Archive: `.planning/milestones/v1.1-ROADMAP.md`
 
 </details>
 
-### 🚧 v1.2 DTC/LBDN DDI Support (In Progress)
+### ✅ v1.2 DTC/LBDN DDI Support (Completed 2026-03-02)
 
 **Milestone Goal:** All DTC object types recognized by the NIOS parser and counted toward DDI, flowing through all three scenarios and the XLS report unchanged.
 
 - [x] **Phase 16: DTC Parser and Counter** — Add five DTC families to schema, parser, and counter (completed 2026-03-02)
-- [ ] **Phase 17: DTC Integration Verification** — Confirm scenarios, XLS report, and inspect_backup all surface DTC counts correctly
+- [x] **Phase 17: DTC Integration Verification** — Confirm scenarios, XLS report, and inspect_backup all surface DTC counts correctly (completed 2026-03-02)
 
 ## Phase Details
 
@@ -59,7 +59,7 @@ Archive: `.planning/milestones/v1.1-ROADMAP.md`
   3. DTC objects carry member_hostname=None (grid-level) — no member attribution rows are produced
   4. Every DTC XML type string entry in `_XML_TYPE_TO_FAMILY` has the spec-derived annotation comment
   5. All existing v1.1 tests continue to pass — zero regressions from adding DTC families
-**Plans**: TBD
+**Plans**: 2/2 (complete 2026-03-02)
 
 ### Phase 17: DTC Integration Verification
 **Goal**: DTC counts flow end-to-end through scenarios, XLS report, and inspect_backup with no code changes required
@@ -69,7 +69,7 @@ Archive: `.planning/milestones/v1.1-ROADMAP.md`
   1. A NIOS analysis run with a DTC-containing backup produces DDI token estimates that include DTC objects in all three scenario outputs (current grid, hybrid UDDI split, full migration)
   2. The Object Counters sheet in the XLS report shows a row for each DTC family with the correct count
   3. `inspect_backup()` output lists all five DTC families in `families_found`, including zero-count families pre-populated from `ALL_EXPECTED_FAMILIES`
-**Plans**: TBD
+**Plans**: 2/2 (complete 2026-03-02)
 
 ## Progress
 
@@ -91,5 +91,5 @@ Archive: `.planning/milestones/v1.1-ROADMAP.md`
 | 13. Output and Runner | v1.1 | 2/2 | Complete | 2026-03-02 |
 | 14. CLI Integration | v1.1 | 2/2 | Complete | 2026-03-02 |
 | 15. Dashboard Integration | v1.1 | 2/2 | Complete | 2026-03-02 |
-| 16. DTC Parser and Counter | v1.2 | Complete    | 2026-03-02 | 2026-03-02 |
-| 17. DTC Integration Verification | v1.2 | 0/TBD | Not started | - |
+| 16. DTC Parser and Counter | v1.2 | 2/2 | Complete | 2026-03-02 |
+| 17. DTC Integration Verification | v1.2 | 2/2 | Complete | 2026-03-02 |
