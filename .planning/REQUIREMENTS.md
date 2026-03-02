@@ -48,12 +48,12 @@ NIOS Grid backup analysis integrated into the existing tool alongside cloud disc
 
 ### COUNT — Apply NIOS→UDDI counting rules
 
-- [ ] **COUNT-01**: DDI object count aggregates: DNS records (A, AAAA, CNAME, MX, NS, PTR, SOA, SRV, TXT), Host Objects (expanded to constituent records), Host Aliases, DNS Zones, DNS Views, DHCP Ranges, Exclusion Ranges, Networks, Network Containers, Network Views — separated into Native Objects vs NIOS Objects columns
-- [ ] **COUNT-02**: Active IP calculation sums: active DHCP leases + fixed addresses + host addresses + network reservations (2 per subnet: network address + broadcast address)
-- [ ] **COUNT-03**: Lease state semantics are configurable: default counts active and static leases; user can expand to include backup, expired, or released states
-- [ ] **COUNT-04**: UDDI native token formula applied to NIOSX-migrated objects: DDI / 25 + Active IPs / 13 + Assets / 3
-- [ ] **COUNT-05**: NIOS Object token formula applied to NIOS-remaining objects in a hybrid UDDI deployment (NIOS Grid connected to UDDI platform): DDI / 50 + Active IPs / 25 + Assets / 13
-- [ ] **COUNT-06**: Per-member attribution computed for each member: DDI object count, Active IP count, and lease count reported separately to support hybrid split analysis
+- [x] **COUNT-01**: DDI object count aggregates: DNS records (A, AAAA, CNAME, MX, NS, PTR, SOA, SRV, TXT), Host Objects (expanded to constituent records), Host Aliases, DNS Zones, DNS Views, DHCP Ranges, Exclusion Ranges, Networks, Network Containers, Network Views — separated into Native Objects vs NIOS Objects columns
+- [x] **COUNT-02**: Active IP calculation sums: active DHCP leases + fixed addresses + host addresses + network reservations (2 per subnet: network address + broadcast address)
+- [x] **COUNT-03**: Lease state semantics are configurable: default counts active and static leases; user can expand to include backup, expired, or released states
+- [x] **COUNT-04**: UDDI native token formula applied to NIOSX-migrated objects: DDI / 25 + Active IPs / 13 + Assets / 3
+- [x] **COUNT-05**: NIOS Object token formula applied to NIOS-remaining objects in a hybrid UDDI deployment (NIOS Grid connected to UDDI platform): DDI / 50 + Active IPs / 25 + Assets / 13
+- [x] **COUNT-06**: Per-member attribution computed for each member: DDI object count, Active IP count, and lease count reported separately to support hybrid split analysis
 
 ### MIGR — Member migration split
 
@@ -130,12 +130,12 @@ NIOS Grid backup analysis integrated into the existing tool alongside cloud disc
 | FILTER-02 | Phase 11 | Complete |
 | FILTER-03 | Phase 11 | Complete |
 | FILTER-04 | Phase 11 | Complete |
-| COUNT-01 | Phase 11 | Pending |
-| COUNT-02 | Phase 11 | Pending |
-| COUNT-03 | Phase 11 | Pending |
-| COUNT-04 | Phase 11 | Pending |
-| COUNT-05 | Phase 11 | Pending |
-| COUNT-06 | Phase 11 | Pending |
+| COUNT-01 | Phase 11 | Complete |
+| COUNT-02 | Phase 11 | Complete |
+| COUNT-03 | Phase 11 | Complete |
+| COUNT-04 | Phase 11 | Complete |
+| COUNT-05 | Phase 11 | Complete |
+| COUNT-06 | Phase 11 | Complete |
 | MIGR-01 | Phase 12 | Pending |
 | MIGR-02 | Phase 15 | Pending |
 | MIGR-03 | Phase 12 | Pending |

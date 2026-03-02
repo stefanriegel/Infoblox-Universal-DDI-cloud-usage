@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Dashboard GCP Scan Fix** - Fix GCP scan path in web dashboard: correct enumerate_gcp_projects args, ProjectInfo iteration, and Azure dict key lookup (completed 2026-02-25)
 - [x] **Phase 9: Integration Tech Debt Cleanup** - Close 3 non-critical integration gaps: AWS checkpoint symmetry, DDI_TYPES unification, double emit_done removal (completed 2026-02-26)
 - [x] **Phase 10: NIOS Parser and Schema** - Streaming tar.gz/onedb.xml parser with lxml iterparse, typed NiosObject schema, two-pass member map, structural integrity report (completed 2026-02-28)
-- [ ] **Phase 11: Filter and Counter** - Member whitelist/blacklist with whitelist-first semantics, per-member DDI/IP/Asset counting with Host Object expansion and lease deduplication, dual formula constants
+- [x] **Phase 11: Filter and Counter** - Member whitelist/blacklist with whitelist-first semantics, per-member DDI/IP/Asset counting with Host Object expansion and lease deduplication, dual formula constants (completed 2026-03-02)
 - [ ] **Phase 12: Scenario Engine** - Three scenario computations: current grid (NIOS Object formula), hybrid UDDI (per-group dual formula), full migration (UDDI native formula)
 - [ ] **Phase 13: Output and Runner** - 5-sheet XLS report with per-scenario comparison and member attribution, runner wiring parse-filter-count-scenarios-output pipeline
 - [ ] **Phase 14: CLI Integration** - Additive --nios and --nios-config CLI flags wired to runner, end-to-end acceptance test
@@ -300,7 +300,7 @@ Each phase has a hard data-flow dependency on the prior phase output.
 | 8. Dashboard GCP Scan Fix | 2/2 | Complete   | 2026-02-25 |
 | 9. Integration Tech Debt Cleanup | 1/1 | Complete   | 2026-02-26 |
 | 10. NIOS Parser and Schema | 3/3 | Complete    | 2026-02-28 |
-| 11. Filter and Counter | 1/2 | In Progress|  |
+| 11. Filter and Counter | 2/2 | Complete   | 2026-03-02 |
 | 12. Scenario Engine | 0/TBD | Not started | - |
 | 13. Output and Runner | 0/TBD | Not started | - |
 | 14. CLI Integration | 0/TBD | Not started | - |
