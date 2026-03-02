@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-03-02 after v1.2 milestone start)
 Phase: 17 of 17 (DTC Integration Verification)
 Plan: 2 of 2 in current phase
 Status: Complete
-Last activity: 2026-03-02 — Phase 17 complete (2 plans)
+Last activity: 2026-03-02 - Completed quick task 1: update the readme and add how to use
 
 Progress: [██████████] 100%
 
@@ -55,6 +55,12 @@ Progress: [██████████] 100%
 - 5 DTC NiosFamily constants: DTC_LBDN, DTC_POOL, DTC_SERVER, DTC_MONITOR, DTC_TOPOLOGY
 - 11 DTC entries in _XML_TYPE_TO_FAMILY (6 monitor subtypes + 2 topology subtypes all collapsed to single family constants)
 - 5 DTC constants in _DDI_FAMILIES; +1 DDI per DTC object (no special expansion)
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | update the readme and add how to use | 2026-03-02 | 7d593f0 | [1-update-the-readme-and-add-how-to-use](./quick/1-update-the-readme-and-add-how-to-use/) |
 
 ### Blockers/Concerns
 

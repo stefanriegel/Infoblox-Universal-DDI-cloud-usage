@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloud-usage"
+version = "1.2.0"
+description = "Infoblox Universal DDI resource counter — cloud and NIOS Grid"
+requires-python = ">=3.9"
+dependencies = []
+
+[project.scripts]
+cloud-usage = "cloud_usage.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
