@@ -1,20 +1,24 @@
 {% if total_tokens is defined and (total_tokens > 0 or ddi_count > 0 or ip_count > 0 or asset_count > 0) %}
 <div class="summary-cards">
     <article>
-        <h3>{{ total_tokens }}</h3>
-        <p>Total Tokens</p>
+        <svg class="stat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        <span class="stat-value">{{ total_tokens }}</span>
+        <p class="stat-label">Total Tokens</p>
     </article>
     <article>
-        <h3>{{ ddi_count }}</h3>
-        <p>DDI Objects</p>
+        <svg class="stat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="5" rx="1"/><rect x="2" y="10" width="20" height="5" rx="1"/><rect x="2" y="17" width="20" height="5" rx="1"/><circle cx="6" cy="5.5" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="12.5" r="1" fill="currentColor" stroke="none"/><circle cx="6" cy="19.5" r="1" fill="currentColor" stroke="none"/></svg>
+        <span class="stat-value">{{ ddi_count }}</span>
+        <p class="stat-label">DDI Objects</p>
     </article>
     <article>
-        <h3>{{ ip_count }}</h3>
-        <p>Active IPs</p>
+        <svg class="stat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+        <span class="stat-value">{{ ip_count }}</span>
+        <p class="stat-label">Active IPs</p>
     </article>
     <article>
-        <h3>{{ asset_count }}</h3>
-        <p>Managed Assets</p>
+        <svg class="stat-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"/></svg>
+        <span class="stat-value">{{ asset_count }}</span>
+        <p class="stat-label">Managed Assets</p>
     </article>
 </div>
 {% if provider_breakdown is defined and provider_breakdown %}
@@ -23,8 +27,8 @@
     <div class="summary-cards" style="margin-top: 0.5rem;">
         {% for provider_name, token_count in provider_breakdown.items() %}
         <article>
-            <h3>{{ token_count }}</h3>
-            <p>{{ provider_name|upper }} Tokens</p>
+            <span class="stat-value">{{ token_count }}</span>
+            <p class="stat-label">{{ provider_name|upper }} Tokens</p>
         </article>
         {% endfor %}
     </div>
