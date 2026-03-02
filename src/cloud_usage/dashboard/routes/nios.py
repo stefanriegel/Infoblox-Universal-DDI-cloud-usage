@@ -22,6 +22,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import time
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
@@ -128,10 +129,24 @@ def _run_nios_pipeline(
     from cloud_usage.nios.scenarios import MigrationSplitConfig, compute_scenarios
 
     try:
+        start_time = time.monotonic()
+
         # Step 1: Inspect backup for metadata
+        nios_event_bridge.emit("nios_progress", {
+            "step": 1,
+            "total": 6,
+            "label": "Inspecting backup",
+            "elapsed_seconds": round(time.monotonic() - start_time, 1),
+        })
         integrity = inspect_backup(backup_path)
 
         # Step 2: Build member map for Member Attribution sheet
+        nios_event_bridge.emit("nios_progress", {
+            "step": 2,
+            "total": 6,
+            "label": "Reading members",
+            "elapsed_seconds": round(time.monotonic() - start_time, 1),
+        })
         member_map = get_member_map(backup_path)
 
         # Shared filter config
@@ -142,16 +157,34 @@ def _run_nios_pipeline(
         )
 
         # Step 3 (Pass A): parse -> filter -> count
+        nios_event_bridge.emit("nios_progress", {
+            "step": 3,
+            "total": 6,
+            "label": "Counting objects",
+            "elapsed_seconds": round(time.monotonic() - start_time, 1),
+        })
         raw_stream_a = parse_backup(backup_path)
         filtered_a = filter_objects(raw_stream_a, filter_config)
         count_result = count_objects(filtered_a, filter_config)
 
         # Step 4 (Pass B): parse -> filter -> ip_by_type
+        nios_event_bridge.emit("nios_progress", {
+            "step": 4,
+            "total": 6,
+            "label": "Counting IP records",
+            "elapsed_seconds": round(time.monotonic() - start_time, 1),
+        })
         raw_stream_b = parse_backup(backup_path)
         filtered_b = filter_objects(raw_stream_b, filter_config)
         ip_by_type = _count_ip_by_type(filtered_b, set(filter_config.lease_states))
 
         # Step 5: compute scenarios — capture suite for summary card
+        nios_event_bridge.emit("nios_progress", {
+            "step": 5,
+            "total": 6,
+            "label": "Computing scenarios",
+            "elapsed_seconds": round(time.monotonic() - start_time, 1),
+        })
         split_config = MigrationSplitConfig(
             niosx_members=niosx_members,
             default_group="nios",
@@ -160,6 +193,12 @@ def _run_nios_pipeline(
         scenario_suite = compute_scenarios(count_result, split_config)
 
         # Step 6: resolve output path and write report
+        nios_event_bridge.emit("nios_progress", {
+            "step": 6,
+            "total": 6,
+            "label": "Writing report",
+            "elapsed_seconds": round(time.monotonic() - start_time, 1),
+        })
         analysis_timestamp = datetime.now(tz=timezone.utc).strftime(
             "%Y-%m-%d %H:%M:%S UTC"
         )
@@ -324,16 +363,31 @@ async def sse_nios(request: Request) -> StreamingResponse:
     SSE, per SC-5) and yields SSE-formatted strings until the analysis completes
     or the client disconnects.
 
+    Race-condition guard: if the background pipeline finishes before the browser
+    establishes this SSE connection, nios_manager.state is already COMPLETE or
+    ERROR and the nios_complete event was emitted to an empty subscriber list
+    (silently dropped). In that case, emit nios_complete immediately so the
+    browser tab refresh fires even for fast pipelines.
+
     Args:
         request: The incoming HTTP request.
 
     Returns:
         StreamingResponse with text/event-stream media type.
     """
+    from cloud_usage.dashboard.services.nios_manager import NiosState
+
     nios_event_bridge = request.app.state.nios_event_bridge
+    nios_manager = request.app.state.nios_manager
 
     async def event_generator():
         """Yield SSE-formatted event strings from the NIOS EventBridge."""
+        # Guard: pipeline may have finished before SSE connection was opened.
+        # If state is already terminal, emit nios_complete immediately.
+        if nios_manager.state in (NiosState.COMPLETE, NiosState.ERROR):
+            yield "event: nios_complete\ndata: {}\n\n"
+            return
+
         async for event_str in nios_event_bridge.subscribe():
             if await request.is_disconnected():
                 break
