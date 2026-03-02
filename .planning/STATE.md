@@ -25,7 +25,7 @@ See: .planning/PROJECT.md (updated 2026-03-02 after v1.2 milestone archived)
 Phase: 17 of 17 (DTC Integration Verification)
 Plan: 2 of 2 in current phase
 Status: Complete
-Last activity: 2026-03-02 - Completed quick task 3: fix NIOS dashboard upload button (htmx-indicator + HTMX v2 silent errors)
+Last activity: 2026-03-02 - Completed quick task 4: dashboard UI overhaul — professional enterprise design
 
 Progress: [██████████] 100%
 
@@ -63,6 +63,7 @@ Progress: [██████████] 100%
 | 1 | update the readme and add how to use | 2026-03-02 | 7d593f0 | [1-update-the-readme-and-add-how-to-use](./quick/1-update-the-readme-and-add-how-to-use/) |
 | 2 | fix cloud-usage command-not-found — add pyproject.toml | 2026-03-02 | 517fcd2 | [2-fix-cloud-usage-command-not-found-add-py](./quick/2-fix-cloud-usage-command-not-found-add-py/) |
 | 3 | fix NIOS dashboard upload button doing nothing after selecting tar.gz | 2026-03-02 | 285a6e2 | [3-fix-nios-dashboard-upload-button-doing-n](./quick/3-fix-nios-dashboard-upload-button-doing-n/) |
+| 4 | dashboard UI overhaul — professional enterprise design | 2026-03-02 | e741607 | [4-dashboard-ui-overhaul-professional-desig](./quick/4-dashboard-ui-overhaul-professional-desig/) |
 
 ### Blockers/Concerns
 
@@ -77,3 +78,4 @@ Progress: [██████████] 100%
 - 2026-03-02: v1.2 milestone archived — ROADMAP.md collapsed, REQUIREMENTS.md archived to milestones/v1.2-REQUIREMENTS.md, git tag v1.2 created
 - 2026-03-02: Quick task 3 planned — fix NIOS dashboard upload button (htmx-indicator bug + HTMX v2 silent error handling)
 - 2026-03-02: Quick task 3 complete — replaced inline style="display:none" with class="htmx-indicator", added hx-on:htmx:responseError on form, added global error handler in base.html
+- 2026-03-02: Quick task 4 complete — dashboard UI overhaul: enterprise CSS palette, dark site-header, hero token cards for NIOS results, SVG icon stat cards for summary
