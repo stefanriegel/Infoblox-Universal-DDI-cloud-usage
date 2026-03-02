@@ -23,7 +23,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 8: Dashboard GCP Scan Fix** - Fix GCP scan path in web dashboard: correct enumerate_gcp_projects args, ProjectInfo iteration, and Azure dict key lookup (completed 2026-02-25)
 - [x] **Phase 9: Integration Tech Debt Cleanup** - Close 3 non-critical integration gaps: AWS checkpoint symmetry, DDI_TYPES unification, double emit_done removal (completed 2026-02-26)
 - [x] **Phase 10: NIOS Parser and Schema** - Streaming tar.gz/onedb.xml parser with lxml iterparse, typed NiosObject schema, two-pass member map, structural integrity report (completed 2026-02-28)
-- [x] **Phase 11: Filter and Counter** - Member whitelist/blacklist with whitelist-first semantics, per-member DDI/IP/Asset counting with Host Object expansion and lease deduplication, dual formula constants (completed 2026-03-02)
+- [ ] **Phase 11: Filter and Counter** - Member whitelist/blacklist with whitelist-first semantics, per-member DDI/IP/Asset counting with Host Object expansion and lease deduplication, dual formula constants (gap closure in progress — COUNT-02)
 - [ ] **Phase 12: Scenario Engine** - Three scenario computations: current grid (NIOS Object formula), hybrid UDDI (per-group dual formula), full migration (UDDI native formula)
 - [ ] **Phase 13: Output and Runner** - 5-sheet XLS report with per-scenario comparison and member attribution, runner wiring parse-filter-count-scenarios-output pipeline
 - [ ] **Phase 14: CLI Integration** - Additive --nios and --nios-config CLI flags wired to runner, end-to-end acceptance test
@@ -198,7 +198,7 @@ Plans:
 Phases 10–15 deliver NIOS Grid backup analysis integrated into the existing tool. The NIOS pipeline is fully isolated in a new `src/cloud_usage/nios/` package. It shares no code with the cloud providers — the data model, token formulas, and output pipeline are all independent. The build order respects strict data-flow dependencies: member identity resolved before filtering (Phase 10), filtering gates ingestion before counting (Phase 11), counting completes before scenarios are computed (Phase 12), output and runner wired after pipeline is validated (Phase 13), CLI integration first (Phase 14), then dashboard tab last (Phase 15).
 
 - [x] **Phase 10: NIOS Parser and Schema** - Streaming tar.gz/onedb.xml parser with lxml iterparse, typed NiosObject schema, two-pass member map, structural integrity report (completed 2026-02-28)
-- [ ] **Phase 11: Filter and Counter** - Member whitelist/blacklist with whitelist-first semantics, per-member DDI/IP/Asset counting with Host Object expansion and lease deduplication, dual formula constants
+- [ ] **Phase 11: Filter and Counter** - Member whitelist/blacklist with whitelist-first semantics, per-member DDI/IP/Asset counting with Host Object expansion and lease deduplication, dual formula constants (gap closure in progress — COUNT-02)
 - [ ] **Phase 12: Scenario Engine** - Three scenario computations: current grid (NIOS Object formula), hybrid UDDI (per-group dual formula), full migration (UDDI native formula)
 - [ ] **Phase 13: Output and Runner** - 5-sheet XLS report with per-scenario comparison and member attribution, runner wiring parse-filter-count-scenarios-output pipeline
 - [ ] **Phase 14: CLI Integration** - Additive --nios and --nios-config CLI flags wired to runner, end-to-end acceptance test
@@ -224,11 +224,16 @@ Phases 10–15 deliver NIOS Grid backup analysis integrated into the existing to
 **Requirements**: FILTER-01, FILTER-02, FILTER-03, FILTER-04, COUNT-01, COUNT-02, COUNT-03, COUNT-04, COUNT-05, COUNT-06
 **Success Criteria** (what must be TRUE):
   1. User can specify a hostname glob whitelist and only matching members' objects appear in all counts and output — changing the whitelist changes the token totals, not just the display table
-  2. Active IP count for the ZF reference backup produces exactly 168,295 unique active-only IPs (not 605,489 raw lease rows) when default lease state filter (active + static) is applied
+  2. Active IP count for the ZF reference backup produces a verified unique Active IP total using the corrected 4-source dedup (active-only leases[ip_address] + fixed_address[ip_address] + host_address[address] + network reservations) with default lease_states=("active",) per UDDI spec
   3. DDI object count correctly expands Host Objects to constituent A + PTR + optional CNAME records without double-counting independent DNS record objects that share the same parent
   4. Per-member attribution table lists each member with separate DDI count, Active IP count, and token contribution computed under the applicable formula (NIOS Object or UDDI native)
   5. NIOS Object formula constants (DDI/50 + IPs/25 + Assets/13) and UDDI native constants (DDI/25 + IPs/13 + Assets/3) are defined only in nios/counter.py and never imported from the cloud token calculator
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [x] 11-01-PLAN.md -- nios.filter: FilterConfig + filter_objects() TDD
+- [x] 11-02-PLAN.md -- nios.counter: MemberCounts + CountResult + count_objects() TDD
+- [ ] 11-03-PLAN.md -- Gap closure: fix FilterConfig default lease_states, HOST_ADDRESS address key, document empirical ZF reference value
 
 ### Phase 12: Scenario Engine
 **Goal**: Users can compute three licensing scenarios from a single set of grid counts and see the token impact of keeping members on NIOS, migrating all to NIOSX, or splitting the grid between the two
@@ -300,7 +305,7 @@ Each phase has a hard data-flow dependency on the prior phase output.
 | 8. Dashboard GCP Scan Fix | 2/2 | Complete   | 2026-02-25 |
 | 9. Integration Tech Debt Cleanup | 1/1 | Complete   | 2026-02-26 |
 | 10. NIOS Parser and Schema | 3/3 | Complete    | 2026-02-28 |
-| 11. Filter and Counter | 2/2 | Complete   | 2026-03-02 |
+| 11. Filter and Counter | 2/3 | Gap Closure | 2026-03-02 |
 | 12. Scenario Engine | 0/TBD | Not started | - |
 | 13. Output and Runner | 0/TBD | Not started | - |
 | 14. CLI Integration | 0/TBD | Not started | - |

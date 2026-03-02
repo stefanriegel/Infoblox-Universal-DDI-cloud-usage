@@ -42,12 +42,14 @@ class FilterConfig:
         blacklist: fnmatch-style glob patterns for member_hostname values to exclude.
             Applied after whitelist. Empty tuple means no blacklist filtering.
         lease_states: DHCP binding_state values counted as Active IPs.
-            Used by counter.py (not by filter_objects()). Default: active + static.
+            Used by counter.py (not by filter_objects()). Default: active only (per UDDI
+            spec — 'new or renew DHCP leases'; static binding_state is a
+            manually-configured DHCP static assignment, not a dynamic lease).
     """
 
     whitelist: tuple[str, ...] = field(default_factory=tuple)
     blacklist: tuple[str, ...] = field(default_factory=tuple)
-    lease_states: tuple[str, ...] = field(default_factory=lambda: ("active", "static"))
+    lease_states: tuple[str, ...] = field(default_factory=lambda: ("active",))
 
 
 def filter_objects(

@@ -10,10 +10,11 @@ Provides:
 Design notes:
 - Formula constants are defined only here — NOT imported from cloud_usage.shared.
 - Active IP deduplication uses a single global set[str] collecting IPs from all four
-  sources: active leases, fixed addresses, host addresses, and network reservations.
+  sources: active leases, fixed addresses, host addresses (raw_attrs['address'] key),
+  and network reservations.
 - Network reservations contribute both network_address and broadcast_address (via
   ipaddress.IPv4Network(cidr, strict=False) to tolerate host bits in CIDR strings).
-- Lease state filter uses FilterConfig.lease_states; default = ("active", "static").
+- Lease state filter uses FilterConfig.lease_states; default = ("active",) per UDDI spec.
 - Per-member active_ip_count = unique lease-derived IPs for that member only.
 - grid_counts.active_ip_count = len(global_ip_set) — the global deduplication total.
 - grid_counts member_hostname = "__grid__" sentinel to distinguish from real hostnames.
@@ -245,9 +246,16 @@ def count_objects(
                 if hostname:
                     per_member[hostname].lease_ip_set.add(ip)
 
-        # --- Fixed address and host address IPs (grid-level, no member attribution) ---
-        elif family in (NiosFamily.FIXED_ADDRESS, NiosFamily.HOST_ADDRESS):
+        # --- Fixed address IPs (grid-level, no member attribution) ---
+        elif family == NiosFamily.FIXED_ADDRESS:
             ip = attrs.get("ip_address", "").strip()
+            if ip:
+                global_ip_set.add(ip)
+
+        # --- Host address IPs (grid-level; ZF backup stores IP under "address" key) ---
+        elif family == NiosFamily.HOST_ADDRESS:
+            # ZF backup stores host record IPs under "address" key, not "ip_address"
+            ip = attrs.get("address", "").strip()
             if ip:
                 global_ip_set.add(ip)
 
