@@ -1359,3 +1359,314 @@ def test_member_attribution_lease_count_populated(
     assert member_a_row is not None
     # Lease Count is col index 3 (0-based: Virtual OID, Hostname, Group, Lease Count, ...)
     assert int(member_a_row[3]) == 2000
+
+
+# ---------------------------------------------------------------------------
+# Import smoke test: run_nios_analysis (Plan 13-02)
+# ---------------------------------------------------------------------------
+
+
+def test_imports_run_nios_analysis():
+    """run_nios_analysis is importable from cloud_usage.nios.output."""
+    from cloud_usage.nios.output import run_nios_analysis  # noqa: F401
+
+    assert callable(run_nios_analysis)
+
+
+def test_run_nios_analysis_in_output_all():
+    """run_nios_analysis appears in cloud_usage.nios.output.__all__."""
+    import cloud_usage.nios.output as out_mod
+
+    assert "run_nios_analysis" in out_mod.__all__
+
+
+def test_all_public_names_are_callable():
+    """All names in cloud_usage.nios.output.__all__ are callable."""
+    import cloud_usage.nios.output as out_mod
+
+    for name in out_mod.__all__:
+        obj = getattr(out_mod, name)
+        assert callable(obj), f"{name} in __all__ is not callable"
+
+
+# ---------------------------------------------------------------------------
+# _count_ip_by_type unit tests (Plan 13-02)
+# ---------------------------------------------------------------------------
+
+
+def _make_nios_object(family: str, raw_attrs: dict) -> "NiosObject":
+    return NiosObject(family=family, member_hostname=None, raw_attrs=raw_attrs)
+
+
+def test_count_ip_by_type_empty_stream():
+    """Empty stream returns all-zero counts."""
+    from cloud_usage.nios.output import _count_ip_by_type
+
+    result = _count_ip_by_type(iter([]), lease_states={"active"})
+    assert result == {"leases": 0, "fixed": 0, "host": 0, "reservations": 0}
+
+
+def test_count_ip_by_type_lease_active_increments():
+    """LEASE with binding_state 'active' and ip_address increments leases by 1."""
+    from cloud_usage.nios.output import _count_ip_by_type
+
+    obj = _make_nios_object(NiosFamily.LEASE, {"binding_state": "active", "ip_address": "10.0.0.1"})
+    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    assert result["leases"] == 1
+
+
+def test_count_ip_by_type_lease_expired_not_counted():
+    """LEASE with binding_state 'expired' is NOT counted when lease_states={'active'}."""
+    from cloud_usage.nios.output import _count_ip_by_type
+
+    obj = _make_nios_object(NiosFamily.LEASE, {"binding_state": "expired", "ip_address": "10.0.0.1"})
+    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    assert result["leases"] == 0
+
+
+def test_count_ip_by_type_fixed_address_increments():
+    """FIXED_ADDRESS with ip_address increments fixed by 1."""
+    from cloud_usage.nios.output import _count_ip_by_type
+
+    obj = _make_nios_object(NiosFamily.FIXED_ADDRESS, {"ip_address": "10.0.0.2"})
+    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    assert result["fixed"] == 1
+
+
+def test_count_ip_by_type_host_address_uses_address_key():
+    """HOST_ADDRESS with raw_attrs['address'] increments host by 1."""
+    from cloud_usage.nios.output import _count_ip_by_type
+
+    obj = _make_nios_object(NiosFamily.HOST_ADDRESS, {"address": "10.0.0.3"})
+    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    assert result["host"] == 1
+
+
+def test_count_ip_by_type_host_address_wrong_key_not_counted():
+    """HOST_ADDRESS with raw_attrs['ip_address'] (wrong key) does NOT increment host."""
+    from cloud_usage.nios.output import _count_ip_by_type
+
+    obj = _make_nios_object(NiosFamily.HOST_ADDRESS, {"ip_address": "10.0.0.3"})
+    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    assert result["host"] == 0
+
+
+def test_count_ip_by_type_network_cidr_increments_by_2():
+    """NETWORK object with valid cidr increments reservations by 2 (network + broadcast)."""
+    from cloud_usage.nios.output import _count_ip_by_type
+
+    obj = _make_nios_object(NiosFamily.NETWORK, {"cidr": "192.168.1.0/24"})
+    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    assert result["reservations"] == 2
+
+
+def test_count_ip_by_type_same_ip_counted_in_both_sources():
+    """Same IP appearing as both LEASE and FIXED_ADDRESS is counted in BOTH (no cross-source dedup)."""
+    from cloud_usage.nios.output import _count_ip_by_type
+
+    lease_obj = _make_nios_object(NiosFamily.LEASE, {"binding_state": "active", "ip_address": "10.0.0.1"})
+    fixed_obj = _make_nios_object(NiosFamily.FIXED_ADDRESS, {"ip_address": "10.0.0.1"})
+    result = _count_ip_by_type(iter([lease_obj, fixed_obj]), lease_states={"active"})
+    assert result["leases"] == 1
+    assert result["fixed"] == 1
+
+
+def test_count_ip_by_type_malformed_cidr_skipped():
+    """NETWORK object with malformed CIDR is skipped without raising."""
+    from cloud_usage.nios.output import _count_ip_by_type
+
+    obj = _make_nios_object(NiosFamily.NETWORK, {"cidr": "not-a-cidr"})
+    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    assert result["reservations"] == 0
+
+
+# ---------------------------------------------------------------------------
+# run_nios_analysis integration tests (Plan 13-02)
+# ---------------------------------------------------------------------------
+
+
+def _make_minimal_count_result_for_runner() -> CountResult:
+    """Minimal CountResult for runner integration tests."""
+    grid = MemberCounts(
+        member_hostname="__grid__",
+        ddi_count=100,
+        active_ip_count=500,
+        lease_count=800,
+        asset_count=0,
+    )
+    return CountResult(member_counts=[], grid_counts=grid)
+
+
+def _make_minimal_scenario_suite_for_runner() -> ScenarioSuite:
+    """Minimal ScenarioSuite without hybrid for runner integration tests."""
+    current_grid = ScenarioResult(
+        name="current_grid",
+        formula_name="NIOS Object (DDI/50 + IPs/25 + Assets/13)",
+        ddi_count=100,
+        active_ip_count=500,
+        asset_count=0,
+        token_total=22.0,
+    )
+    full_migration = ScenarioResult(
+        name="full_migration",
+        formula_name="UDDI native (DDI/25 + IPs/13 + Assets/3)",
+        ddi_count=100,
+        active_ip_count=500,
+        asset_count=0,
+        token_total=42.5,
+    )
+    return ScenarioSuite(
+        current_grid=current_grid,
+        full_migration=full_migration,
+        hybrid_uddi=None,
+        member_attribution=[],
+        migration_split_used=None,
+    )
+
+
+def _make_minimal_integrity_report_for_runner() -> IntegrityReport:
+    families = {f: 0 for f in _ALL_NIOS_FAMILIES()}
+    families[NiosFamily.DNS_RECORD_A] = 100
+    return IntegrityReport(
+        families_found=families,
+        warnings=[],
+        nios_version="9.0.6-test",
+        snapshot_date="2025-08-12",
+    )
+
+
+def _ALL_NIOS_FAMILIES() -> list[str]:
+    return [
+        NiosFamily.MEMBER, NiosFamily.NETWORK, NiosFamily.LEASE, NiosFamily.FIXED_ADDRESS,
+        NiosFamily.HOST_ADDRESS, NiosFamily.DNS_ZONE, NiosFamily.DNS_RECORD_A, NiosFamily.DNS_RECORD_AAAA,
+        NiosFamily.DNS_RECORD_CNAME, NiosFamily.DNS_RECORD_MX, NiosFamily.DNS_RECORD_NS,
+        NiosFamily.DNS_RECORD_PTR, NiosFamily.DNS_RECORD_SOA, NiosFamily.DNS_RECORD_SRV,
+        NiosFamily.DNS_RECORD_TXT, NiosFamily.HOST_OBJECT, NiosFamily.HOST_ALIAS,
+        NiosFamily.DHCP_RANGE, NiosFamily.EXCLUSION_RANGE, NiosFamily.NETWORK_CONTAINER,
+        NiosFamily.NETWORK_VIEW,
+    ]
+
+
+@pytest.fixture()
+def mock_pipeline(tmp_path):
+    """Mock all pipeline callables for run_nios_analysis integration tests."""
+    from unittest.mock import patch, MagicMock
+
+    minimal_integrity = _make_minimal_integrity_report_for_runner()
+    minimal_count = _make_minimal_count_result_for_runner()
+    minimal_suite = _make_minimal_scenario_suite_for_runner()
+
+    patches = [
+        patch("cloud_usage.nios.output.run_nios_analysis.__globals__"),
+    ]
+
+    # Use contextlib to patch the imports inside run_nios_analysis
+    with patch("cloud_usage.nios.parser.inspect_backup", return_value=minimal_integrity) as mock_inspect, \
+         patch("cloud_usage.nios.parser.parse_backup", return_value=iter([])) as mock_parse, \
+         patch("cloud_usage.nios.parser.get_member_map", return_value={}) as mock_member_map, \
+         patch("cloud_usage.nios.filter.filter_objects", return_value=iter([])) as mock_filter, \
+         patch("cloud_usage.nios.counter.count_objects", return_value=minimal_count) as mock_count, \
+         patch("cloud_usage.nios.scenarios.compute_scenarios", return_value=minimal_suite) as mock_scenarios:
+        yield {
+            "inspect_backup": mock_inspect,
+            "parse_backup": mock_parse,
+            "get_member_map": mock_member_map,
+            "filter_objects": mock_filter,
+            "count_objects": mock_count,
+            "compute_scenarios": mock_scenarios,
+            "tmp_path": tmp_path,
+            "integrity": minimal_integrity,
+            "count_result": minimal_count,
+            "scenario_suite": minimal_suite,
+        }
+
+
+def _patch_runner():
+    """Context manager that patches all pipeline callables inside run_nios_analysis.
+
+    run_nios_analysis uses local imports inside the function body, so we patch
+    the source modules directly (not cloud_usage.nios.output.*).
+    """
+    from unittest.mock import patch
+    from contextlib import ExitStack
+
+    minimal_integrity = _make_minimal_integrity_report_for_runner()
+    minimal_count = _make_minimal_count_result_for_runner()
+    minimal_suite = _make_minimal_scenario_suite_for_runner()
+
+    return ExitStack(), {
+        "inspect_backup": patch("cloud_usage.nios.parser._inspect.inspect_backup", return_value=minimal_integrity),
+        "parse_backup": patch("cloud_usage.nios.parser._parse.parse_backup", return_value=iter([])),
+        "get_member_map": patch("cloud_usage.nios.parser._member_map._build_member_map", return_value={}),
+        "filter_objects": patch("cloud_usage.nios.filter.filter_objects", return_value=iter([])),
+        "count_objects": patch("cloud_usage.nios.counter.count_objects", return_value=minimal_count),
+        "compute_scenarios": patch("cloud_usage.nios.scenarios.compute_scenarios", return_value=minimal_suite),
+    }
+
+
+def _run_analysis_with_mocks(backup_path: str, filter_cfg, output_path: str) -> str:
+    """Run run_nios_analysis with all pipeline callables mocked."""
+    from cloud_usage.nios.output import run_nios_analysis
+
+    minimal_integrity = _make_minimal_integrity_report_for_runner()
+    minimal_count = _make_minimal_count_result_for_runner()
+    minimal_suite = _make_minimal_scenario_suite_for_runner()
+
+    # Patch at the source module level since run_nios_analysis uses local imports
+    with patch("cloud_usage.nios.parser._inspect.inspect_backup", return_value=minimal_integrity), \
+         patch("cloud_usage.nios.parser._parse.parse_backup", return_value=iter([])), \
+         patch("cloud_usage.nios.parser._member_map._build_member_map", return_value={}), \
+         patch("cloud_usage.nios.filter.filter_objects", return_value=iter([])), \
+         patch("cloud_usage.nios.counter.count_objects", return_value=minimal_count), \
+         patch("cloud_usage.nios.scenarios.compute_scenarios", return_value=minimal_suite):
+        return run_nios_analysis(backup_path, filter_cfg, output_path=output_path)
+
+
+def test_run_nios_analysis_returns_str(tmp_path):
+    """run_nios_analysis returns a str filepath."""
+    from cloud_usage.nios.filter import FilterConfig
+
+    out = str(tmp_path / "out.xlsx")
+    filter_cfg = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+
+    result = _run_analysis_with_mocks("/fake/backup.tar.gz", filter_cfg, out)
+    assert isinstance(result, str)
+
+
+def test_run_nios_analysis_custom_output_path(tmp_path):
+    """run_nios_analysis with custom output_path writes to specified path."""
+    from cloud_usage.nios.filter import FilterConfig
+
+    out = str(tmp_path / "custom_out.xlsx")
+    filter_cfg = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+
+    result = _run_analysis_with_mocks("/fake/backup.tar.gz", filter_cfg, out)
+
+    assert result == out
+    assert os.path.exists(out)
+
+
+def test_run_nios_analysis_produces_valid_xlsx(tmp_path):
+    """run_nios_analysis produces a readable .xlsx file."""
+    from cloud_usage.nios.filter import FilterConfig
+
+    out = str(tmp_path / "valid.xlsx")
+    filter_cfg = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+
+    _run_analysis_with_mocks("/fake/backup.tar.gz", filter_cfg, out)
+
+    wb = openpyxl.load_workbook(out)
+    assert wb is not None
+
+
+def test_run_nios_analysis_produces_6_sheets(tmp_path):
+    """run_nios_analysis produces a workbook with 6 sheets."""
+    from cloud_usage.nios.filter import FilterConfig
+
+    out = str(tmp_path / "six_sheets.xlsx")
+    filter_cfg = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+
+    _run_analysis_with_mocks("/fake/backup.tar.gz", filter_cfg, out)
+
+    wb = openpyxl.load_workbook(out)
+    assert len(wb.sheetnames) == 6
