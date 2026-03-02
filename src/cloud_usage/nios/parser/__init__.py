@@ -7,7 +7,7 @@ Primary interface:
 
 from __future__ import annotations
 
-__all__ = ["parse_backup", "inspect_backup"]
+__all__ = ["parse_backup", "inspect_backup", "get_member_map"]
 
 # Implementations live in _parse.py (Plan 02) and _inspect.py (Plan 03).
 # Import at call time to avoid circular imports during package bootstrap.
@@ -25,3 +25,10 @@ def inspect_backup(path):
     from cloud_usage.nios.parser._inspect import inspect_backup as _impl
 
     return _impl(path)
+
+
+def get_member_map(path):
+    """Return virtual_oid -> hostname map from Member objects. See _member_map.py."""
+    from cloud_usage.nios.parser._member_map import _build_member_map
+
+    return _build_member_map(path)
