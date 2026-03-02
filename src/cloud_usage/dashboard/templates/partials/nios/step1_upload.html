@@ -14,14 +14,17 @@
       hx-target="#nios-wizard"
       hx-swap="innerHTML"
       hx-encoding="multipart/form-data"
-      hx-indicator="#nios-upload-indicator">
+      hx-indicator="#nios-upload-indicator"
+      hx-on:htmx:beforeRequest="document.getElementById('nios-upload-error').setAttribute('hidden','')"
+      hx-on:htmx:responseError="document.getElementById('nios-upload-error').textContent='Upload failed (server error ' + event.detail.xhr.status + '). Check the terminal for details.'; document.getElementById('nios-upload-error').removeAttribute('hidden')">
   <label>
     Backup file (.tar.gz)
     <input type="file" name="file" accept=".tar.gz,.gz" required>
   </label>
-  <div id="nios-upload-indicator" aria-busy="true" style="display:none;">
-    <p>Processing backup file and reading member list...</p>
+  <div id="nios-upload-indicator" class="htmx-indicator">
+    <p aria-busy="true">Processing backup file and reading member list...</p>
   </div>
+  <p id="nios-upload-error" hidden style="color:var(--pico-color-red-500,#e74c3c);"></p>
   <button type="submit">Upload &amp; Read Members</button>
 </form>
 
