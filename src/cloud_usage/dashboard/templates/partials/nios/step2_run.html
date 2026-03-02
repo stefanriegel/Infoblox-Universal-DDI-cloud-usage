@@ -1,0 +1,16 @@
+{# NIOS Wizard: Running state partial.
+   Swapped into #nios-wizard when POST /nios/run is called.
+   SSE-connected: nios_complete event triggers full tab refresh.
+   Variables: nios_state (str) #}
+<article>
+  <header>NIOS Analysis Running</header>
+  <div hx-ext="sse" sse-connect="/api/sse/nios">
+    <progress></progress>
+    <p>Analysing your NIOS Grid backup. This may take a few minutes for large grids...</p>
+    {# Completion trigger: refresh full tab container on nios_complete event #}
+    <div sse-swap="nios_complete" hx-swap="none"
+         hx-trigger="sse:nios_complete"
+         hx-get="/tab/nios" hx-target="#tab-container">
+    </div>
+  </div>
+</article>

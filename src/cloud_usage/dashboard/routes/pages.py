@@ -52,6 +52,10 @@ def _get_tab_context(request: Request, active_tab: str) -> dict:
         providers.append(prov_data)
         total_resources += prov_data.get("resources", 0)
 
+    # Add NIOS analysis state for tab bar badge (SC-1, SC-5)
+    nios_manager = request.app.state.nios_manager
+    nios_state = nios_manager.state.value
+
     return {
         "request": request,
         "active_tab": active_tab,
@@ -60,6 +64,7 @@ def _get_tab_context(request: Request, active_tab: str) -> dict:
         "providers": providers,
         "total_resources": total_resources,
         "total_providers": len(providers),
+        "nios_state": nios_state,
     }
 
 
@@ -277,4 +282,47 @@ async def tab_summary(request: Request) -> HTMLResponse:
     context["downloads"] = downloads
     return templates.TemplateResponse(
         request, "pages/summary.html", context
+    )
+
+
+@router.get("/tab/nios", response_class=HTMLResponse)
+async def tab_nios(request: Request) -> HTMLResponse:
+    """Render the NIOS Analysis tab content for HTMX swap.
+
+    State-driven: idle shows upload form, running shows spinner,
+    complete shows summary card + download, error shows error + upload form.
+
+    Args:
+        request: The incoming HTTP request.
+
+    Returns:
+        Rendered pages/nios.html template.
+    """
+    import os
+
+    templates = request.app.state.templates
+    nios_manager = request.app.state.nios_manager
+
+    nios_state = nios_manager.state.value
+    original_filename = nios_manager.original_filename
+    output_path = nios_manager.output_path
+    error = nios_manager.error
+    scenario_suite = nios_manager.scenario_suite
+
+    # Build download filename from output_path if complete
+    download_filename = None
+    if output_path:
+        download_filename = os.path.basename(output_path)
+
+    context = _get_tab_context(request, "nios")
+    context.update({
+        "nios_state": nios_state,
+        "original_filename": original_filename,
+        "output_path": output_path,
+        "download_filename": download_filename,
+        "error": error,
+        "scenario_suite": scenario_suite,
+    })
+    return templates.TemplateResponse(
+        request, "pages/nios.html", context
     )

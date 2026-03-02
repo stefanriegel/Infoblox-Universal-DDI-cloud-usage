@@ -1,0 +1,91 @@
+{# NIOS Wizard Step 1: Upload .tar.gz backup + member list with NIOSX toggles.
+   On upload, HTMX POSTs to /nios/upload and swaps #nios-wizard innerHTML.
+   After upload, Step 2 (group toggles + Run Analysis) appears in the same partial.
+   Variables: members (list of dicts or empty), filename (str|None),
+   nios_state (str), error_msg (str|None) #}
+
+<h2>NIOS Grid Analysis</h2>
+<h3>Step 1: Upload NIOS Grid Backup</h3>
+
+<p>Upload a <code>.tar.gz</code> NIOS Grid backup file to analyse your grid's licensing footprint.</p>
+
+{# File upload form -- hx-encoding required for multipart/form-data #}
+<form hx-post="/nios/upload"
+      hx-target="#nios-wizard"
+      hx-swap="innerHTML"
+      hx-encoding="multipart/form-data"
+      hx-indicator="#nios-upload-indicator">
+  <label>
+    Backup file (.tar.gz)
+    <input type="file" name="file" accept=".tar.gz,.gz" required>
+  </label>
+  <div id="nios-upload-indicator" aria-busy="true" style="display:none;">
+    <p>Processing backup file and reading member list...</p>
+  </div>
+  <button type="submit">Upload &amp; Read Members</button>
+</form>
+
+{% if error_msg %}
+  <article style="border-left: 4px solid var(--pico-color-red-500, #e74c3c); margin-top: 1rem;">
+    <p style="color: var(--pico-color-red-500, #e74c3c);">Error reading backup: {{ error_msg }}</p>
+    <p><small>Verify the file is a valid NIOS Grid backup containing <code>onedb.xml</code>.</small></p>
+  </article>
+{% endif %}
+
+{% if members is defined and members %}
+  {# Member list rendered after upload -- Step 2: assign groups + run #}
+  <div style="margin-top: 1.5rem;">
+    {% if filename %}
+      <p><strong>Uploaded:</strong> {{ filename }}</p>
+    {% endif %}
+    <p>{{ members|length }} member{{ 's' if members|length != 1 else '' }} found.
+       Members checked below will be assigned to <strong>NIOSX</strong> (migrated to Universal DDI).
+       Unchecked members remain in <strong>NIOS</strong>.</p>
+
+    <form hx-post="/nios/run"
+          hx-target="#nios-wizard"
+          hx-swap="innerHTML">
+
+      <h3>Step 2: Assign Migration Groups &amp; Run</h3>
+
+      <figure>
+        <table role="grid">
+          <thead>
+            <tr>
+              <th scope="col">Hostname</th>
+              <th scope="col">Virtual OID</th>
+              <th scope="col">DHCP Leases (active)</th>
+              <th scope="col">Assign NIOSX</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for member in members %}
+            <tr>
+              <td>{{ member.hostname }}</td>
+              <td><code>{{ member.virtual_oid }}</code></td>
+              <td>{{ member.lease_count | int }}</td>
+              <td>
+                <label>
+                  <input type="checkbox"
+                         name="niosx_member"
+                         value="{{ member.hostname }}"
+                         aria-label="Assign {{ member.hostname }} to NIOSX group">
+                </label>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </figure>
+
+      <p><small>All members default to NIOS. Check to assign to NIOSX (migrated to Universal DDI).</small></p>
+      <button type="submit">Run Analysis</button>
+    </form>
+  </div>
+
+{% elif members is defined %}
+  {# Upload succeeded but no members found #}
+  <article style="margin-top: 1rem;">
+    <p>No members found in the backup file. Verify the file is a valid NIOS Grid backup.</p>
+  </article>
+{% endif %}

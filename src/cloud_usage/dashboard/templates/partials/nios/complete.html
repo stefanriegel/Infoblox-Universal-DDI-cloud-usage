@@ -1,0 +1,61 @@
+{# NIOS Analysis complete partial.
+   Shows scenario token totals (if available) and Download XLS button.
+   Variables: download_filename (str|None), original_filename (str|None),
+   scenario_suite (ScenarioSuite|None) #}
+<article class="completion-banner">
+  <header>NIOS Analysis Complete</header>
+  {% if original_filename %}
+    <p>Backup: <strong>{{ original_filename }}</strong></p>
+  {% endif %}
+
+  {% if scenario_suite %}
+    <h4>Scenario Token Estimates</h4>
+    <figure>
+      <table role="grid">
+        <thead>
+          <tr>
+            <th scope="col">Scenario</th>
+            <th scope="col">Tokens</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Current Grid (NIOS Object)</td>
+            <td>{{ scenario_suite.current_grid.token_total | int }}</td>
+          </tr>
+          {% if scenario_suite.hybrid_uddi %}
+          <tr>
+            <td>Hybrid UDDI (NIOS + NIOSX)</td>
+            <td>{{ scenario_suite.hybrid_uddi.combined_total | int }}</td>
+          </tr>
+          {% endif %}
+          <tr>
+            <td>Full Migration (Universal DDI)</td>
+            <td>{{ scenario_suite.full_migration.token_total | int }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </figure>
+  {% endif %}
+
+  {% if download_filename %}
+    <p style="margin-top: 1rem;">
+      <a href="/download/{{ download_filename }}"
+         role="button"
+         download="{{ download_filename }}">
+        Download XLS Report
+      </a>
+    </p>
+    <p><small>File: {{ download_filename }}</small></p>
+  {% else %}
+    <p><em>Output file not available.</em></p>
+  {% endif %}
+
+  <p style="margin-top: 1.5rem;">
+    <button class="secondary outline"
+            hx-get="/tab/nios"
+            hx-target="#tab-container">
+      Run Another Analysis
+    </button>
+  </p>
+</article>

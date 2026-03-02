@@ -34,5 +34,19 @@
         Summary
       </a>
     </li>
+    <li>
+      <a hx-get="/tab/nios" hx-target="#tab-container" hx-push-url="false"
+         role="tab" aria-selected="{{ 'true' if active_tab == 'nios' else 'false' }}"
+         class="{{ 'tab-active' if active_tab == 'nios' else '' }}">
+        NIOS Analysis
+        {% if nios_state == 'running' %}
+          <span class="badge badge-warning">running...</span>
+        {% elif nios_state == 'complete' %}
+          <span class="badge badge-success">done</span>
+        {% elif nios_state == 'error' %}
+          <span class="badge badge-error">error</span>
+        {% endif %}
+      </a>
+    </li>
   </ul>
 </nav>

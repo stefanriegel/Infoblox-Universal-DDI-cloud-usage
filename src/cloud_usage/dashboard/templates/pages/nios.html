@@ -1,0 +1,51 @@
+{# NIOS Analysis tab -- full #tab-container with tab bar + content.
+   State-driven: idle shows upload form, running shows spinner,
+   complete shows summary + download, error shows error + upload form.
+   Variables: active_tab, nios_state (str), scan_state (str),
+   original_filename (str|None), download_filename (str|None),
+   error (str|None), scenario_suite (ScenarioSuite|None) #}
+<div id="tab-container">
+  {% include "partials/tab_bar.html" %}
+
+  <div id="tab-content">
+    {% if nios_state == 'running' %}
+      {# Running state: SSE-connected spinner + completion refresh trigger #}
+      <div hx-ext="sse" sse-connect="/api/sse/nios" id="nios-progress-container">
+        <article>
+          <header>NIOS Analysis Running</header>
+          <progress></progress>
+          <p>Analysing NIOS Grid backup. This may take a few minutes for large grids...</p>
+          {% if original_filename %}
+            <p><small>File: {{ original_filename }}</small></p>
+          {% endif %}
+        </article>
+        {# nios_complete event triggers full tab refresh #}
+        <div sse-swap="nios_complete" hx-swap="none"
+             hx-trigger="sse:nios_complete"
+             hx-get="/tab/nios" hx-target="#tab-container">
+        </div>
+      </div>
+
+    {% elif nios_state == 'complete' %}
+      {# Complete state: summary card + download #}
+      {% include "partials/nios/complete.html" %}
+
+    {% elif nios_state == 'error' %}
+      {# Error state: error message + upload form for re-run #}
+      <article>
+        <header>Analysis Error</header>
+        <p style="color: var(--pico-color-red-500, #e74c3c);">{{ error or "An unexpected error occurred." }}</p>
+        <p>Re-upload your backup file to try again.</p>
+      </article>
+      <div id="nios-wizard">
+        {% include "partials/nios/step1_upload.html" %}
+      </div>
+
+    {% else %}
+      {# IDLE state: Step 1 upload form #}
+      <div id="nios-wizard">
+        {% include "partials/nios/step1_upload.html" %}
+      </div>
+    {% endif %}
+  </div>
+</div>
