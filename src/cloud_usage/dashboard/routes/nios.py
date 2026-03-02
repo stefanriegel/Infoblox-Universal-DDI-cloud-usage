@@ -8,9 +8,10 @@ All blocking NIOS pipeline calls run in background threads via
 loop.run_in_executor(None, ...) for Python 3.9 compatibility.
 
 Route list:
-  POST /nios/upload  -- save backup file, return member list (step1_upload.html)
-  POST /nios/run     -- dispatch pipeline, return SSE progress (step2_run.html)
-  GET  /api/sse/nios -- stream NiosEventBridge events as text/event-stream
+  POST /nios/upload          -- save backup file, return member list (step1_upload.html)
+  POST /nios/run             -- dispatch pipeline, return SSE progress (step2_run.html)
+  GET  /api/sse/nios         -- stream NiosEventBridge events as text/event-stream
+  GET  /api/nios/progress    -- return current progress as HTML fragment (progress_display.html)
 
 State is tracked via app.state.nios_manager (NiosScanManager).
 SSE events are pushed via app.state.nios_event_bridge (separate EventBridge
@@ -132,6 +133,7 @@ def _run_nios_pipeline(
         start_time = time.monotonic()
 
         # Step 1: Inspect backup for metadata
+        nios_manager.set_progress(1, 6, "Inspecting backup", round(time.monotonic() - start_time, 1))
         nios_event_bridge.emit("nios_progress", {
             "step": 1,
             "total": 6,
@@ -141,6 +143,7 @@ def _run_nios_pipeline(
         integrity = inspect_backup(backup_path)
 
         # Step 2: Build member map for Member Attribution sheet
+        nios_manager.set_progress(2, 6, "Reading members", round(time.monotonic() - start_time, 1))
         nios_event_bridge.emit("nios_progress", {
             "step": 2,
             "total": 6,
@@ -157,6 +160,7 @@ def _run_nios_pipeline(
         )
 
         # Step 3 (Pass A): parse -> filter -> count
+        nios_manager.set_progress(3, 6, "Counting objects", round(time.monotonic() - start_time, 1))
         nios_event_bridge.emit("nios_progress", {
             "step": 3,
             "total": 6,
@@ -168,6 +172,7 @@ def _run_nios_pipeline(
         count_result = count_objects(filtered_a, filter_config)
 
         # Step 4 (Pass B): parse -> filter -> ip_by_type
+        nios_manager.set_progress(4, 6, "Counting IP records", round(time.monotonic() - start_time, 1))
         nios_event_bridge.emit("nios_progress", {
             "step": 4,
             "total": 6,
@@ -179,6 +184,7 @@ def _run_nios_pipeline(
         ip_by_type = _count_ip_by_type(filtered_b, set(filter_config.lease_states))
 
         # Step 5: compute scenarios — capture suite for summary card
+        nios_manager.set_progress(5, 6, "Computing scenarios", round(time.monotonic() - start_time, 1))
         nios_event_bridge.emit("nios_progress", {
             "step": 5,
             "total": 6,
@@ -193,6 +199,7 @@ def _run_nios_pipeline(
         scenario_suite = compute_scenarios(count_result, split_config)
 
         # Step 6: resolve output path and write report
+        nios_manager.set_progress(6, 6, "Writing report", round(time.monotonic() - start_time, 1))
         nios_event_bridge.emit("nios_progress", {
             "step": 6,
             "total": 6,
@@ -401,4 +408,28 @@ async def sse_nios(request: Request) -> StreamingResponse:
             "Connection": "keep-alive",
             "X-Accel-Buffering": "no",
         },
+    )
+
+
+@router.get("/api/nios/progress", response_class=HTMLResponse)
+async def nios_progress_display(request: Request) -> HTMLResponse:
+    """Return current NIOS pipeline progress as an HTML fragment.
+
+    Called by HTMX hx-get on sse:nios_progress events to render
+    the progress bar, step label, and elapsed time. Always returns
+    the latest state from NiosScanManager.current_progress.
+
+    Args:
+        request: The incoming HTTP request.
+
+    Returns:
+        Rendered partials/nios/progress_display.html fragment.
+    """
+    nios_manager = request.app.state.nios_manager
+    templates = request.app.state.templates
+    progress = nios_manager.current_progress
+    return templates.TemplateResponse(
+        request,
+        "partials/nios/progress_display.html",
+        {"request": request, "progress": progress},
     )
