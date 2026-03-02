@@ -197,7 +197,7 @@ Plans:
 
 Phases 10–15 deliver NIOS Grid backup analysis integrated into the existing tool. The NIOS pipeline is fully isolated in a new `src/cloud_usage/nios/` package. It shares no code with the cloud providers — the data model, token formulas, and output pipeline are all independent. The build order respects strict data-flow dependencies: member identity resolved before filtering (Phase 10), filtering gates ingestion before counting (Phase 11), counting completes before scenarios are computed (Phase 12), output and runner wired after pipeline is validated (Phase 13), CLI integration first (Phase 14), then dashboard tab last (Phase 15).
 
-- [ ] **Phase 10: NIOS Parser and Schema** - Streaming tar.gz/onedb.xml parser with lxml iterparse, typed NiosObject schema, two-pass member map, structural integrity report
+- [x] **Phase 10: NIOS Parser and Schema** - Streaming tar.gz/onedb.xml parser with lxml iterparse, typed NiosObject schema, two-pass member map, structural integrity report (completed 2026-02-28)
 - [ ] **Phase 11: Filter and Counter** - Member whitelist/blacklist with whitelist-first semantics, per-member DDI/IP/Asset counting with Host Object expansion and lease deduplication, dual formula constants
 - [ ] **Phase 12: Scenario Engine** - Three scenario computations: current grid (NIOS Object formula), hybrid UDDI (per-group dual formula), full migration (UDDI native formula)
 - [ ] **Phase 13: Output and Runner** - 5-sheet XLS report with per-scenario comparison and member attribution, runner wiring parse-filter-count-scenarios-output pipeline
@@ -299,8 +299,8 @@ Each phase has a hard data-flow dependency on the prior phase output.
 | 7. Integration Gap Closure | 2/2 | Complete    | 2026-02-25 |
 | 8. Dashboard GCP Scan Fix | 2/2 | Complete   | 2026-02-25 |
 | 9. Integration Tech Debt Cleanup | 1/1 | Complete   | 2026-02-26 |
-| 10. NIOS Parser and Schema | 3/3 | Complete   | 2026-02-28 |
-| 11. Filter and Counter | 0/TBD | Not started | - |
+| 10. NIOS Parser and Schema | 3/3 | Complete    | 2026-02-28 |
+| 11. Filter and Counter | 1/2 | In Progress|  |
 | 12. Scenario Engine | 0/TBD | Not started | - |
 | 13. Output and Runner | 0/TBD | Not started | - |
 | 14. CLI Integration | 0/TBD | Not started | - |

@@ -41,10 +41,10 @@ NIOS Grid backup analysis integrated into the existing tool alongside cloud disc
 
 ### FILTER — Member whitelist / blacklist
 
-- [ ] **FILTER-01**: User can define a member whitelist (by hostname glob pattern or virtual_oid list) — only whitelisted members and their objects are included in the analysis
-- [ ] **FILTER-02**: User can define a member blacklist (by hostname glob pattern or virtual_oid list) — blacklisted members and their objects are excluded from the analysis
-- [ ] **FILTER-03**: When both whitelist and blacklist are provided, whitelist takes precedence (whitelist-first semantics)
-- [ ] **FILTER-04**: Filter configuration (patterns used, member IDs matched, object counts excluded) is recorded in the output report for traceability
+- [x] **FILTER-01**: User can define a member whitelist (by hostname glob pattern or virtual_oid list) — only whitelisted members and their objects are included in the analysis
+- [x] **FILTER-02**: User can define a member blacklist (by hostname glob pattern or virtual_oid list) — blacklisted members and their objects are excluded from the analysis
+- [x] **FILTER-03**: When both whitelist and blacklist are provided, whitelist takes precedence (whitelist-first semantics)
+- [x] **FILTER-04**: Filter configuration (patterns used, member IDs matched, object counts excluded) is recorded in the output report for traceability
 
 ### COUNT — Apply NIOS→UDDI counting rules
 
@@ -126,10 +126,10 @@ NIOS Grid backup analysis integrated into the existing tool alongside cloud disc
 | PARSE-11 | Phase 10 | Complete |
 | PARSE-12 | Phase 10 | Complete |
 | PARSE-13 | Phase 10 | Complete |
-| FILTER-01 | Phase 11 | Pending |
-| FILTER-02 | Phase 11 | Pending |
-| FILTER-03 | Phase 11 | Pending |
-| FILTER-04 | Phase 11 | Pending |
+| FILTER-01 | Phase 11 | Complete |
+| FILTER-02 | Phase 11 | Complete |
+| FILTER-03 | Phase 11 | Complete |
+| FILTER-04 | Phase 11 | Complete |
 | COUNT-01 | Phase 11 | Pending |
 | COUNT-02 | Phase 11 | Pending |
 | COUNT-03 | Phase 11 | Pending |
