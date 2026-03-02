@@ -503,3 +503,77 @@ def test_formula_constants_not_from_shared():
                 assert "cloud_usage.counting" not in node.module, (
                     f"Unexpected import from cloud_usage.counting: {node.module}"
                 )
+
+
+# ---------------------------------------------------------------------------
+# DTC Counter Tests (Phase 16: DTC-06, DTC-07)
+# ---------------------------------------------------------------------------
+
+
+def test_count_objects_dtc_families_count_ddi_plus_one() -> None:
+    """Each DTC family object counts exactly +1 toward grid DDI (DTC-06).
+
+    DTC objects use the existing delta=1 path in count_objects() — no special
+    expansion logic like HOST_OBJECT (+2/+3).
+    """
+    dtc_families = [
+        NiosFamily.DTC_LBDN,
+        NiosFamily.DTC_POOL,
+        NiosFamily.DTC_SERVER,
+        NiosFamily.DTC_MONITOR,
+        NiosFamily.DTC_TOPOLOGY,
+    ]
+    for family in dtc_families:
+        obj = _obj(family, member=None)
+        result = count_objects(iter([obj]), _default_config())
+        assert result.grid_counts.ddi_count == 1, (
+            f"{family}: expected ddi_count=1, got {result.grid_counts.ddi_count}"
+        )
+        assert result.member_counts == [], (
+            f"{family}: expected no member rows, got {result.member_counts}"
+        )
+
+
+def test_count_objects_dtc_all_five_families() -> None:
+    """One object per DTC family yields grid_counts.ddi_count==5, member_counts=[] (DTC-06, DTC-07)."""
+    objects = [
+        _obj(NiosFamily.DTC_LBDN, member=None),
+        _obj(NiosFamily.DTC_POOL, member=None),
+        _obj(NiosFamily.DTC_SERVER, member=None),
+        _obj(NiosFamily.DTC_MONITOR, member=None),
+        _obj(NiosFamily.DTC_TOPOLOGY, member=None),
+    ]
+    result = count_objects(iter(objects), _default_config())
+
+    assert result.grid_counts.ddi_count == 5, (
+        f"Expected ddi_count=5, got {result.grid_counts.ddi_count}"
+    )
+    assert result.member_counts == [], (
+        f"Expected no member rows, got {result.member_counts}"
+    )
+
+
+def test_count_objects_dtc_does_not_produce_member_rows() -> None:
+    """DTC objects never appear in member_counts, even in a mixed stream (DTC-07).
+
+    DTC objects are grid-level (member_hostname=None). The counter only creates
+    member_counts entries from LEASE objects with non-None member_hostname.
+    """
+    # Mix: one LEASE (creates a member row) + one DTC object (grid-level only)
+    objects = [
+        _lease(member="ns1.example.com", ip="10.0.0.1"),
+        _obj(NiosFamily.DTC_LBDN, member=None),
+    ]
+    result = count_objects(iter(objects), _default_config())
+
+    # DTC does not contribute to any member row
+    assert len(result.member_counts) == 1, (
+        f"Expected 1 member row (for LEASE), got {len(result.member_counts)}"
+    )
+    member_hostnames = {mc.member_hostname for mc in result.member_counts}
+    assert "ns1.example.com" in member_hostnames
+
+    # Grid DDI: DTC_LBDN (+1) — LEASE is not a DDI family
+    assert result.grid_counts.ddi_count == 1, (
+        f"Expected grid ddi_count=1 (DTC_LBDN), got {result.grid_counts.ddi_count}"
+    )
