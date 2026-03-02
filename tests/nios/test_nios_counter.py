@@ -59,8 +59,8 @@ def _fixed(ip: str) -> NiosObject:
 
 
 def _host_addr(ip: str) -> NiosObject:
-    """Build a HOST_ADDRESS grid-level object."""
-    return _obj(NiosFamily.HOST_ADDRESS, member=None, ip_address=ip)
+    """Build a HOST_ADDRESS grid-level object (uses 'address' key per ZF backup)."""
+    return _obj(NiosFamily.HOST_ADDRESS, member=None, address=ip)
 
 
 def _network(cidr: str) -> NiosObject:
@@ -68,9 +68,14 @@ def _network(cidr: str) -> NiosObject:
     return _obj(NiosFamily.NETWORK, member=None, cidr=cidr)
 
 
+def _host_addr_real(ip: str) -> NiosObject:
+    """Build a HOST_ADDRESS with 'address' key (as ZF backup stores them)."""
+    return _obj(NiosFamily.HOST_ADDRESS, member=None, address=ip)
+
+
 def _default_config() -> FilterConfig:
-    """Default FilterConfig with active+static lease states."""
-    return FilterConfig(whitelist=(), blacklist=(), lease_states=("active", "static"))
+    """Default FilterConfig with active-only lease states (per UDDI spec)."""
+    return FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
 
 
 # ---------------------------------------------------------------------------
@@ -208,9 +213,23 @@ def test_active_ip_from_all_four_sources():
     ]
     config = _default_config()
     result = count_objects(iter(objects), config)
-    # 10.0.1.1 (lease) + 10.0.2.1 (fixed) + 10.0.3.1 (host_addr)
+    # 10.0.1.1 (lease) + 10.0.2.1 (fixed) + 10.0.3.1 (host_addr via 'address' key)
     # + 10.0.4.0 (network) + 10.0.4.3 (broadcast) = 5 unique IPs
     assert result.grid_counts.active_ip_count == 5
+
+
+def test_host_address_uses_address_key():
+    """HOST_ADDRESS Active IP uses raw_attrs['address'] key, not 'ip_address'."""
+    objects = [
+        # With correct 'address' key — should be counted
+        _obj(NiosFamily.HOST_ADDRESS, member=None, address="10.1.1.1"),
+        # With wrong 'ip_address' key — should NOT be counted (0 contribution)
+        _obj(NiosFamily.HOST_ADDRESS, member=None, ip_address="10.1.1.2"),
+    ]
+    config = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+    result = count_objects(iter(objects), config)
+    # Only the object with 'address' key contributes; 10.1.1.2 is NOT counted
+    assert result.grid_counts.active_ip_count == 1
 
 
 # ---------------------------------------------------------------------------

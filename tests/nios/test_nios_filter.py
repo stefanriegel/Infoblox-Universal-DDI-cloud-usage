@@ -273,11 +273,11 @@ def test_filter_config_tuple_fields():
 
 
 def test_filter_config_defaults():
-    """FilterConfig has sensible defaults: empty whitelist/blacklist, active+static lease_states."""
+    """FilterConfig has sensible defaults: empty whitelist/blacklist, active-only lease_states."""
     config = FilterConfig()
     assert config.whitelist == ()
     assert config.blacklist == ()
-    assert config.lease_states == ("active", "static")
+    assert config.lease_states == ("active",)
 
 
 # ---------------------------------------------------------------------------
