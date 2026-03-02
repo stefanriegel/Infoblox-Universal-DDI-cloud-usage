@@ -246,3 +246,65 @@ def test_inspect_backup_returns_integrity_report_dataclass(tmp_path: Path) -> No
     assert hasattr(result, "warnings")
     assert hasattr(result, "nios_version")
     assert hasattr(result, "snapshot_date")
+
+
+# ---------------------------------------------------------------------------
+# DTC Integration Verification Tests (Phase 17: DTC-10)
+# ---------------------------------------------------------------------------
+
+
+def test_inspect_backup_dtc_families_pre_populated_at_zero(tmp_path: Path) -> None:
+    """DTC-10: All 5 DTC families appear in families_found with count=0 for a non-DTC backup.
+
+    Phase 16 added all 5 DTC families to GRID_LEVEL_FAMILIES. inspect_backup()
+    initializes families_found = {f: 0 for f in ALL_EXPECTED_FAMILIES} which covers them.
+    A backup with no DTC objects still produces DTC keys with value 0.
+    """
+    from cloud_usage.nios.schema import NiosFamily
+
+    xml = _build_onedb_xml(
+        _member_object("101", "ns1.example.com"),
+        _network_object(),
+    )
+    backup = _make_backup(xml, tmp_path)
+
+    report = inspect_backup(backup)
+
+    dtc_families = [
+        NiosFamily.DTC_LBDN,
+        NiosFamily.DTC_POOL,
+        NiosFamily.DTC_SERVER,
+        NiosFamily.DTC_MONITOR,
+        NiosFamily.DTC_TOPOLOGY,
+    ]
+    for family in dtc_families:
+        assert family in report.families_found, (
+            f"DTC family '{family}' missing from families_found keys. "
+            f"ALL_EXPECTED_FAMILIES should include it via GRID_LEVEL_FAMILIES."
+        )
+        assert report.families_found[family] == 0, (
+            f"DTC family '{family}' should have count 0 (no DTC objects in backup), "
+            f"got {report.families_found[family]}"
+        )
+
+
+def test_inspect_backup_dtc_families_in_all_expected_families() -> None:
+    """DTC-10 precondition: all 5 DTC families are in ALL_EXPECTED_FAMILIES (Phase 16 check).
+
+    This test verifies the Phase 16 precondition that makes DTC-10 possible.
+    If this test fails, GRID_LEVEL_FAMILIES is missing DTC entries.
+    """
+    from cloud_usage.nios.schema import NiosFamily
+
+    dtc_families = [
+        NiosFamily.DTC_LBDN,
+        NiosFamily.DTC_POOL,
+        NiosFamily.DTC_SERVER,
+        NiosFamily.DTC_MONITOR,
+        NiosFamily.DTC_TOPOLOGY,
+    ]
+    for family in dtc_families:
+        assert family in ALL_EXPECTED_FAMILIES, (
+            f"DTC family '{family}' not in ALL_EXPECTED_FAMILIES. "
+            f"Phase 16 should have added it to GRID_LEVEL_FAMILIES."
+        )

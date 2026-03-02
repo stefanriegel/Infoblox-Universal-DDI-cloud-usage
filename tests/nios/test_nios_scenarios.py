@@ -557,3 +557,75 @@ def test_sc5_migration_split_captured_verbatim_in_suite():
     assert suite_no_config.migration_split_used is None, (
         "SC-5: migration_split_used is None when no split_config provided"
     )
+
+
+# ---------------------------------------------------------------------------
+# DTC Integration Verification Tests (Phase 17: DTC-08)
+# ---------------------------------------------------------------------------
+
+
+def test_dtc_ddi_flows_through_current_grid_scenario() -> None:
+    """DTC-08: DTC DDI counts appear in the current_grid scenario output.
+
+    Phase 16 added all 5 DTC families to _DDI_FAMILIES. count_objects() accumulates
+    them into grid_counts.ddi_count. compute_scenarios() passes this total through to
+    ScenarioResult.ddi_count unchanged. No code change needed; this test verifies flow.
+    """
+    # 5 DTC objects = 5 DDI (each DTC family counts +1, DTC-06)
+    grid = _grid(ddi=5)
+    result = _result(members=[], grid=grid)
+    suite = compute_scenarios(result)
+
+    assert suite.current_grid.ddi_count == 5, (
+        f"DTC DDI should appear in current_grid.ddi_count; expected 5, got {suite.current_grid.ddi_count}"
+    )
+
+
+def test_dtc_ddi_flows_through_full_migration_scenario() -> None:
+    """DTC-08: DTC DDI counts appear in the full_migration scenario output."""
+    grid = _grid(ddi=5)
+    result = _result(members=[], grid=grid)
+    suite = compute_scenarios(result)
+
+    assert suite.full_migration.ddi_count == 5, (
+        f"DTC DDI should appear in full_migration.ddi_count; expected 5, got {suite.full_migration.ddi_count}"
+    )
+
+
+def test_dtc_ddi_flows_through_all_three_scenarios_with_hybrid() -> None:
+    """DTC-08: DTC DDI counts appear in all three scenarios including hybrid UDDI split.
+
+    Hybrid scenario is produced only when MigrationSplitConfig is provided. With a
+    member-only split (no DTC members since DTC is grid-level), all DTC DDI goes to
+    the NIOS sub-scenario (default_group='nios').
+    """
+    grid = _grid(ddi=5)
+    member = _member("gm1.example.com", ddi=0)
+    result = _result(members=[member], grid=grid)
+
+    split = MigrationSplitConfig(
+        niosx_members=["gm1.example.com"],
+        default_group="nios",
+        assignment_source="explicit",
+    )
+    suite = compute_scenarios(result, split_config=split)
+
+    # current_grid and full_migration include DTC DDI
+    assert suite.current_grid.ddi_count == 5, (
+        f"current_grid.ddi_count should be 5, got {suite.current_grid.ddi_count}"
+    )
+    assert suite.full_migration.ddi_count == 5, (
+        f"full_migration.ddi_count should be 5, got {suite.full_migration.ddi_count}"
+    )
+
+    # hybrid_uddi is not None when split_config provided
+    assert suite.hybrid_uddi is not None, (
+        "hybrid_uddi should not be None when MigrationSplitConfig is provided"
+    )
+    # Total DDI in hybrid = sum of sub-scenario DDI counts
+    hybrid_total_ddi = (
+        suite.hybrid_uddi.nios_sub.ddi_count + suite.hybrid_uddi.niosx_sub.ddi_count
+    )
+    assert hybrid_total_ddi == 5, (
+        f"hybrid_uddi total DDI should be 5 (DTC grid-level DDI); got {hybrid_total_ddi}"
+    )
