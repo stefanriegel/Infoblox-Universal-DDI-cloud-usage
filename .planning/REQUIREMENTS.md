@@ -49,7 +49,12 @@ NIOS Grid backup analysis integrated into the existing tool alongside cloud disc
 ### COUNT — Apply NIOS→UDDI counting rules
 
 - [x] **COUNT-01**: DDI object count aggregates: DNS records (A, AAAA, CNAME, MX, NS, PTR, SOA, SRV, TXT), Host Objects (expanded to constituent records), Host Aliases, DNS Zones, DNS Views, DHCP Ranges, Exclusion Ranges, Networks, Network Containers, Network Views — separated into Native Objects vs NIOS Objects columns
-- [x] **COUNT-02**: Active IP calculation sums: active DHCP leases + fixed addresses + host addresses + network reservations (2 per subnet: network address + broadcast address)
+- [x] **COUNT-02**: Active IP calculation sums (deduplicated via single global set[str]):
+  - Active DHCP leases: `binding_state="active"` from LEASE objects, `raw_attrs["ip_address"]`
+  - Fixed addresses: FIXED_ADDRESS objects, `raw_attrs["ip_address"]`
+  - Host addresses: HOST_ADDRESS objects, `raw_attrs["address"]` (NOT `"ip_address"` — ZF backup confirmed)
+  - Network reservations: NETWORK objects, `network_address` + `broadcast_address` via `IPv4Network(cidr, strict=False)`
+  - ZF Friedrichshafen reference backup total: 304,730 unique Active IPs (active-only lease default)
 - [x] **COUNT-03**: Lease state semantics are configurable: default counts active and static leases; user can expand to include backup, expired, or released states
 - [x] **COUNT-04**: UDDI native token formula applied to NIOSX-migrated objects: DDI / 25 + Active IPs / 13 + Assets / 3
 - [x] **COUNT-05**: NIOS Object token formula applied to NIOS-remaining objects in a hybrid UDDI deployment (NIOS Grid connected to UDDI platform): DDI / 50 + Active IPs / 25 + Assets / 13
