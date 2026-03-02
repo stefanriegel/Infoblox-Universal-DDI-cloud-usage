@@ -62,16 +62,16 @@ NIOS Grid backup analysis integrated into the existing tool alongside cloud disc
 
 ### MIGR — Member migration split
 
-- [ ] **MIGR-01**: User can define a migration split via a YAML/JSON config file: list of member hostnames or virtual_oids assigned to `niosx` group; all others default to `nios` group
+- [x] **MIGR-01**: User can define a migration split via a YAML/JSON config file: list of member hostnames or virtual_oids assigned to `niosx` group; all others default to `nios` group
 - [ ] **MIGR-02**: User can define the migration split via the web dashboard wizard: a dedicated step lists all resolved members (hostname + virtual_oid + lease count) with a toggle to mark each as NIOSX
-- [ ] **MIGR-03**: Members not explicitly assigned to a group default to NIOS-remaining; the default group is configurable per analysis run
-- [ ] **MIGR-04**: Migration split configuration is recorded verbatim in the output report (which members were assigned to which group and by which method)
+- [x] **MIGR-03**: Members not explicitly assigned to a group default to NIOS-remaining; the default group is configurable per analysis run
+- [x] **MIGR-04**: Migration split configuration is recorded verbatim in the output report (which members were assigned to which group and by which method)
 
 ### SCEN — Three scenario views
 
-- [ ] **SCEN-01**: **Current grid view** — all grid objects (post-filter) counted under NIOS Object formula (DDI/50 + IPs/25 + Assets/13); produces DDI total, Active IP total, Assets total, and token total representing the full grid licensed as NIOS-managed objects today
-- [ ] **SCEN-02**: **Hybrid UDDI view** — requires a migration split; NIOS-remaining members counted under NIOS Object formula; NIOSX-migrated members counted under UDDI native formula; output shows three sub-totals: NIOS-remaining tokens, NIOSX-native tokens, combined total
-- [ ] **SCEN-03**: **Full migration view** — all grid objects (post-filter) counted under UDDI native formula (DDI/25 + IPs/13 + Assets/3); shows the token total if the entire grid migrates to NIOSX
+- [x] **SCEN-01**: **Current grid view** — all grid objects (post-filter) counted under NIOS Object formula (DDI/50 + IPs/25 + Assets/13); produces DDI total, Active IP total, Assets total, and token total representing the full grid licensed as NIOS-managed objects today
+- [x] **SCEN-02**: **Hybrid UDDI view** — requires a migration split; NIOS-remaining members counted under NIOS Object formula; NIOSX-migrated members counted under UDDI native formula; output shows three sub-totals: NIOS-remaining tokens, NIOSX-native tokens, combined total
+- [x] **SCEN-03**: **Full migration view** — all grid objects (post-filter) counted under UDDI native formula (DDI/25 + IPs/13 + Assets/3); shows the token total if the entire grid migrates to NIOSX
 
 ### OUT — Output report
 
@@ -141,13 +141,13 @@ NIOS Grid backup analysis integrated into the existing tool alongside cloud disc
 | COUNT-04 | Phase 11 | Complete |
 | COUNT-05 | Phase 11 | Complete |
 | COUNT-06 | Phase 11 | Complete |
-| MIGR-01 | Phase 12 | Pending |
+| MIGR-01 | Phase 12 | Complete |
 | MIGR-02 | Phase 15 | Pending |
-| MIGR-03 | Phase 12 | Pending |
-| MIGR-04 | Phase 12 | Pending |
-| SCEN-01 | Phase 12 | Pending |
-| SCEN-02 | Phase 12 | Pending |
-| SCEN-03 | Phase 12 | Pending |
+| MIGR-03 | Phase 12 | Complete |
+| MIGR-04 | Phase 12 | Complete |
+| SCEN-01 | Phase 12 | Complete |
+| SCEN-02 | Phase 12 | Complete |
+| SCEN-03 | Phase 12 | Complete |
 | OUT-01 | Phase 13 | Pending |
 | OUT-02 | Phase 13 | Pending |
 | OUT-03 | Phase 13 | Pending |

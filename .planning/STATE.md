@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: NIOS Grid Analysis
-current_phase: 11-filter-and-counter (Plan 03/03 complete — phase done, GAP-01 resolved)
-status: completed
-last_updated: "2026-03-02T03:25:45.649Z"
+current_phase: 12-scenario-engine (Plan 02/02 complete — phase done)
+status: in_progress
+last_updated: "2026-03-02T09:00:00.000Z"
 progress:
-  total_phases: 12
+  total_phases: 15
   completed_phases: 12
-  total_plans: 37
-  completed_plans: 37
+  total_plans: 39
+  completed_plans: 39
 ---
 
 # Session State
@@ -21,8 +21,8 @@ See: .planning/PROJECT.md
 ## Position
 
 **Milestone:** v1.1 NIOS Grid Analysis
-**Current phase:** 11-filter-and-counter (Plan 03/03 complete — phase done, GAP-01 resolved)
-**Status:** Milestone complete
+**Current phase:** 12-scenario-engine (Plan 02/02 complete — phase done)
+**Status:** Phase 12 complete — next: Phase 13 Output and Runner
 
 ## Key Decisions
 
@@ -32,6 +32,10 @@ See: .planning/PROJECT.md
 - 2026-03-02 (11-03): FilterConfig default lease_states = ('active',) — static binding_state is a manually-configured DHCP static assignment, not a dynamic lease per UDDI spec
 - 2026-03-02 (11-03): HOST_ADDRESS raw_attrs key is 'address' (not 'ip_address') — empirically confirmed from ZF Friedrichshafen backup
 - 2026-03-02 (11-03): ZF reference value: 304,730 unique Active IPs (4-source dedup with corrected counter) — GAP-01 RESOLVED
+- 2026-03-02 (12-01): MigrationSplitConfig uses tuple[str, ...] niosx_members (not list); frozen dataclass following FilterConfig pattern
+- 2026-03-02 (12-01): grid_counts always contributes to NIOS sub-total in hybrid scenario — grid-level objects have no member attribution; attributing to NIOS is conservative/correct
+- 2026-03-02 (12-01): combined_total = nios_sub.token_total + niosx_sub.token_total (arithmetic sum only; never re-computed from aggregated inputs)
+- 2026-03-02 (12-01): Active IP total for SCEN-01/SCEN-03 always from grid_counts.active_ip_count (global dedup); summing member IPs is wrong (misses grid-level IPs)
 
 ## Session Log
 
@@ -39,3 +43,4 @@ See: .planning/PROJECT.md
 - 2026-03-02: Executed 11-01 (filter.py TDD) — FilterConfig + filter_objects() implemented, 15 tests pass
 - 2026-03-02: Executed 11-02 (counter.py TDD) — MemberCounts, CountResult, count_objects() implemented, 30 tests pass
 - 2026-03-02: Executed 11-03 (gap closure) — Fixed FilterConfig default lease_states to ('active',), fixed HOST_ADDRESS key to 'address'; empirical ZF run: 304,730 Active IPs; all 65 nios tests pass; GAP-01 RESOLVED
+- 2026-03-02: Executed 12-01+12-02 (scenario engine TDD) — MigrationSplitConfig, ScenarioResult, HybridScenarioResult, ScenarioSuite, compute_scenarios() implemented in nios/scenarios.py; 27 scenario tests pass; 92 total nios tests pass; Phase 12 complete

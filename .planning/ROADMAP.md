@@ -24,7 +24,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 9: Integration Tech Debt Cleanup** - Close 3 non-critical integration gaps: AWS checkpoint symmetry, DDI_TYPES unification, double emit_done removal (completed 2026-02-26)
 - [x] **Phase 10: NIOS Parser and Schema** - Streaming tar.gz/onedb.xml parser with lxml iterparse, typed NiosObject schema, two-pass member map, structural integrity report (completed 2026-02-28)
 - [x] **Phase 11: Filter and Counter** - Member whitelist/blacklist with whitelist-first semantics, per-member DDI/IP/Asset counting with Host Object expansion and lease deduplication, dual formula constants (gap closure in progress — COUNT-02) (completed 2026-03-02)
-- [ ] **Phase 12: Scenario Engine** - Three scenario computations: current grid (NIOS Object formula), hybrid UDDI (per-group dual formula), full migration (UDDI native formula)
+- [x] **Phase 12: Scenario Engine** - Three scenario computations: current grid (NIOS Object formula), hybrid UDDI (per-group dual formula), full migration (UDDI native formula) (completed 2026-03-02)
 - [ ] **Phase 13: Output and Runner** - 5-sheet XLS report with per-scenario comparison and member attribution, runner wiring parse-filter-count-scenarios-output pipeline
 - [ ] **Phase 14: CLI Integration** - Additive --nios and --nios-config CLI flags wired to runner, end-to-end acceptance test
 - [ ] **Phase 15: Dashboard Integration** - NIOS Analysis tab with file upload wizard, migration split toggles, and results display
@@ -245,7 +245,11 @@ Plans:
   3. Full migration scenario applies UDDI native formula to all members and produces a token total strictly higher than or equal to the current grid scenario total (higher divisors per token mean fewer tokens)
   4. Members not listed in the migration split config default to the configured default group (nios unless overridden), and the default group assignment is recorded in the output
   5. Migration split config used (member-to-group assignments, default group, assignment method) is captured verbatim for inclusion in the report
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 12-01-PLAN.md -- nios.scenarios: MigrationSplitConfig + ScenarioSuite + compute_scenarios() TDD
+- [ ] 12-02-PLAN.md -- Edge-case test coverage and phase success criteria acceptance tests
 
 ### Phase 13: Output and Runner
 **Goal**: Users receive a 5-sheet XLS file from a single run_nios_analysis() call that contains all scenario totals, full member attribution, and a traceable header block identifying exactly what data was analyzed
@@ -306,7 +310,7 @@ Each phase has a hard data-flow dependency on the prior phase output.
 | 9. Integration Tech Debt Cleanup | 1/1 | Complete   | 2026-02-26 |
 | 10. NIOS Parser and Schema | 3/3 | Complete    | 2026-02-28 |
 | 11. Filter and Counter | 3/3 | Complete    | 2026-03-02 |
-| 12. Scenario Engine | 0/TBD | Not started | - |
+| 12. Scenario Engine | 2/2 | Complete   | 2026-03-02 |
 | 13. Output and Runner | 0/TBD | Not started | - |
 | 14. CLI Integration | 0/TBD | Not started | - |
 | 15. Dashboard Integration | 0/TBD | Not started | - |
