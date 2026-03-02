@@ -83,7 +83,7 @@ NIOS Grid backup analysis integrated into the existing tool alongside cloud disc
 
 ### INTEG — Tool integration
 
-- [ ] **INTEG-01**: User can run NIOS analysis via CLI: `python -m cloud_usage.cli --nios <backup.tar.gz>` with optional `--nios-config <config.yaml>` for migration split and filters
+- [x] **INTEG-01**: User can run NIOS analysis via CLI: `python -m cloud_usage.cli --nios <backup.tar.gz>` with optional `--nios-config <config.yaml>` for migration split and filters
 - [ ] **INTEG-02**: NIOS analysis is accessible via the web dashboard as a dedicated "NIOS Analysis" tab alongside the existing cloud provider tabs, with file upload, migration split wizard step, and results display
 
 ---
@@ -153,7 +153,7 @@ NIOS Grid backup analysis integrated into the existing tool alongside cloud disc
 | OUT-03 | Phase 13 | Complete |
 | OUT-04 | Phase 13 | Complete |
 | OUT-05 | Phase 13 | Complete |
-| INTEG-01 | Phase 14 | Pending |
+| INTEG-01 | Phase 14 | Complete |
 | INTEG-02 | Phase 15 | Pending |
 
 **Coverage:**

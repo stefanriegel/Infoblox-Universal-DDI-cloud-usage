@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: NIOS Grid Analysis
-current_phase: 13-output-and-runner (Plan 02/02 complete — phase done)
+current_phase: 14-cli-integration (Plan 02/02 complete — phase done)
 status: completed
-last_updated: "2026-03-02T04:34:09.669Z"
+last_updated: "2026-03-02T09:00:00.000Z"
 progress:
-  total_phases: 14
+  total_phases: 15
   completed_phases: 14
-  total_plans: 41
-  completed_plans: 41
+  total_plans: 43
+  completed_plans: 43
 ---
 
 # Session State
@@ -21,8 +21,8 @@ See: .planning/PROJECT.md
 ## Position
 
 **Milestone:** v1.1 NIOS Grid Analysis
-**Current phase:** 13-output-and-runner (Plan 02/02 complete — phase done)
-**Status:** Milestone complete
+**Current phase:** 14-cli-integration (Plan 02/02 complete — phase done)
+**Status:** Phase 14 complete — next: Phase 15 Dashboard Integration
 
 ## Key Decisions
 
@@ -36,6 +36,9 @@ See: .planning/PROJECT.md
 - 2026-03-02 (12-01): grid_counts always contributes to NIOS sub-total in hybrid scenario — grid-level objects have no member attribution; attributing to NIOS is conservative/correct
 - 2026-03-02 (12-01): combined_total = nios_sub.token_total + niosx_sub.token_total (arithmetic sum only; never re-computed from aggregated inputs)
 - 2026-03-02 (12-01): Active IP total for SCEN-01/SCEN-03 always from grid_counts.active_ip_count (global dedup); summing member IPs is wrong (misses grid-level IPs)
+- 2026-03-02 (14-01): Patch target for run_nios_analysis in tests is cloud_usage.nios.run_nios_analysis (not cloud_usage.nios.output.run_nios_analysis) — _run_nios_cli() uses lazy import from cloud_usage.nios
+- 2026-03-02 (14-01): main() tests on Python 3.9 must patch cloud_usage.cli.check_platform to return {'python_ok': True} — preflight check blocks elif branch on Python 3.9
+- 2026-03-02 (14-02): ZF reference acceptance figure is 304,730 (not 168,295) — CONTEXT.md had stale active-lease-only value; 304,730 is 4-source dedup total per STATE.md (11-03) and REQUIREMENTS.md COUNT-02
 
 ## Session Log
 
@@ -46,3 +49,5 @@ See: .planning/PROJECT.md
 - 2026-03-02: Executed 12-01+12-02 (scenario engine TDD) — MigrationSplitConfig, ScenarioResult, HybridScenarioResult, ScenarioSuite, compute_scenarios() implemented in nios/scenarios.py; 27 scenario tests pass; 92 total nios tests pass; Phase 12 complete
 - 2026-03-02: Executed 13-01 (output writer TDD) — write_nios_xlsx_report() with 6 sheet writers + get_member_map() export; 46 new tests; 138 total nios tests pass
 - 2026-03-02: Executed 13-02 (runner integration tests) — _count_ip_by_type() unit tests + run_nios_analysis() integration tests; 16 new tests; 154 total nios tests pass; Phase 13 complete
+- 2026-03-02: Executed 14-01 (CLI wiring) — NiosConfig frozen dataclass with from_yaml(), --nios/--nios-config argparse flags, elif branch in main(), _run_nios_cli() helper; 27 new tests; requirements.txt updated with pyyaml>=6.0
+- 2026-03-02: Executed 14-02 (acceptance test) — conftest.py with pytest.mark.integration, test_cli_nios_e2e_zf_reference passes against ZF backup (304,730 Active IPs confirmed); 181 total nios tests pass; Phase 14 complete

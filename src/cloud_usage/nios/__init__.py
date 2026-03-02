@@ -1,6 +1,11 @@
 """NIOS Grid backup analysis package.
 
-Provides streaming parser and typed schema for NIOS Grid backup files.
-Public API (parse_backup, inspect_backup, NiosObject, IntegrityReport)
-is exposed via nios.parser after Phase 13 wiring.
+Public API:
+- NiosConfig: Configuration dataclass for filter + migration split settings
+- run_nios_analysis(): Full analysis pipeline (parse -> filter -> count -> scenarios -> output)
 """
+
+from cloud_usage.nios.config import NiosConfig
+from cloud_usage.nios.output import run_nios_analysis
+
+__all__ = ["NiosConfig", "run_nios_analysis"]

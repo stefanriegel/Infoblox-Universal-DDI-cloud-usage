@@ -26,7 +26,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 11: Filter and Counter** - Member whitelist/blacklist with whitelist-first semantics, per-member DDI/IP/Asset counting with Host Object expansion and lease deduplication, dual formula constants (gap closure in progress — COUNT-02) (completed 2026-03-02)
 - [x] **Phase 12: Scenario Engine** - Three scenario computations: current grid (NIOS Object formula), hybrid UDDI (per-group dual formula), full migration (UDDI native formula) (completed 2026-03-02)
 - [x] **Phase 13: Output and Runner** - 5-sheet XLS report with per-scenario comparison and member attribution, runner wiring parse-filter-count-scenarios-output pipeline (completed 2026-03-02)
-- [ ] **Phase 14: CLI Integration** - Additive --nios and --nios-config CLI flags wired to runner, end-to-end acceptance test
+- [x] **Phase 14: CLI Integration** - Additive --nios and --nios-config CLI flags wired to runner, end-to-end acceptance test (completed 2026-03-02)
 - [ ] **Phase 15: Dashboard Integration** - NIOS Analysis tab with file upload wizard, migration split toggles, and results display
 
 ## Phase Details
@@ -201,7 +201,7 @@ Phases 10–15 deliver NIOS Grid backup analysis integrated into the existing to
 - [x] **Phase 11: Filter and Counter** - Member whitelist/blacklist with whitelist-first semantics, per-member DDI/IP/Asset counting with Host Object expansion and lease deduplication, dual formula constants (gap closure in progress — COUNT-02) (completed 2026-03-02)
 - [ ] **Phase 12: Scenario Engine** - Three scenario computations: current grid (NIOS Object formula), hybrid UDDI (per-group dual formula), full migration (UDDI native formula)
 - [x] **Phase 13: Output and Runner** - 5-sheet XLS report with per-scenario comparison and member attribution, runner wiring parse-filter-count-scenarios-output pipeline (completed 2026-03-02)
-- [ ] **Phase 14: CLI Integration** - Additive --nios and --nios-config CLI flags wired to runner, end-to-end acceptance test
+- [x] **Phase 14: CLI Integration** - Additive --nios and --nios-config CLI flags wired to runner, end-to-end acceptance test (completed 2026-03-02)
 - [ ] **Phase 15: Dashboard Integration** - NIOS Analysis tab with file upload wizard, migration split toggles, and results display
 
 ## Phase Details (v1.1)
@@ -312,5 +312,5 @@ Each phase has a hard data-flow dependency on the prior phase output.
 | 11. Filter and Counter | 3/3 | Complete    | 2026-03-02 |
 | 12. Scenario Engine | 2/2 | Complete   | 2026-03-02 |
 | 13. Output and Runner | 2/2 | Complete    | 2026-03-02 |
-| 14. CLI Integration | 0/TBD | Not started | - |
+| 14. CLI Integration | 2/2 | Complete | 2026-03-02 |
 | 15. Dashboard Integration | 0/TBD | Not started | - |

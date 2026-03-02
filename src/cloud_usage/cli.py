@@ -117,6 +117,22 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Ignore existing checkpoints and start a fresh scan",
     )
 
+    # NIOS analysis options
+    parser.add_argument(
+        "--nios",
+        type=str,
+        default=None,
+        metavar="BACKUP.tar.gz",
+        help="Run NIOS Grid analysis on a backup file (produces nios_analysis_<timestamp>.xlsx)",
+    )
+    parser.add_argument(
+        "--nios-config",
+        type=str,
+        default=None,
+        metavar="CONFIG.yaml",
+        help="YAML config for NIOS analysis: member filter and migration split settings",
+    )
+
     # AWS-specific options
     parser.add_argument(
         "--profile",
@@ -304,6 +320,10 @@ def main(argv: list[str] | None = None) -> int:
             log_level="warning",
         )
         return 0
+
+    # NIOS analysis mode — additive branch, exits before cloud provider selection
+    elif args.nios:
+        return _run_nios_cli(args)
 
     # Determine selected providers
     if args.aws or args.azure or args.gcp:
@@ -737,6 +757,67 @@ def _print_dry_run(providers: list, audit_logger) -> int:
 
     audit_logger.info("Dry run completed")
     sys.stderr.write("Dry run complete. No discovery API calls were made.\n")
+    return 0
+
+
+def _run_nios_cli(args: argparse.Namespace) -> int:
+    """Run NIOS Grid analysis from CLI arguments.
+
+    Handles config loading, error reporting, and output path construction.
+    All errors written to stderr. Returns 0 on success, 1 on any failure.
+
+    Args:
+        args: Parsed CLI arguments with .nios, .nios_config, .output_dir set.
+
+    Returns:
+        Exit code: 0 on success, 1 on failure.
+    """
+    import os
+    from datetime import datetime
+
+    from cloud_usage.nios import run_nios_analysis, NiosConfig
+    from cloud_usage.nios.errors import NiosParseError
+
+    backup_path = args.nios
+    if not os.path.exists(backup_path):
+        sys.stderr.write(f"Error: NIOS backup file not found: {backup_path}\n")
+        return 1
+
+    # Load config — either from YAML file or default (no filters, active-only leases)
+    try:
+        if args.nios_config:
+            config = NiosConfig.from_yaml(args.nios_config)
+        else:
+            config = NiosConfig()
+    except FileNotFoundError:
+        sys.stderr.write(f"Error: NIOS config file not found: {args.nios_config}\n")
+        return 1
+    except Exception as exc:
+        sys.stderr.write(f"Error reading NIOS config {args.nios_config}: {exc}\n")
+        return 1
+
+    # Build output path — respects --output-dir, uses existing timestamp format
+    scan_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.makedirs(args.output_dir, exist_ok=True)
+    output_path = os.path.join(args.output_dir, f"nios_analysis_{scan_id}.xlsx")
+
+    sys.stderr.write(f"Running NIOS analysis on {backup_path}...\n")
+
+    try:
+        written_path = run_nios_analysis(
+            backup_path=backup_path,
+            filter_config=config.filter_config,
+            split_config=config.split_config,
+            output_path=output_path,
+        )
+    except NiosParseError as exc:
+        sys.stderr.write(f"Error parsing NIOS backup: {exc}\n")
+        return 1
+    except Exception as exc:
+        sys.stderr.write(f"Error running NIOS analysis: {exc}\n")
+        return 1
+
+    sys.stderr.write(f"Output: {written_path}\n")
     return 0
 
 
