@@ -84,6 +84,11 @@ GRID_LEVEL_FAMILIES: frozenset[str] = frozenset(
         NiosFamily.DNS_RECORD_SOA,  # no member attribution in ZF backup
         NiosFamily.DNS_RECORD_SRV,  # no member attribution in ZF backup
         NiosFamily.DNS_RECORD_TXT,  # no member attribution in ZF backup
+        NiosFamily.DTC_LBDN,      # grid-level DTC object — spec-derived, no empirical backup
+        NiosFamily.DTC_POOL,      # grid-level DTC object — spec-derived, no empirical backup
+        NiosFamily.DTC_SERVER,    # grid-level DTC object — spec-derived, no empirical backup
+        NiosFamily.DTC_MONITOR,   # grid-level DTC object — spec-derived, no empirical backup
+        NiosFamily.DTC_TOPOLOGY,  # grid-level DTC object — spec-derived, no empirical backup
     }
 )
 
@@ -125,6 +130,21 @@ _XML_TYPE_TO_FAMILY: dict[str, str] = {
     # The virtual_oid and host_name fields are the keys for the member map.
     # virtual_oid (integer string) is referenced by lease.vnode_id.
     ".com.infoblox.one.virtual_node": NiosFamily.MEMBER,  # 239 observed
+    # ---- DTC (DNS Traffic Control) ----------------------------------------
+    # IMPORTANT (DTC-11): All DTC __type strings are spec-derived from WAPI type names.
+    # No empirical NIOS backup containing DTC objects has been observed.
+    # These mappings MUST be validated against a real DTC backup (DTC-V01, future).
+    ".com.infoblox.dns.dtc_lbdn": NiosFamily.DTC_LBDN,  # spec-derived, unverified — no empirical backup observed
+    ".com.infoblox.dns.dtc_pool": NiosFamily.DTC_POOL,  # spec-derived, unverified — no empirical backup observed
+    ".com.infoblox.dns.dtc_server": NiosFamily.DTC_SERVER,  # spec-derived, unverified — no empirical backup observed
+    ".com.infoblox.dns.dtc_monitor_http": NiosFamily.DTC_MONITOR,  # spec-derived, unverified — no empirical backup observed
+    ".com.infoblox.dns.dtc_monitor_icmp": NiosFamily.DTC_MONITOR,  # spec-derived, unverified — no empirical backup observed
+    ".com.infoblox.dns.dtc_monitor_pdp": NiosFamily.DTC_MONITOR,  # spec-derived, unverified — no empirical backup observed
+    ".com.infoblox.dns.dtc_monitor_sip": NiosFamily.DTC_MONITOR,  # spec-derived, unverified — no empirical backup observed
+    ".com.infoblox.dns.dtc_monitor_snmp": NiosFamily.DTC_MONITOR,  # spec-derived, unverified — no empirical backup observed
+    ".com.infoblox.dns.dtc_monitor_tcp": NiosFamily.DTC_MONITOR,  # spec-derived, unverified — no empirical backup observed
+    ".com.infoblox.dns.dtc_topology_label": NiosFamily.DTC_TOPOLOGY,  # spec-derived, unverified — no empirical backup observed
+    ".com.infoblox.dns.dtc_topology_rule": NiosFamily.DTC_TOPOLOGY,  # spec-derived, unverified — no empirical backup observed
 }
 
 # Which __type strings correspond to Member objects.

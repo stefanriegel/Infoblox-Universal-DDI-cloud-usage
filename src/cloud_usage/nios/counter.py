@@ -111,6 +111,11 @@ _DDI_FAMILIES: frozenset[str] = frozenset({
     NiosFamily.NETWORK,
     NiosFamily.NETWORK_CONTAINER,
     NiosFamily.NETWORK_VIEW,
+    NiosFamily.DTC_LBDN,
+    NiosFamily.DTC_POOL,
+    NiosFamily.DTC_SERVER,
+    NiosFamily.DTC_MONITOR,
+    NiosFamily.DTC_TOPOLOGY,
 })
 
 
