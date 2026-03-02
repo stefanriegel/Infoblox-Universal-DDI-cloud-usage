@@ -200,7 +200,7 @@ Phases 10–15 deliver NIOS Grid backup analysis integrated into the existing to
 - [x] **Phase 10: NIOS Parser and Schema** - Streaming tar.gz/onedb.xml parser with lxml iterparse, typed NiosObject schema, two-pass member map, structural integrity report (completed 2026-02-28)
 - [x] **Phase 11: Filter and Counter** - Member whitelist/blacklist with whitelist-first semantics, per-member DDI/IP/Asset counting with Host Object expansion and lease deduplication, dual formula constants (gap closure in progress — COUNT-02) (completed 2026-03-02)
 - [ ] **Phase 12: Scenario Engine** - Three scenario computations: current grid (NIOS Object formula), hybrid UDDI (per-group dual formula), full migration (UDDI native formula)
-- [ ] **Phase 13: Output and Runner** - 5-sheet XLS report with per-scenario comparison and member attribution, runner wiring parse-filter-count-scenarios-output pipeline
+- [x] **Phase 13: Output and Runner** - 5-sheet XLS report with per-scenario comparison and member attribution, runner wiring parse-filter-count-scenarios-output pipeline (completed 2026-03-02)
 - [ ] **Phase 14: CLI Integration** - Additive --nios and --nios-config CLI flags wired to runner, end-to-end acceptance test
 - [ ] **Phase 15: Dashboard Integration** - NIOS Analysis tab with file upload wizard, migration split toggles, and results display
 
@@ -311,6 +311,6 @@ Each phase has a hard data-flow dependency on the prior phase output.
 | 10. NIOS Parser and Schema | 3/3 | Complete    | 2026-02-28 |
 | 11. Filter and Counter | 3/3 | Complete    | 2026-03-02 |
 | 12. Scenario Engine | 2/2 | Complete   | 2026-03-02 |
-| 13. Output and Runner | 2/2 | Complete   | 2026-03-02 |
+| 13. Output and Runner | 2/2 | Complete    | 2026-03-02 |
 | 14. CLI Integration | 0/TBD | Not started | - |
 | 15. Dashboard Integration | 0/TBD | Not started | - |

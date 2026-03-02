@@ -75,11 +75,11 @@ NIOS Grid backup analysis integrated into the existing tool alongside cloud disc
 
 ### OUT — Output report
 
-- [ ] **OUT-01**: XLS report produced with sheets: Object Counters (raw counts per object type with "in UDDI" flag), DDI Objects (Native vs NIOS column split), Active IP by Type (leases / fixed / host / reservations), Scenario Comparison (current / hybrid / full migration side-by-side), Member Attribution
-- [ ] **OUT-02**: Scenario Comparison sheet shows for each scenario: DDI object count, Active IP count, Assets count, tokens per formula, and combined token total — one column per scenario
-- [ ] **OUT-03**: Member Attribution sheet lists every member (post-filter) with: virtual_oid, hostname/FQDN, group assignment (nios / niosx / unassigned), DHCP lease count, DDI object count, Active IP count, token contribution under the applicable formula
-- [ ] **OUT-04**: Every token total is traceable: source object counts → formula applied (NIOS Object or UDDI native) → token result; any unresolved items or assumptions logged as footnotes
-- [ ] **OUT-05**: Report header captures: NIOS version, backup snapshot date, filter config applied, migration split used, analysis timestamp — so two reports from different runs are unambiguously comparable
+- [x] **OUT-01**: XLS report produced with sheets: Object Counters (raw counts per object type with "in UDDI" flag), DDI Objects (Native vs NIOS column split), Active IP by Type (leases / fixed / host / reservations), Scenario Comparison (current / hybrid / full migration side-by-side), Member Attribution
+- [x] **OUT-02**: Scenario Comparison sheet shows for each scenario: DDI object count, Active IP count, Assets count, tokens per formula, and combined token total — one column per scenario
+- [x] **OUT-03**: Member Attribution sheet lists every member (post-filter) with: virtual_oid, hostname/FQDN, group assignment (nios / niosx / unassigned), DHCP lease count, DDI object count, Active IP count, token contribution under the applicable formula
+- [x] **OUT-04**: Every token total is traceable: source object counts → formula applied (NIOS Object or UDDI native) → token result; any unresolved items or assumptions logged as footnotes
+- [x] **OUT-05**: Report header captures: NIOS version, backup snapshot date, filter config applied, migration split used, analysis timestamp — so two reports from different runs are unambiguously comparable
 
 ### INTEG — Tool integration
 
@@ -148,11 +148,11 @@ NIOS Grid backup analysis integrated into the existing tool alongside cloud disc
 | SCEN-01 | Phase 12 | Complete |
 | SCEN-02 | Phase 12 | Complete |
 | SCEN-03 | Phase 12 | Complete |
-| OUT-01 | Phase 13 | Pending |
-| OUT-02 | Phase 13 | Pending |
-| OUT-03 | Phase 13 | Pending |
-| OUT-04 | Phase 13 | Pending |
-| OUT-05 | Phase 13 | Pending |
+| OUT-01 | Phase 13 | Complete |
+| OUT-02 | Phase 13 | Complete |
+| OUT-03 | Phase 13 | Complete |
+| OUT-04 | Phase 13 | Complete |
+| OUT-05 | Phase 13 | Complete |
 | INTEG-01 | Phase 14 | Pending |
 | INTEG-02 | Phase 15 | Pending |
 
