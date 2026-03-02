@@ -2,10 +2,50 @@
    Pico CSS handles 90% of styling via semantic HTML.
    These additions cover dashboard-specific UI patterns. */
 
-/* Tab bar styling */
+/* ===== Color palette ===== */
+:root {
+    --ib-blue: #0066cc;
+    --ib-blue-dark: #004a99;
+    --ib-blue-light: #e8f0fa;
+    --ib-gray-100: #f5f6f8;
+    --ib-gray-200: #e8eaed;
+    --ib-gray-600: #5f6368;
+    --ib-gray-900: #1a1d23;
+    --ib-green: #1a9e4a;
+    --ib-red: #d93025;
+    --ib-orange: #e8710a;
+}
+
+/* ===== General body ===== */
+body {
+    background: var(--ib-gray-100);
+}
+
+main.container {
+    padding-top: 1.5rem;
+}
+
+/* ===== Site header ===== */
+.site-header {
+    background: var(--ib-gray-900);
+    color: #fff;
+    padding: 0.75rem 0;
+    border-bottom: 3px solid var(--ib-blue);
+}
+
+.site-header strong {
+    color: #fff;
+    font-size: 1.1rem;
+    letter-spacing: 0.02em;
+}
+
+/* ===== Tab bar styling ===== */
 nav.tab-bar {
+    background: var(--ib-gray-100);
+    border-radius: 6px 6px 0 0;
+    padding: 0 0.5rem;
+    border-bottom: 2px solid var(--ib-gray-200);
     margin-bottom: 1.5rem;
-    border-bottom: 1px solid var(--pico-muted-border-color);
 }
 
 nav.tab-bar ul {
@@ -26,50 +66,54 @@ nav.tab-bar a {
     align-items: center;
     gap: 0.35rem;
     text-decoration: none;
-    padding: 0.5rem 1rem;
-    color: var(--pico-color);
+    padding: 0.65rem 1.1rem;
+    font-size: 0.9rem;
+    color: var(--ib-gray-600);
     border-bottom: 3px solid transparent;
-    transition: border-color 0.2s ease;
+    transition: border-color 0.2s ease, color 0.15s ease, background 0.15s ease;
     cursor: pointer;
 }
 
 nav.tab-bar a:hover {
-    border-bottom-color: var(--pico-muted-border-color);
+    color: var(--ib-gray-900);
+    background: rgba(0, 102, 204, 0.06);
+    border-radius: 4px 4px 0 0;
 }
 
 /* Active tab underline accent */
 .tab-active {
-    border-bottom: 3px solid var(--pico-primary-color) !important;
+    border-bottom: 3px solid var(--ib-blue) !important;
+    color: var(--ib-blue) !important;
     font-weight: 600;
 }
 
-/* Status badge styling */
+/* ===== Status badge styling ===== */
 .badge {
-    font-size: 0.75rem;
-    padding: 0.1rem 0.4rem;
-    border-radius: 4px;
-    background: var(--pico-muted-border-color);
-    color: var(--pico-color);
+    font-size: 0.7rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 10px;
+    background: var(--ib-gray-200);
+    color: var(--ib-gray-600);
     vertical-align: middle;
     margin-left: 0.25rem;
 }
 
 .badge-success {
-    background: #2ecc40;
-    color: #fff;
+    background: #d4edda;
+    color: #155724;
 }
 
 .badge-warning {
-    background: #ff851b;
-    color: #fff;
+    background: #fff3cd;
+    color: #7a5000;
 }
 
 .badge-error {
-    background: #ff4136;
-    color: #fff;
+    background: #f8d7da;
+    color: var(--ib-red);
 }
 
-/* Progress row styling */
+/* ===== Progress row styling ===== */
 .progress-row {
     margin-bottom: 1rem;
 }
@@ -90,7 +134,7 @@ nav.tab-bar a:hover {
 
 .progress-text {
     font-size: 0.9rem;
-    color: var(--pico-muted-color);
+    color: var(--ib-gray-600);
 }
 
 .progress-row progress {
@@ -98,7 +142,7 @@ nav.tab-bar a:hover {
 }
 
 .progress-row small {
-    color: var(--pico-muted-color);
+    color: var(--ib-gray-600);
 }
 
 .toggle-details {
@@ -112,7 +156,7 @@ nav.tab-bar a:hover {
     display: none;
     padding: 0.5rem 1rem;
     margin-top: 0.5rem;
-    border-top: 1px solid var(--pico-muted-border-color);
+    border-top: 1px solid var(--ib-gray-200);
 }
 
 .expandable-content.open {
@@ -131,17 +175,21 @@ nav.tab-bar a:hover {
     justify-content: flex-start;
 }
 
-/* Completion / cancel / error banners */
+/* ===== Completion / cancel / error banners ===== */
 .completion-banner {
-    border-left: 4px solid #2ecc40;
+    border-left: 4px solid var(--ib-green);
+    background: #fff;
+    border-radius: 6px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
 }
 
 .cancel-banner {
-    border-left: 4px solid #ff851b;
+    border-left: 4px solid var(--ib-orange);
 }
 
 .error-banner-block {
-    border-left: 4px solid #ff4136;
+    border-left: 4px solid var(--ib-red);
 }
 
 /* Reusable banner component */
@@ -169,7 +217,7 @@ nav.tab-bar a:hover {
     border: 1px solid #f5c6cb;
 }
 
-/* Summary card grid */
+/* ===== Summary card grid ===== */
 .summary-cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -180,32 +228,133 @@ nav.tab-bar a:hover {
 .summary-cards article {
     text-align: center;
     margin: 0;
+    background: #fff;
+    border: 1px solid var(--ib-gray-200);
+    border-radius: 8px;
+    padding: 1.25rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    transition: box-shadow 0.15s ease;
+}
+
+.summary-cards article:hover {
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
 }
 
 .summary-cards article h3 {
     margin-bottom: 0.25rem;
 }
 
-/* Filter chip styling */
+/* Stat card icon */
+.stat-icon {
+    display: block;
+    margin: 0 auto 0.5rem;
+    width: 2rem;
+    height: 2rem;
+    color: var(--ib-blue);
+}
+
+/* Stat card value (large bold number) */
+.stat-value {
+    font-size: 2.2rem;
+    font-weight: 700;
+    color: var(--ib-gray-900);
+    line-height: 1.1;
+    display: block;
+}
+
+/* Stat card label */
+.stat-label {
+    font-size: 0.8rem;
+    color: var(--ib-gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-top: 0.2rem;
+}
+
+/* ===== NIOS hero stats ===== */
+.hero-tokens {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--ib-blue);
+    line-height: 1;
+    display: block;
+}
+
+.scenario-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.scenario-card {
+    background: var(--ib-blue-light);
+    border: 1px solid #c5d9f0;
+    border-radius: 8px;
+    padding: 1.25rem 1rem;
+    text-align: center;
+}
+
+.scenario-card.primary {
+    background: var(--ib-blue);
+    color: #fff;
+    border-color: var(--ib-blue-dark);
+}
+
+.scenario-card .sc-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    opacity: 0.75;
+    display: block;
+    margin-bottom: 0.4rem;
+}
+
+.scenario-card.primary .sc-label {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.download-cta {
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+.download-cta a[role="button"] {
+    background: var(--ib-blue);
+    color: #fff;
+    padding: 0.75rem 2rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    display: inline-block;
+    box-shadow: 0 2px 6px rgba(0, 102, 204, 0.3);
+}
+
+.download-cta a[role="button"]:hover {
+    background: var(--ib-blue-dark);
+}
+
+/* ===== Filter chip styling ===== */
 .chip {
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
     padding: 0.2rem 0.6rem;
     border-radius: 12px;
-    background: var(--pico-muted-border-color);
+    background: var(--ib-gray-200);
     font-size: 0.85rem;
     margin: 0.15rem;
 }
 
 .chip a {
     text-decoration: none;
-    color: var(--pico-color);
+    color: var(--ib-gray-900);
     font-weight: bold;
     margin-left: 0.2rem;
 }
 
-/* Wizard step indicator */
+/* ===== Wizard step indicator ===== */
 .wizard-steps {
     display: flex;
     justify-content: center;
@@ -219,16 +368,16 @@ nav.tab-bar a:hover {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: var(--pico-muted-color);
+    color: var(--ib-gray-600);
 }
 
 .wizard-steps li.active {
-    color: var(--pico-primary-color);
+    color: var(--ib-blue);
     font-weight: 600;
 }
 
 .wizard-steps li.completed {
-    color: var(--pico-primary-color);
+    color: var(--ib-blue);
 }
 
 .wizard-steps .step-number {
@@ -243,13 +392,13 @@ nav.tab-bar a:hover {
 }
 
 .wizard-steps li.active .step-number {
-    background: var(--pico-primary-color);
+    background: var(--ib-blue);
     color: #fff;
-    border-color: var(--pico-primary-color);
+    border-color: var(--ib-blue);
 }
 
 .wizard-steps li.completed .step-number {
-    background: var(--pico-primary-color);
+    background: var(--ib-blue);
     color: #fff;
-    border-color: var(--pico-primary-color);
+    border-color: var(--ib-blue);
 }
