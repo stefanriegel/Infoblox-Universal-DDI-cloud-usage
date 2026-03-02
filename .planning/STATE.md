@@ -2,30 +2,30 @@
 gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: DTC/LBDN DDI Support
-status: complete
-last_updated: "2026-03-02"
+status: unknown
+last_updated: "2026-03-02T21:59:32.915Z"
 progress:
-  total_phases: 17
-  completed_phases: 17
-  total_plans: 37
-  completed_plans: 37
+  total_phases: 12
+  completed_phases: 12
+  total_plans: 35
+  completed_plans: 35
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-02 after v1.2 milestone start)
+See: .planning/PROJECT.md (updated 2026-03-02 after v1.2 milestone archived)
 
 **Core value:** Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** v1.2 milestone complete — all DTC requirements delivered
+**Current focus:** Between milestones — v1.2 archived; planning next milestone
 
 ## Current Position
 
 Phase: 17 of 17 (DTC Integration Verification)
 Plan: 2 of 2 in current phase
 Status: Complete
-Last activity: 2026-03-02 - Completed quick task 1: update the readme and add how to use
+Last activity: 2026-03-02 - Completed quick task 2: fix cloud-usage command-not-found — add pyproject.toml
 
 Progress: [██████████] 100%
 
@@ -61,6 +61,7 @@ Progress: [██████████] 100%
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | update the readme and add how to use | 2026-03-02 | 7d593f0 | [1-update-the-readme-and-add-how-to-use](./quick/1-update-the-readme-and-add-how-to-use/) |
+| 2 | fix cloud-usage command-not-found — add pyproject.toml | 2026-03-02 | 517fcd2 | [2-fix-cloud-usage-command-not-found-add-py](./quick/2-fix-cloud-usage-command-not-found-add-py/) |
 
 ### Blockers/Concerns
 
@@ -72,3 +73,4 @@ Progress: [██████████] 100%
 - 2026-03-02: Roadmap created — Phase 16 (parser/counter) and Phase 17 (integration verification)
 - 2026-03-02: Phase 16 complete — 5 NiosFamily DTC constants, 11 _XML_TYPE_TO_FAMILY entries, 5 _DDI_FAMILIES entries, 6 new tests (3 parser + 3 counter), 188 total tests pass
 - 2026-03-02: Phase 17 complete — output.py extended to 26 families, 7 new tests (DTC-08 x3, DTC-09 x2, DTC-10 x2), 105 tests pass across test_nios_output/scenarios/inspect; v1.2 milestone complete
+- 2026-03-02: v1.2 milestone archived — ROADMAP.md collapsed, REQUIREMENTS.md archived to milestones/v1.2-REQUIREMENTS.md, git tag v1.2 created
