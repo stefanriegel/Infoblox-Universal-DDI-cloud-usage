@@ -45,6 +45,8 @@ echo
 
 echo "  - Installing all dependencies..."
 pip install -r requirements.txt
+echo "  - Installing package entry point..."
+pip install -e .
 
 echo
 echo "########################################"

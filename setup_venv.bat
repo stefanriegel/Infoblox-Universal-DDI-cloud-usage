@@ -32,6 +32,8 @@ echo.
 
 echo   - Installing all dependencies...
 python -m pip install -r requirements.txt
+echo   - Installing package entry point...
+python -m pip install -e .
 
 echo.
 echo ================================

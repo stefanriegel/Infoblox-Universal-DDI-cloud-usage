@@ -86,6 +86,7 @@ Use manual setup when automated scripts cannot execute due to system restriction
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+pip install -e .
 ```
 
 **Windows:**
@@ -94,6 +95,7 @@ python -m venv venv
 venv\Scripts\activate.bat
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+pip install -e .
 ```
 
 > On Windows, you may need to install the [Microsoft Visual C++ Redistributable](https://aka.ms/vs/17/release/vc_redist.x64.exe) if Azure dependencies fail to install due to cryptography compilation errors.

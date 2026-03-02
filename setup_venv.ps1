@@ -58,6 +58,8 @@ Write-Host
 
 Write-Host "  - Installing all dependencies..." -ForegroundColor Green
 python -m pip install -r requirements.txt
+Write-Host "  - Installing package entry point..." -ForegroundColor Green
+python -m pip install -e .
 
 Write-Host
 Write-Host "================================" -ForegroundColor Cyan
