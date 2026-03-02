@@ -8,8 +8,8 @@ Provides:
 
 Sheet order:
 1. Analysis Info        -- metadata, filter config, formula constants, analysis timestamp
-2. Object Counters      -- all 21 NiosFamily rows with raw counts and UDDI flag
-3. DDI Objects          -- 17 DDI families with per-family NIOS/UDDI token contributions
+2. Object Counters      -- all 26 NiosFamily rows with raw counts and UDDI flag
+3. DDI Objects          -- 22 DDI families with per-family NIOS/UDDI token contributions
 4. Active IP by Type    -- per-source IP counts + grand total (deduped from grid_counts)
 5. Scenario Comparison  -- 3-scenario side-by-side (Current Grid / Hybrid UDDI / Full Migration)
 6. Member Attribution   -- per-member group assignment, counts, and token contributions
@@ -82,6 +82,12 @@ _ALL_FAMILIES_ORDERED: list[str] = [
     NiosFamily.EXCLUSION_RANGE,
     NiosFamily.NETWORK_CONTAINER,
     NiosFamily.NETWORK_VIEW,
+    # ---- DTC (DNS Traffic Control) — Phase 17: DTC-09 ----
+    NiosFamily.DTC_LBDN,
+    NiosFamily.DTC_POOL,
+    NiosFamily.DTC_SERVER,
+    NiosFamily.DTC_MONITOR,
+    NiosFamily.DTC_TOPOLOGY,
 ]
 
 # Human-readable display names for Object Counters sheet
@@ -107,6 +113,12 @@ _FAMILY_DISPLAY_NAMES: dict[str, str] = {
     NiosFamily.EXCLUSION_RANGE:   "exclusion_range",
     NiosFamily.NETWORK_CONTAINER: "network_container",
     NiosFamily.NETWORK_VIEW:      "network_view",
+    # ---- DTC (DNS Traffic Control) — Phase 17: DTC-09 ----
+    NiosFamily.DTC_LBDN:      "dtc_lbdn",
+    NiosFamily.DTC_POOL:      "dtc_pool",
+    NiosFamily.DTC_SERVER:    "dtc_server",
+    NiosFamily.DTC_MONITOR:   "dtc_monitor",
+    NiosFamily.DTC_TOPOLOGY:  "dtc_topology",
 }
 
 
@@ -129,7 +141,7 @@ def write_nios_xlsx_report(
 
     Creates a workbook with six sheets in this order:
     1. Analysis Info      - metadata, filter config verbatim, formula constants
-    2. Object Counters    - all 21 NIOS families with raw counts and UDDI flag
+    2. Object Counters    - all 26 NIOS families with raw counts and UDDI flag
     3. DDI Objects        - 17 DDI families with NIOS/UDDI token contributions per family
     4. Active IP by Type  - per-source IP counts + grand total (deduped)
     5. Scenario Comparison - 3-scenario side-by-side comparison
@@ -331,7 +343,7 @@ def _write_object_counters_sheet(
     even_number_fmt,
     integrity_report: IntegrityReport,
 ) -> None:
-    """Write Object Counters sheet — all 21 NiosFamily rows with counts and UDDI flag."""
+    """Write Object Counters sheet — all 26 NiosFamily rows with counts and UDDI flag."""
     ws = workbook.add_worksheet("Object Counters")
     ws.freeze_panes(1, 0)
     ws.set_column(0, 0, 30)
