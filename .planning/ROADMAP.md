@@ -56,7 +56,7 @@ Archive: `.planning/milestones/v1.2-ROADMAP.md`
 **Milestone Goal:** Make the NIOS analysis feel polished and informative — progress steps during long runs, rich token breakdown with formula derivation, and a guided member assignment wizard.
 
 - [x] **Phase 18: NIOS Pipeline Progress Events** — Emit step-level SSE events from the NIOS analysis pipeline and surface named steps, step counters, and elapsed time in the dashboard UI (completed 2026-03-02)
-- [ ] **Phase 19: Token Breakdown WebUI** — Enrich the NIOS results screen with per-scenario formula derivation and a per-member attribution table with NIOS/NIOSX group labels
+- [x] **Phase 19: Token Breakdown WebUI** — Enrich the NIOS results screen with per-scenario formula derivation and a per-member attribution table with NIOS/NIOSX group labels (completed 2026-03-03)
 - [ ] **Phase 20: Migration Wizard UX** — Improve the NIOS member assignment step with explanatory text, select-all control, live group counts, and clearly numbered step labels
 
 ## Phase Details
@@ -99,5 +99,5 @@ Archive: `.planning/milestones/v1.2-ROADMAP.md`
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 18. NIOS Pipeline Progress Events | 2/2 | Complete    | 2026-03-02 |
-| 19. Token Breakdown WebUI | 0/TBD | Not started | - |
+| 19. Token Breakdown WebUI | 0/TBD | Complete    | 2026-03-03 |
 | 20. Migration Wizard UX | 0/TBD | Not started | - |
