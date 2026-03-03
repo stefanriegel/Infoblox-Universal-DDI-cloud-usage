@@ -68,7 +68,7 @@ Archive: `.planning/milestones/v1.3-ROADMAP.md`
 **Milestone Goal:** Surface formula derivation and object-level attribution in both cloud and NIOS WebUI so every token total is fully explainable without leaving the browser.
 
 - [x] **Phase 21: Cloud Per-Account Attribution Table** — Per-account token attribution with inline formula derivation and resource-type breakdown on the cloud scan Summary tab (completed 2026-03-03)
-- [ ] **Phase 22: NIOS Object Family Breakdown** — Object-family breakdown table on the NIOS complete screen mirroring the XLS Object Counters sheet
+- [x] **Phase 22: NIOS Object Family Breakdown** — Object-family breakdown table on the NIOS complete screen mirroring the XLS Object Counters sheet (completed 2026-03-03)
 
 ## Phase Details
 
@@ -121,5 +121,5 @@ Archive: `.planning/milestones/v1.3-ROADMAP.md`
 | 18. NIOS Pipeline Progress Events | v1.3 | 2/2 | Complete | 2026-03-02 |
 | 19. Token Breakdown WebUI | v1.3 | 2/2 | Complete | 2026-03-03 |
 | 20. Migration Wizard UX | v1.3 | 2/2 | Complete | 2026-03-03 |
-| 21. Cloud Per-Account Attribution Table | 2/2 | Complete    | 2026-03-03 | - |
-| 22. NIOS Object Family Breakdown | v1.4 | 0/? | Not started | - |
+| 21. Cloud Per-Account Attribution Table | v1.4 | 2/2 | Complete | 2026-03-03 |
+| 22. NIOS Object Family Breakdown | v1.4 | 2/2 | Complete | 2026-03-03 |
