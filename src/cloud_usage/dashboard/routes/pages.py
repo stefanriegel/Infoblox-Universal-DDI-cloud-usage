@@ -133,6 +133,15 @@ def _compute_summary(resources: list) -> dict:
     # Build per-account detail list
     per_account_details = []
     for account_id, result in sorted(account_results.items()):
+        # Build resource_type_breakdown: counted resources only, grouped by resource_type
+        breakdown: dict[str, dict] = {}
+        for r in by_account[account_id]:
+            if r.counted and r.category in ("ddi", "ip", "asset"):
+                rt = r.resource_type
+                if rt not in breakdown:
+                    breakdown[rt] = {"count": 0, "category": r.category}
+                breakdown[rt]["count"] += 1
+
         per_account_details.append({
             "account_id": account_id,
             "provider": account_provider[account_id],
@@ -140,6 +149,10 @@ def _compute_summary(resources: list) -> dict:
             "ip_count": result["ip_count"],
             "asset_count": result["asset_count"],
             "total_tokens": result["total_tokens"],
+            "ddi_tokens": result["ddi_tokens"],
+            "ip_tokens": result["ip_tokens"],
+            "asset_tokens": result["asset_tokens"],
+            "resource_type_breakdown": breakdown,
         })
 
     # Grand totals
