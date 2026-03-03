@@ -43,20 +43,20 @@
     <h3>Per-Account Breakdown</h3>
     <figure>
     <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--ib-gray-200); border-radius: 6px;">
-    <table style="margin: 0; font-size: 0.85rem;">
+    <table id="acct-attribution-table" style="margin: 0; font-size: 0.85rem;">
       <thead>
         <tr>
           <th>Account / Sub / Project</th>
           <th>Provider</th>
-          <th style="text-align: right;">DDI Objects</th>
-          <th style="text-align: right;">Active IPs</th>
-          <th style="text-align: right;">Managed Assets</th>
-          <th style="text-align: right;">Tokens</th>
+          <th style="text-align: right;" data-col="ddi" data-label="DDI Objects">DDI Objects</th>
+          <th style="text-align: right;" data-col="ips" data-label="Active IPs">Active IPs</th>
+          <th style="text-align: right;" data-col="assets" data-label="Managed Assets">Managed Assets</th>
+          <th style="text-align: right;" data-col="tokens" data-label="Tokens">Tokens</th>
         </tr>
       </thead>
       <tbody>
         {% for acct in per_account_details %}
-        <tr>
+        <tr class="acct-row">
           <td>
             {% if acct.provider == "aws" %}Account
             {% elif acct.provider == "azure" %}Subscription
@@ -64,28 +64,28 @@
             <small style="display: block; font-family: monospace; color: var(--ib-gray-600);">{{ acct.account_id }}</small>
           </td>
           <td>{{ acct.provider | upper }}</td>
-          <td style="text-align: right;">
+          <td style="text-align: right;" data-col="ddi" data-value="{{ acct.ddi_count }}">
             {{ acct.ddi_count }}
             {% if acct.ddi_count > 0 %}
             <small style="display: block; color: var(--ib-gray-600);">÷ 25 = {{ "%.1f" | format(acct.ddi_count / 25) }}</small>
             {% endif %}
           </td>
-          <td style="text-align: right;">
+          <td style="text-align: right;" data-col="ips" data-value="{{ acct.ip_count }}">
             {{ acct.ip_count }}
             {% if acct.ip_count > 0 %}
             <small style="display: block; color: var(--ib-gray-600);">÷ 13 = {{ "%.1f" | format(acct.ip_count / 13) }}</small>
             {% endif %}
           </td>
-          <td style="text-align: right;">
+          <td style="text-align: right;" data-col="assets" data-value="{{ acct.asset_count }}">
             {{ acct.asset_count }}
             {% if acct.asset_count > 0 %}
             <small style="display: block; color: var(--ib-gray-600);">÷ 3 = {{ "%.1f" | format(acct.asset_count / 3) }}</small>
             {% endif %}
           </td>
-          <td style="text-align: right;"><strong>{{ acct.total_tokens }}</strong></td>
+          <td style="text-align: right;" data-col="tokens" data-value="{{ acct.total_tokens }}"><strong>{{ acct.total_tokens }}</strong></td>
         </tr>
         {% if acct.resource_type_breakdown %}
-        <tr>
+        <tr class="acct-detail-row">
           <td colspan="6" style="padding: 0 0.5rem 0.5rem 1rem; background: var(--ib-gray-100, #f8f8f8);">
             <details>
               <summary style="cursor: pointer; font-size: 0.8rem; color: var(--ib-gray-600);">▶ {{ acct.resource_type_breakdown | length }} resource types</summary>
@@ -110,6 +110,56 @@
         </tr>
       </tfoot>
     </table>
+    <script>
+    (function() {
+      var table = document.getElementById('acct-attribution-table');
+      if (!table) return;
+      var tbody = table.querySelector('tbody');
+      var headers = table.querySelectorAll('th[data-col]');
+      var sortCol = 'tokens';
+      var sortDir = 'desc';
+
+      function sortTable(col, dir) {
+        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr.acct-row'));
+        rows.sort(function(a, b) {
+          var av = parseFloat(a.querySelector('[data-col="' + col + '"]').getAttribute('data-value')) || 0;
+          var bv = parseFloat(b.querySelector('[data-col="' + col + '"]').getAttribute('data-value')) || 0;
+          return dir === 'desc' ? bv - av : av - bv;
+        });
+        rows.forEach(function(row) {
+          tbody.appendChild(row);
+          var next = row.nextElementSibling;
+          if (next && next.classList.contains('acct-detail-row')) {
+            tbody.appendChild(next);
+          }
+        });
+        headers.forEach(function(th) {
+          var col_name = th.getAttribute('data-col');
+          if (col_name === col) {
+            th.textContent = th.getAttribute('data-label') + (dir === 'desc' ? ' \u2193' : ' \u2191');
+          } else {
+            th.textContent = th.getAttribute('data-label');
+          }
+        });
+      }
+
+      headers.forEach(function(th) {
+        th.style.cursor = 'pointer';
+        th.addEventListener('click', function() {
+          var col = th.getAttribute('data-col');
+          if (sortCol === col) {
+            sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+          } else {
+            sortCol = col;
+            sortDir = 'desc';
+          }
+          sortTable(sortCol, sortDir);
+        });
+      });
+
+      sortTable(sortCol, sortDir);
+    })();
+    </script>
     </div>
     </figure>
     {% endif %}
