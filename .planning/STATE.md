@@ -4,7 +4,7 @@ milestone: v1.6
 milestone_name: Wizard Navigation Fix
 status: planning
 stopped_at: Completed 24-wizard-navigation-fix 24-01-PLAN.md
-last_updated: "2026-03-03T20:47:22.867Z"
+last_updated: "2026-03-03T20:50:15.740Z"
 last_activity: 2026-03-03 — Roadmap created for v1.6; Phase 24 defined with 3 requirements (NAV-01, NAV-02, NAV-03)
 progress:
   total_phases: 1

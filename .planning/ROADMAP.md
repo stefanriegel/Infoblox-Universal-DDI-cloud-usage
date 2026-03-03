@@ -140,4 +140,4 @@ Plans:
 | 21. Cloud Per-Account Attribution Table | v1.4 | 2/2 | Complete | 2026-03-03 |
 | 22. NIOS Object Family Breakdown | v1.4 | 2/2 | Complete | 2026-03-03 |
 | 23. Results Navigation | v1.5 | 2/2 | Complete | 2026-03-03 |
-| 24. Wizard Navigation Fix | 1/1 | Complete   | 2026-03-03 | - |
+| 24. Wizard Navigation Fix | 1/1 | Complete    | 2026-03-03 | - |
