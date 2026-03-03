@@ -452,3 +452,390 @@ Phase 13 (dashboard integration, NIOS upload endpoint). Include a file-size test
 ---
 *Pitfalls research for: NIOS Grid backup parsing & hybrid UDDI licensing estimation (v1.1)*
 *Researched: 2026-02-28*
+
+---
+
+---
+
+# v1.4 Pitfalls: Per-Account Attribution Tables and Per-Family NIOS Breakdown
+
+**Domain:** Adding per-account attribution tables (cloud) and per-family DDI breakdown (NIOS) to an existing FastAPI+HTMX tool
+**Researched:** 2026-03-03
+**Confidence:** HIGH — derived directly from reading the existing codebase (`pages.py`, `scan.py`, `counter.py`, `scenarios.py`, `nios_manager.py`, `complete.html`, `summary.html`). All pitfalls are code-grounded, not speculative.
+
+---
+
+## Critical Pitfalls
+
+### Pitfall A1: Cloud Per-Account Token Total Computed Differently in Summary vs. Attribution Table
+
+**What goes wrong:**
+The `_compute_summary()` function in `pages.py` derives grand-total tokens by summing raw DDI/IP/asset counts across all accounts and calling `calculate_tokens(total_ddi, total_ips, total_assets)`. The per-account table sums `result["total_tokens"]` from individual `calculate_account_tokens()` calls. Because `calculate_tokens()` uses ceiling division — `math.ceil(count / divisor)` — the sum of per-account ceilings is always greater than or equal to the ceiling of the sum. This means the "Total" row of the attribution table will routinely exceed the grand-total shown in the summary card, even though both figures are computed from the same underlying data.
+
+Example: two accounts each with 12 DDI objects. Each account: `ceil(12/25) = 1` token. Sum = 2 tokens. Grand total via single call: `ceil(24/25) = 1` token. The attribution table footer would show 2 but the hero number shows 1. Enterprise auditors will flag this immediately.
+
+**Why it happens:**
+It is natural to add a footer row to the attribution table that sums the `total_tokens` column. The discrepancy is a fundamental property of ceiling division, not a bug in either calculation. The existing code already has this split: `_compute_summary()` computes a grand total via a single `calculate_tokens()` call on aggregated counts, while `per_account_details` lists per-account results from individual calls. If the template sums the per-account tokens column and shows it as a total, the number will not match the hero summary card.
+
+**How to avoid:**
+Do not show a "Total tokens" footer in the per-account attribution table. Instead, display a note: "Token totals are computed on the combined count across all accounts — summing per-account token rows will exceed the actual total due to ceiling division." Alternatively, omit the per-account token column entirely and add a "% of total" column to show relative contribution without implying summability.
+
+The existing `complete.html` member attribution table for NIOS already handles the analogous IP case correctly: it shows a subtitle warning that per-member IP counts are "not summable." Follow the same pattern for cloud per-account token contribution.
+
+**Warning signs:**
+- A "Total" row at the bottom of the attribution table sums the Tokens column.
+- The Total row value in the table does not match the hero token number in the summary card.
+- Customers ask "why do the rows add up to more than your total?".
+
+**Phase to address:**
+v1.4 Phase (Cloud per-account attribution table implementation). The warning must be in the initial template design, not added after an auditor complains.
+
+---
+
+### Pitfall A2: Cloud Per-Account IP Counts Are Already Deduplicated Per-Account but Summing Across Accounts Double-Counts Cross-Account Shared IPs
+
+**What goes wrong:**
+The IP deduplication in `deduplicate_ips_per_vpc()` produces per-account deduplicated counts stored in `ip_dedup["per_account"]`. These are the values used in `calculate_account_tokens()` for each account. However, if the attribution table shows an "Active IPs" column with a footer that sums these per-account values, the result will double-count any IP address that appears in multiple accounts (e.g., RFC1918 addresses like 10.0.0.1 that are reused across VPCs in different accounts).
+
+The existing global deduplication (`global_ip_set` used in the grand total) prevents this double-count for the hero number. But the per-account attribution table footer would undo that deduplication.
+
+**Why it happens:**
+The developer adds a "sum" footer row to the IPs column for completeness, not realizing that IP deduplication is per-account (not cross-account) in the current implementation. The per-account IP counts are themselves deduplicated within each account's VPCs, but accounts can share private IP space.
+
+**How to avoid:**
+Same pattern as Pitfall A1 for tokens: do not show a summable IP total in the attribution table footer. Show a note: "Per-account Active IP counts are deduplicated within each account. Cross-account IP totals are not shown here — see the summary card for the globally deduplicated figure." For DDI counts, a footer IS summable (DDI objects cannot be shared across accounts), so a DDI total footer is correct. Differentiate clearly: DDI footer = summable, IP footer = not summable.
+
+**Warning signs:**
+- Attribution table has an IP footer that sums per-account values.
+- The IP footer value exceeds the summary card IP total.
+- No distinction between DDI (summable) and IPs (not summable across accounts) in the table footer.
+
+**Phase to address:**
+v1.4 Phase (Cloud per-account attribution table). Establish the summability rules in the template specification before coding: DDI sums correctly; IPs do not.
+
+---
+
+### Pitfall A3: Cloud Provider Terminology Inconsistency Across the Table and the Rest of the UI
+
+**What goes wrong:**
+AWS uses "Account" (12-digit account ID), Azure uses "Subscription" (UUID), and GCP uses "Project" (string project ID). The existing `resource.account_id` field stores all three uniformly as strings. If the attribution table header says "Account" and the table contains Azure subscription UUIDs or GCP project IDs, customers will ask why their Azure subscription is labeled "Account." The UI already uses the generic word "Account" throughout (e.g., "Account ID" column in the results table), which is technically correct but providers' own documentation uses their specific terminology.
+
+**Why it happens:**
+The cloud discovery layer stores everything in a unified `account_id` field. Templates that call it "Account" are not wrong per the data model, but enterprise customers who know their Azure estate as "subscriptions" or their GCP estate as "projects" may be confused when auditing output alongside their provider console.
+
+**How to avoid:**
+Two options: (1) Use "Account / Subscription / Project" as the column header, with a note that AWS shows account IDs, Azure shows subscription IDs, and GCP shows project IDs. (2) Detect provider from the row's `provider` field and use the provider-appropriate label per row. Option 2 is better for large mixed-provider tables but requires per-row conditional rendering in Jinja2. A simple approach: a helper dict `{"aws": "Account", "azure": "Subscription", "gcp": "Project"}` applied in the template per row.
+
+For the table heading, a tooltip or caption explaining the terminology mapping is sufficient if per-row labels add too much visual noise.
+
+**Warning signs:**
+- Attribution table column header says "Account ID" for all rows regardless of provider.
+- Azure rows show UUIDs under a column labeled "Account" without any explanation.
+- GCP rows show project-format strings mixed with AWS numeric IDs, no label differentiation.
+
+**Phase to address:**
+v1.4 Phase (Cloud per-account attribution table template design). Decide on the naming convention upfront; retrofitting it after the table is built is purely cosmetic work but creates unnecessary revision cycles.
+
+---
+
+### Pitfall A4: Resource Type Breakdown Column Causes Template Complexity That Masks Data Integrity Errors
+
+**What goes wrong:**
+The v1.4 scope includes a "resource type breakdown" per account in the attribution table. This requires grouping counted resources by `resource_type` within each account, then rendering a compact breakdown (e.g., "EC2: 45, EKS: 12, RDS: 8"). The grouping logic in the Python route (`_compute_summary`) would need to be extended, and the template would need to either render a sub-table, a comma-separated string, or a tooltip. This added complexity significantly increases the risk of the breakdown numbers not matching the main resource count or the DDI/IP/asset tallies.
+
+Specifically: if the breakdown counts "EC2: 45" and the DDI total for that account is 52, a sharp auditor will immediately ask what the other 7 are — leading to questions about why some resources contribute to DDI but do not appear in the breakdown.
+
+**Why it happens:**
+Resource type breakdown sounds simple but requires coordinating three different counting pathways: raw resource counts (all resources), counted resource counts (only `r.counted == True`), and DDI/IP/asset category counts. If the breakdown shows raw counts but the DDI column shows counted-only counts, the numbers appear to contradict each other.
+
+**How to avoid:**
+Be explicit about what the breakdown counts. The breakdown should count only counted resources (`r.counted is True`) grouped by `resource_type`, and should note this explicitly. Do not include skipped resources in the breakdown without a separate "skipped" count. If the breakdown is too complex to fit cleanly in a table cell without confusion, defer it — the per-account DDI/IP/Asset/Tokens columns are already the primary audit data. The breakdown is enrichment, not core data. Consider linking to the Results tab pre-filtered by account as an alternative to embedding the breakdown in the table.
+
+**Warning signs:**
+- Breakdown counts do not sum to the DDI count in the same row.
+- Breakdown includes both counted and skipped resources without labeling.
+- Template renders breakdown as a nested structure inside a table cell, causing visual alignment issues.
+
+**Phase to address:**
+v1.4 Phase (Cloud per-account attribution table). If resource type breakdown is in scope, define precisely which resources are counted in the breakdown before implementation. If it adds more complexity than value, scope it out.
+
+---
+
+### Pitfall A5: HTMX State Loss — Cloud Attribution Table Disappears on Tab Navigate-Away-and-Back
+
+**What goes wrong:**
+The cloud Summary tab (`/tab/summary`) re-computes `_compute_summary()` from `scan_manager.resources` on every request. Since `resources` is stored in `ScanManager` (in-process, in-memory), navigating away and back works fine as long as the server process has not restarted. However, the NIOS tab (and the new attribution table within it) renders state from `nios_manager.scenario_suite` which is also in-process. If the server restarts between the analysis completing and the user returning to the tab, the state is gone.
+
+The more subtle risk: the v1.4 per-account attribution table for cloud scan may be rendered in a new template path (e.g., a separate partial route). If that partial route is invoked via `hx-get` rather than being included in the initial tab render, and the HTMX swap target resets on tab navigate-away, the attribution table will not be present when the user returns even though the scan data is still in `scan_manager.resources`.
+
+**Why it happens:**
+HTMX swaps replace the target element with the response HTML. When the user clicks away (switching tabs), the tab content is replaced by the new tab's HTML fragment. When they return, HTMX makes a fresh `hx-get` to re-render the tab. If the attribution table is a child partial that must be fetched separately and the tab template does not include it on initial render, the re-render of the tab will not include the attribution table.
+
+**How to avoid:**
+Render the per-account attribution table as part of the initial `/tab/summary` response (server-side include, not a separate HTMX partial fetch). This ensures that every tab render always includes the full content. Do not put the attribution table behind a lazy-load `hx-get` unless the lazy load is triggered unconditionally on tab load. The existing `summary.html` template already includes `per_account_details` in its context, which is the right pattern to extend.
+
+**Warning signs:**
+- Attribution table requires a separate HTMX request to populate (not included in tab initial render).
+- Switching away and back to the Summary tab shows the summary cards but not the attribution table.
+- An `hx-trigger="load"` on the attribution section makes a separate request that may race with tab rendering.
+
+**Phase to address:**
+v1.4 Phase (Summary tab template). Keep the attribution table in the initial tab render response, not as a lazy-loaded partial.
+
+---
+
+### Pitfall A6: NIOS Per-Family DDI Breakdown DDI Counts Must Sum to the Scenario DDI Total — But `families_found` Counts Raw Objects, Not Expanded DDI
+
+**What goes wrong:**
+The `IntegrityReport.families_found` dict (available via `inspect_backup()`) contains raw object counts per family. For example: `"host_object": 129930`. But the DDI counter in `counter.py` expands each `host_object` to +2 or +3 depending on whether aliases are present. So `families_found["host_object"] = 129930` does not equal the DDI contribution of host_object to the scenario total.
+
+If the per-family breakdown table is built directly from `families_found`, it will show raw counts. If those raw counts are labeled as "DDI Objects" per family, the column will not sum to `scenario_suite.current_grid.ddi_count` because:
+1. `host_object` contributes 2x or 3x per object.
+2. `lease`, `fixed_address`, `host_address`, `member` are not DDI families at all — showing them with a "DDI" column label would be misleading.
+3. Families with 0 objects are already excluded by the "non-zero only" requirement, which is correct.
+
+An enterprise auditor who sums the "DDI Objects" column in the family breakdown and gets a number different from the scenario DDI total will lose trust in the entire output.
+
+**Why it happens:**
+`families_found` is the easiest data source to use — it is already computed by `inspect_backup()` and stored in `IntegrityReport`. Developers reach for it to avoid re-parsing the backup. But `families_found` is a raw count, not a DDI-adjusted count. The DDI expansion for `host_object` (and the exclusion of non-DDI families) is performed inside `count_objects()` in `counter.py`, not in `inspect_backup()`.
+
+**How to avoid:**
+The per-family breakdown must use DDI-adjusted per-family counts, not raw `families_found` counts. This requires either:
+
+- Option A: Extend `count_objects()` to return a `per_family_ddi` dict alongside the existing `CountResult`. This adds one dict to the counter's output with keys like `"host_object": 259860` (expanded 2x from 129930 raw). This is the most accurate approach and keeps counting logic in one place.
+
+- Option B: Compute per-family DDI from `families_found` by applying the expansion rules in the template or route:
+  - For `host_object`: multiply by 2 (conservative; aliases unknown at this level)
+  - For all other DDI families: use raw count as-is
+  - For non-DDI families (`lease`, `fixed_address`, `host_address`, `member`, `network_view`): show raw count in a separate "Raw Objects" column, not a DDI column
+
+Option A is preferred because it maintains a single source of truth for counting logic.
+
+The XLS Object Counters sheet already shows raw object counts per family (not DDI-adjusted). The WebUI breakdown should be labeled "DDI Objects (adjusted for host expansion)" to distinguish it from the XLS sheet's raw counts.
+
+**Warning signs:**
+- Family breakdown table header says "DDI Objects" but sums to a number different from the scenario DDI total.
+- `families_found` used directly to populate a column labeled "DDI" without host_object expansion.
+- Non-DDI families (lease, fixed_address, host_address, member) appear in the breakdown with a DDI column value.
+
+**Phase to address:**
+v1.4 Phase (NIOS per-family breakdown). Decide on Option A or B before implementation. If Option A (extending CountResult), add the `per_family_ddi` dict to `counter.py` and pass it through `nios_manager` to the template.
+
+---
+
+### Pitfall A7: NIOS Per-Family Breakdown Must Use the Same Scenario's DDI Counts — Which Scenario?
+
+**What goes wrong:**
+The NIOS complete screen shows three scenario cards: Current Grid, Hybrid UDDI, and Full Migration. All three use the same underlying DDI count (total_ddi from CountResult) — only the formula divisors differ. So there is only one DDI total, and per-family breakdown would also be unique and not scenario-specific. However, if the UI positions the per-family breakdown below the scenario cards without making this clear, users may assume the breakdown shows DDI per-scenario, which would require three separate breakdowns with different numbers.
+
+The confusion is compounded in the Hybrid scenario: NIOS-remaining and NIOSX-migrated members contribute different amounts of DDI (since grid-level objects always go to NIOS-remaining). A per-family breakdown does not split by member group — it shows grid-wide per-family counts. If a user assumes the breakdown applies to their NIOSX-migrated members only, they may incorrectly interpret which families drive their migration cost.
+
+**Why it happens:**
+The breakdown is rendered in a fixed location on the page. Users scan the page and assume contextual relationship between adjacent elements. Placing the family breakdown below the scenario cards implies it relates to the selected/active scenario.
+
+**How to avoid:**
+Label the breakdown explicitly: "Object Family Breakdown (all scenarios — same DDI object set is counted under different formulas per scenario)." Position it before or after the scenario cards with a clear section heading that explains it is scenario-independent. If space allows, add a sentence: "Formula divisors differ per scenario but the object counts below are identical for all three."
+
+For Hybrid scenario specifically, note that the breakdown represents all members across the full grid — it does not split by NIOS/NIOSX group assignment.
+
+**Warning signs:**
+- Breakdown positioned immediately below a specific scenario card with no explanatory label.
+- Users ask "why do these numbers differ from the Hybrid UDDI totals?"
+- Breakdown header says "Current Grid Family Breakdown" implying scenario-specificity.
+
+**Phase to address:**
+v1.4 Phase (NIOS complete screen template). The section heading and explanatory text must be written into the initial template design.
+
+---
+
+### Pitfall A8: Passing IntegrityReport and CountResult Through nios_manager Requires API Extension — Risk of Breaking Existing Complete Screen
+
+**What goes wrong:**
+The per-family breakdown table needs either `IntegrityReport.families_found` or a new `per_family_ddi` dict (see Pitfall A6). Currently, `NiosScanManager.set_complete()` accepts `output_path` and `scenario_suite`. `IntegrityReport` is computed inside `_run_nios_pipeline()` but is not stored on the manager — it is only passed to `write_nios_xlsx_report()` and then discarded.
+
+To render the per-family breakdown, the route handler (`tab_nios`) needs access to `families_found`. If the developer adds `integrity_report` to `NiosScanManager`, it changes the manager's API. If they instead add a separate `families_found` dict field, it also changes the manager. Either way, the existing template (`nios.html` / `complete.html`) must be updated to receive the new context variable.
+
+The risk: if the manager API extension is done carelessly, it could introduce thread-safety issues (the lock in `NiosScanManager` must protect any new fields) or break the existing complete screen that renders without the new data.
+
+**Why it happens:**
+The natural path of least resistance is to add `self._integrity_report = None` to `NiosScanManager.__init__()` and `self._integrity_report = integrity` to `set_complete()`. This is mechanically correct but easy to forget the thread-lock wrapper, or to forget to update the `reset()` method to clear it, leaving stale data from a previous run visible on re-analysis.
+
+**How to avoid:**
+Follow the exact pattern used for `_scenario_suite`:
+1. Add `self._families_found: dict | None = None` to `__init__`.
+2. Add `self._families_found = None` to `reset()`.
+3. Add `families_found` parameter to `set_complete()` with a thread-lock wrapper.
+4. Add a `families_found` property with thread-lock.
+5. Pass `families_found` from `_run_nios_pipeline()` to `set_complete()`.
+6. Pass it from `tab_nios()` to the template context.
+
+The `reset()` gap is the most common mistake — if `reset()` does not clear `_families_found`, a re-uploaded backup shows stale family data from the previous run until the new analysis completes.
+
+**Warning signs:**
+- `reset()` method does not clear `_families_found` (or `_integrity_report`).
+- Thread lock not used in the new property getter.
+- `tab_nios()` route passes `families_found` to context without checking for `None` — template crashes when no analysis has run.
+
+**Phase to address:**
+v1.4 Phase (NIOS manager extension and complete screen update). Use the existing `_scenario_suite` pattern as the exact template for adding any new state fields.
+
+---
+
+### Pitfall A9: Cloud Per-Account Attribution Table Performs Redundant Recomputation if Not Cached
+
+**What goes wrong:**
+`_compute_summary()` in `pages.py` already computes `per_account_details` — a list of per-account dicts — every time `/tab/summary` is requested. For a scan with 100+ accounts, this computation calls `deduplicate_ips_per_vpc(resources)` and `calculate_account_tokens()` for every account on every tab visit. With 100+ accounts, this is CPU-bound work that blocks the async event loop (the function is called synchronously in the async route handler).
+
+When v1.4 adds a resource type breakdown per account, the computation grows: now `_compute_summary()` must also group resources by `resource_type` within each account. For a scan with 50,000+ resources across 100 accounts, this grouping on every tab visit is visible latency.
+
+**Why it happens:**
+The existing `_compute_summary()` was designed to be stateless and re-computed. For small scans (10 accounts, 1,000 resources), the latency is imperceptible. For large scans (100+ accounts, 50,000+ resources), the grouping and deduplication takes hundreds of milliseconds.
+
+**How to avoid:**
+Two approaches: (1) Cache the `per_account_details` result on `scan_manager` after the first computation — invalidate only when a new scan starts. Since `scan_manager.resources` is set once and not mutated after scan completion, the cached summary is stable. (2) Run `_compute_summary()` in a background thread via `asyncio.to_thread()` to avoid blocking the event loop.
+
+The simpler fix is (1): add `_cached_summary: dict | None = None` to `ScanManager`, set it in `set_resources()`, and return it from `_compute_summary()` if already computed. The cache must be cleared in `ScanManager.start()` or `cancel()`.
+
+For v1.4 scope, if the resource type breakdown is added to `per_account_details`, verify performance with a 100-account scan before shipping.
+
+**Warning signs:**
+- `/tab/summary` is noticeably slow (>500ms) after a large scan.
+- `_compute_summary()` is called in the async route handler without `await asyncio.to_thread()`.
+- Resource grouping added inside `_compute_summary()` without performance testing.
+
+**Phase to address:**
+v1.4 Phase (Cloud summary tab update). If adding resource type breakdown, benchmark `_compute_summary()` with the ZF-equivalent scale (50K resources, 87 projects) before committing the approach.
+
+---
+
+### Pitfall A10: NIOS Per-Family Breakdown Shows Non-DDI Families With DDI=0, Misleading Auditors Into Thinking Those Families Were Missed
+
+**What goes wrong:**
+The XLS Object Counters sheet shows all 26 families, including non-DDI families (lease, fixed_address, host_address, member) with a "Counted for DDI: No" column. The WebUI breakdown is scoped to "non-zero families only." If non-DDI families (which have non-zero raw object counts in virtually every backup) appear in the breakdown with a "DDI Objects: 0" cell, auditors will ask why 605,489 lease objects contribute 0 DDI. They will assume the counting is broken.
+
+**Why it happens:**
+If the developer uses `families_found` (all non-zero families) as the data source and renders a "DDI Objects" column for all families, every non-DDI family will show DDI=0 even though it has thousands of raw objects. The "non-zero only" filter applies to raw object counts, not DDI counts — so lease, fixed_address, host_address, and member all have large non-zero raw counts and would appear in a "non-zero only" family table.
+
+**How to avoid:**
+The per-family breakdown should show only DDI-contributing families (the 22 families in `_DDI_FAMILIES` from `counter.py`). Non-DDI families (lease, fixed_address, host_address, member) should either be excluded entirely or shown in a separate "IP Sources / Metadata" section clearly labeled as not counting toward DDI tokens.
+
+The simplest safe approach: filter the breakdown to `family in _DDI_FAMILIES` and label the table "DDI Object Families." Add a note: "Families that contribute Active IP counts (leases, fixed addresses, host addresses) and metadata objects (members) are not shown — they are covered in the Active IP by Type section."
+
+**Warning signs:**
+- Table shows `lease` family with `DDI Objects: 0` or `DDI Objects: 605489`.
+- Auditor asks "why do 605K leases contribute 0 DDI tokens?"
+- "Non-zero" filter applied to raw object count rather than to DDI count (all families have non-zero raw counts).
+
+**Phase to address:**
+v1.4 Phase (NIOS complete screen template). The family filter (`_DDI_FAMILIES` or a DDI-contributing subset) must be applied before rendering, not after.
+
+---
+
+## Technical Debt Patterns (v1.4 Additions)
+
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Use `families_found` raw counts directly as DDI breakdown | No extension to CountResult needed | host_object counts wrong (2x/3x expansion missing); non-DDI families pollute table | Never — extend CountResult or apply expansion in route |
+| Sum per-account token column in attribution table footer | Simple UX familiar to users | Footer exceeds grand total due to ceiling division; auditors flag discrepancy | Never — show a note instead of a sum |
+| Include breakdown table as lazy-loaded HTMX partial | Faster initial tab render | Table missing on tab navigate-away-and-back; HTMX state lost between renders | Only if tab is always re-fetched (it is — tab links use hx-get) and the partial is included in the tab response |
+| Skip resource type breakdown (defer it) | Simpler v1.4 scope | Feature is in scope per requirements | Acceptable if complexity outweighs value — reduces Pitfall A4 risk entirely |
+| Add `families_found` to nios_manager without updating `reset()` | Faster to code | Stale family data from prior run shows after re-upload until new analysis completes | Never — always update reset() |
+
+---
+
+## Integration Gotchas (v1.4 Additions)
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| `_compute_summary()` (existing) | Adding resource type grouping without benchmarking at scale | Test with 87-project GCP equivalent (50K+ resources) before shipping; add caching if latency >500ms |
+| `complete.html` partial | Adding `families_found` context variable without guarding for `None` (no analysis run yet) | Always guard: `{% if families_found %}` before rendering the breakdown section |
+| `counter.py` `_DDI_FAMILIES` | Importing `_DDI_FAMILIES` from `counter.py` into `output.py` (already done in `nios/output.py`) for family filtering | Do the same in the route or template — do not re-define the set |
+| `NiosScanManager` | Adding new state fields without thread-lock wrappers | Use the existing `_scenario_suite` property as the pattern: `with self._lock:` in every getter |
+| `summary.html` template | Renaming or restructuring `per_account_details` context key | Existing template uses `per_account_details` — any rename breaks the existing working summary tab |
+
+---
+
+## Performance Traps (v1.4 Additions)
+
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| `_compute_summary()` called synchronously in async handler with resource type grouping | /tab/summary hangs for 2-5 seconds after large scan | Cache computed summary on scan_manager; or run in `asyncio.to_thread()` | Scans with >10K resources across 50+ accounts |
+| Per-family breakdown table with 22 DDI family rows — rendered in a scrollable div | No performance issue — 22 rows is tiny | N/A | Not a concern at this data volume |
+| Attribution table with 100+ account rows without virtualization | Slow initial render on low-end customer laptops | Add `max-height + overflow-y: auto` scroll container (already used in `complete.html` member table) | 100+ accounts |
+
+---
+
+## UX Pitfalls (v1.4 Additions)
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| Cloud attribution table column header "Account" for Azure/GCP rows | Azure customers confused — they know these as "subscriptions" / "projects" | Use provider-aware label: show "Account / Subscription / Project" in the header with a tooltip, or per-row labels based on provider field |
+| Per-account token column with a footer total that differs from the hero number | Auditors distrust all numbers on the page | Remove token footer or replace with a note explaining ceiling-division summability |
+| NIOS family breakdown shows all 26 families including non-DDI | Auditors ask "why does lease have 0 DDI?" | Show only DDI-contributing families (22 families in `_DDI_FAMILIES`); add a caption noting IPs are covered separately |
+| NIOS family breakdown positioned below scenario cards without a clear label | Users assume breakdown is scenario-specific | Add section heading: "Object Family Breakdown (applies equally to all three scenarios)" |
+| Per-account table with no "Token Contribution" explanation | Customers ask how token contribution was computed | Add an inline formula derivation (same pattern as the scenario cards: "X DDI ÷ 25 = Y + ...") or at minimum a formula caption below the table |
+| IPs column in attribution table with a summable footer | Cross-account IP double-count; footer exceeds summary card total | Show IPs per account without a footer sum; add a note matching the existing member attribution pattern |
+
+---
+
+## "Looks Done But Isn't" Checklist (v1.4 Additions)
+
+- [ ] **Attribution table token footer:** The per-account attribution table does NOT show a "Total" footer that sums the token contribution column — verify that the footer (if any) shows only a note about ceiling division, not a sum.
+- [ ] **Attribution table IP footer:** Same check for the IP column — no summable footer; verify the existing member attribution pattern ("not summable") is replicated.
+- [ ] **DDI column IS summable:** The DDI column in the cloud attribution table DOES have a correct footer sum (DDI is additive across accounts) — verify this matches the grand total DDI in the summary card.
+- [ ] **Per-family breakdown sums to scenario DDI total:** Sum the DDI Objects column in the NIOS family breakdown; verify it equals `scenario_suite.current_grid.ddi_count` — verify host_object expansion (2x or 3x) is applied.
+- [ ] **Family breakdown excludes non-DDI families:** No lease, fixed_address, host_address, or member rows appear in the breakdown — verify by checking the rendered table against `_DDI_FAMILIES` from `counter.py`.
+- [ ] **`nios_manager.reset()` clears new fields:** After a re-upload, the family breakdown table is empty/absent until new analysis completes — verify by re-uploading a second backup and checking the UI before clicking Run.
+- [ ] **Provider-specific terminology:** Verify Azure rows are labeled "Subscription" (or the header is clearly generic) — check with at least one Azure subscription row in the test data.
+- [ ] **Tab navigate-away-and-back:** Navigate to another tab and back to Summary/NIOS after scan completion — verify attribution table and family breakdown are still rendered without a separate HTMX action.
+- [ ] **Breakdown absent when no analysis run:** With no completed scan/analysis, the attribution table section does not render (no empty table, no zero-count rows) — verify the `{% if ... %}` guard in the template.
+
+---
+
+## Recovery Strategies (v1.4 Additions)
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Token footer sum mismatch discovered by auditor | MEDIUM | Remove footer in template; add explanatory note; no data change needed |
+| IP footer double-count discovered | MEDIUM | Remove footer; add note; same as member attribution pattern |
+| family_found used directly (wrong DDI counts) | HIGH | Extend CountResult to add per_family_ddi; re-run analysis; WebUI now shows correct values; XLS unaffected |
+| Non-DDI families in breakdown confuse auditors | LOW | Add family filter in route or template; re-render; no data change |
+| `reset()` not clearing families_found — stale data | MEDIUM | Add to reset(); clarify that data shown is from prior run; no data loss but confusing UX |
+| Provider label confusion (Account vs Subscription) | LOW | Update template column header; purely cosmetic fix |
+
+---
+
+## Pitfall-to-Phase Mapping (v1.4 Additions)
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| Token column not summable (ceiling division) | v1.4 cloud attribution table | Verify no footer sum; verify hero number matches per-account details; test with 2 accounts each with 12 DDI |
+| IP column not summable cross-account | v1.4 cloud attribution table | Verify no IP footer; confirm same note pattern as member attribution in complete.html |
+| Provider terminology inconsistency | v1.4 cloud attribution table template | Visual check: Azure subscription UUID row labeled correctly |
+| Resource type breakdown count mismatch | v1.4 cloud attribution table (if in scope) | Sum breakdown counts; verify equals DDI for that account |
+| HTMX state loss on tab navigate-away | v1.4 summary tab template | Navigate away and back; verify table present; check with browser devtools network tab |
+| NIOS family breakdown using raw counts (host_object wrong) | v1.4 NIOS complete screen | Sum family breakdown DDI column; verify equals scenario_suite.current_grid.ddi_count |
+| Non-DDI families in breakdown | v1.4 NIOS complete screen | Verify lease/fixed_address/host_address/member not in rendered table |
+| Stale families_found after reset | v1.4 NiosScanManager extension | Re-upload backup without running analysis; verify breakdown section absent |
+| Scenario label confusion for family breakdown | v1.4 NIOS complete screen template | Check section heading is present and scenario-independent |
+| Performance: _compute_summary() slow at scale | v1.4 cloud summary tab | Time /tab/summary with 87-project GCP scan equivalent |
+
+---
+
+## Sources (v1.4 Additions)
+
+- Existing codebase (HIGH confidence — direct code reading):
+  - `src/cloud_usage/dashboard/routes/pages.py` — `_compute_summary()` implementation, ceiling division in grand total vs. per-account subtotals
+  - `src/cloud_usage/dashboard/routes/scan.py` — per-account token calculation in `_run_scan_pipeline()` via `calculate_account_tokens()`
+  - `src/cloud_usage/counting/token_calculator.py` — `_ceil_div()` function confirming ceiling division behavior; `calculate_account_tokens()` and `calculate_provider_tokens()` split
+  - `src/cloud_usage/nios/counter.py` — `_DDI_FAMILIES` frozenset (22 families), `host_object` expansion logic (+2 or +3), `CountResult` structure
+  - `src/cloud_usage/nios/scenarios.py` — `ScenarioSuite` structure; comment confirming per-member IPs not summable; total_ips from `grid_counts.active_ip_count` only
+  - `src/cloud_usage/nios/output.py` — `_ALL_FAMILIES_ORDERED` (26 families), `_UDDI_FLAG_REASON` (non-DDI families), `families_found` usage in XLS Object Counters sheet
+  - `src/cloud_usage/dashboard/services/nios_manager.py` — `NiosScanManager.reset()` pattern; thread-lock pattern for all state fields
+  - `src/cloud_usage/dashboard/templates/partials/nios/complete.html` — existing member attribution table with "not summable" IP warning; scenario card formula derivation pattern
+  - `src/cloud_usage/dashboard/templates/pages/summary.html` — existing `per_account_details` loop; per-provider breakdown table; download section
+  - `.planning/PROJECT.md` — v1.4 scope definition, token formula constants, ZF reference scale (304,730 unique Active IPs, 87-project GCP context)
+
+---
+*Pitfalls research for: v1.4 Audit Depth — per-account attribution tables and per-family NIOS breakdown*
+*Researched: 2026-03-03*

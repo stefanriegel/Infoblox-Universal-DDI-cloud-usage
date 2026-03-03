@@ -1,502 +1,509 @@
 # Architecture Research
 
-**Domain:** Multi-cloud resource discovery & UDDI licensing estimation tool — v1.1 NIOS Grid Analysis integration
-**Researched:** 2026-02-28
-**Confidence:** HIGH (direct codebase analysis, requirements verified against REQUIREMENTS.md)
+**Domain:** FastAPI + HTMX dashboard — integration of cloud per-account attribution tables and NIOS object family breakdown (v1.4 Audit Depth)
+**Researched:** 2026-03-03
+**Confidence:** HIGH — all findings derived from direct source reading of the production codebase
 
 ---
 
-## Context: What Changed in v1.1
+## Supersedes
 
-The v1.0 architecture (researched 2026-02-23) covers cloud discovery. This document extends it for v1.1: adding NIOS Grid backup analysis as a parallel, independent capability alongside the existing cloud providers. The key design constraint is **do not couple the new NIOS pipeline to cloud provider internals**. The NIOS path must be addable without touching any existing `providers/`, `counting/`, `discovery/`, or `output/` cloud code.
-
----
-
-## Existing Architecture Summary (v1.0 — Do Not Break)
-
-The existing system has four layers:
-
-| Layer | Modules | Role |
-|-------|---------|------|
-| Entry | `cli.py`, `dashboard/` | User-facing. CLI via argparse. Dashboard via FastAPI + HTMX. |
-| Discovery | `discovery/orchestrator.py`, `discovery/provider.py`, `providers/aws|azure|gcp/` | Cloud scanning. Concurrent via ThreadPoolExecutor. Emits `CloudResource` objects. |
-| Counting | `counting/categorizer.py`, `counting/ip_counter.py`, `counting/token_calculator.py`, `counting/asset_dedup.py` | Categorize resources as DDI/IP/Asset. Compute tokens. |
-| Output | `output/xlsx_report.py`, `output/estimator_csv.py`, `output/proof_manifest.py` | Serialize results to XLS/CSV/JSON files. |
-
-The `schema/resource.py` `CloudResource` dataclass is the lingua franca between discovery and counting. The cloud providers speak `CloudResource`; the counters read `CloudResource`. **The NIOS pipeline must not use `CloudResource`** — it has a fundamentally different data model (XML objects, not cloud API resources).
+This document replaces the v1.1 NIOS Grid Analysis integration architecture (2026-02-28). The v1.1 architecture is fully shipped. This document covers only the v1.4 incremental changes.
 
 ---
 
-## v1.1 System Overview
+## Context: What v1.4 Adds
 
-```
-+----------------------------------------------------------+
-|                     Entry Layer                           |
-|                                                          |
-|  cli.py (argparse)          dashboard/ (FastAPI + HTMX)  |
-|  --nios <file>              /tab/nios  (new tab)         |
-|  --nios-config <yaml>       /wizard/nios (new wizard)    |
-+--------+----------------------------------+--------------+
-         |                                  |
-         |           Cloud path (unchanged) |
-         |         +------------------------+
-         |         |                        |
-+--------v---------v-------+    +-----------v-----------+
-|    Cloud Discovery        |    |   NIOS Analysis        |
-|    (existing, unchanged)  |    |   (new, independent)   |
-|                           |    |                        |
-|   discovery/orchestrator  |    |  nios/runner.py        |
-|   providers/aws|azure|gcp |    |  (orchestrates the     |
-|   counting/ pipeline      |    |   NIOS pipeline)       |
-+---------------------------+    +-----------+------------+
-                                             |
-         +-----------------------------------+
-         |           |             |         |
-+--------v--+  +-----v-----+  +---v----+  +-v----------+
-| nios/     |  | nios/     |  | nios/  |  | nios/      |
-| parser/   |  | filter.py |  |counter.|  | scenarios. |
-| (SAX XML, |  | (whitelist|  | py     |  | py         |
-|  .tar.gz) |  |  /blackl.)|  |(NIOS & |  |(current/   |
-|           |  |           |  | UDDI   |  | hybrid/    |
-|           |  |           |  | rates) |  | full migr.)|
-+-----------+  +-----------+  +--------+  +-----+------+
-                                                |
-                                         +------v------+
-                                         | output/     |
-                                         | nios_xlsx.py|
-                                         | (new file,  |
-                                         |  xlsxwriter)|
-                                         +-------------+
-```
+Two new display features for the existing dashboard, both audit-depth additions:
+
+1. **Cloud per-account attribution table** — per-account rows showing DDI / IP / Asset counts with inline formula derivation (DDI ÷ 25 = X.X, IPs ÷ 13 = X.X, Assets ÷ 3 = X.X) and resource type breakdown, in the cloud scan results UI.
+2. **NIOS object family breakdown table** — per-family raw object counts (non-zero families only, ordered to match XLS Object Counters sheet), in the NIOS complete screen.
 
 ---
 
-## New Module Layout: `src/cloud_usage/nios/`
-
-All NIOS code lives under a single new top-level package. This isolates it completely from the cloud provider modules. No existing file in `providers/`, `counting/`, `discovery/`, or `schema/` is modified.
+## System Overview (Current State)
 
 ```
-src/cloud_usage/nios/
-├── __init__.py                  # Exports: run_nios_analysis(), NiosConfig
-├── runner.py                    # Top-level orchestrator: .tar.gz -> XLS
-├── config.py                    # NiosConfig dataclass (parsed from YAML/dict)
-├── parser/
-│   ├── __init__.py              # Exports: parse_backup()
-│   ├── extractor.py             # Extracts onedb.xml from .tar.gz (streaming)
-│   ├── streaming_xml.py         # SAX/iterparse event handler -> NiosObject stream
-│   └── object_types.py          # Constants: XML type names -> internal type keys
-├── schema.py                    # Dataclasses: NiosMember, NiosNetwork, NiosLease,
-│                                #   NiosFixedAddress, NiosDnsZone, NiosDnsRecord,
-│                                #   NiosHostObject, NiosDhcpRange — all immutable
-├── filter.py                    # Member whitelist/blacklist filtering logic
-├── counter.py                   # Count DDI objects, Active IPs per member; dual formula
-├── scenarios.py                 # Build current / hybrid / full-migration scenario results
-└── output/
-    ├── __init__.py
-    └── nios_xlsx.py             # Write the NIOS XLS report (xlsxwriter, matches v1.0 style)
-```
+Browser (HTMX + PicoCSS + vanilla JS)
+    │
+    │  GET /tab/nios               GET /tab/results or /tab/summary
+    │  SSE /api/sse/nios           SSE /api/sse/scan
+    │
+    ▼
+FastAPI (routes/)
+    ├── pages.py       — full tab renders (/tab/*)
+    ├── partials.py    — HTMX fragment swaps (/partials/*)
+    ├── nios.py        — NIOS wizard + SSE + progress (/nios/*, /api/sse/nios, /api/nios/*)
+    ├── scan.py        — cloud wizard + scan lifecycle (/wizard/*, /api/scan/*)
+    ├── sse.py         — cloud SSE (/api/sse/scan)
+    └── download.py    — file download (/download/*)
 
-### Why a separate `nios/` package at the top level
+app.state (singleton managers, all thread-safe)
+    ├── scan_manager   (ScanManager)
+    │     ├── _state: ScanState
+    │     ├── _resources: list[CloudResource]     ← cloud scan results live here
+    │     ├── _errors: list
+    │     ├── _output_paths: dict[str, str]
+    │     └── _progress_data: dict                ← set via monkey-patch in _run_scan_pipeline
+    │
+    ├── nios_manager   (NiosScanManager)
+    │     ├── _state: NiosState
+    │     ├── _upload_path: str | None
+    │     ├── _original_filename: str | None
+    │     ├── _output_path: str | None
+    │     ├── _error: str | None
+    │     ├── _scenario_suite: ScenarioSuite | None   ← NIOS results live here
+    │     └── _current_progress: dict
+    │
+    ├── event_bridge                — cloud SSE events
+    └── nios_event_bridge           — NIOS SSE events (SC-5 isolated)
 
-The NIOS pipeline is architecturally independent: different input format (XML vs cloud APIs), different data model (NiosObject vs CloudResource), different output schema (scenario comparison vs per-account resource table), and different token formulas (dual NIOS/UDDI rates vs single UDDI rate). Colocating NIOS code with cloud providers would create false coupling. A separate `nios/` package makes the dependency graph clear: `nios/` imports from nothing in `providers/` or `counting/`; only `output/nios_xlsx.py` shares the xlsxwriter pattern with `output/xlsx_report.py` (same library, separate file).
+Business Logic (cloud path)
+    ├── counting/token_calculator.py
+    │     calculate_account_tokens(resources, dedup_ip_count)
+    │       → {ddi_count, ip_count, asset_count, ddi_tokens, ip_tokens, asset_tokens, total_tokens}
+    └── counting/ip_counter.py
+          deduplicate_ips_per_vpc(resources) → {per_account: {acct_id: int}}
 
----
+Business Logic (NIOS path)
+    ├── nios/parser/   — parse_backup() → Iterator[NiosObject]
+    ├── nios/counter.py
+    │     count_objects() → CountResult
+    │       CountResult.member_counts: list[MemberCounts]   (per-member DDI/IP/lease)
+    │       CountResult.grid_counts: MemberCounts           (grid-level aggregate)
+    │       NOTE: NO per-family breakdown in CountResult
+    ├── nios/scenarios.py
+    │     compute_scenarios() → ScenarioSuite
+    │       ScenarioSuite holds scenario totals + member_attribution
+    │       NOTE: NO per-family breakdown in ScenarioSuite
+    └── nios/output.py
+          write_nios_xlsx_report() — uses IntegrityReport.families_found for Object Counters sheet
+          _ALL_FAMILIES_ORDERED: list[str]  — 26 families in display order
+          _FAMILY_DISPLAY_NAMES: dict[str, str]  — human-readable names
 
-## Data Flow: `.tar.gz` to XLS
+    nios/schema.py
+          IntegrityReport.families_found: dict[str, int]   ← THE family count source
+          NiosFamily — 26 string constants
 
-```
-Input: backup.tar.gz
-           |
-           v
-nios/parser/extractor.py
-  tarfile.open() streaming read
-  locate onedb.xml within archive
-  yield file handle (never extract to disk)
-           |
-           v
-nios/parser/streaming_xml.py
-  xml.etree.ElementTree.iterparse() — constant memory
-  accumulate OBJECT+PROPERTY pairs per element
-  emit typed NiosObject instances via generator
-  (NiosMember, NiosNetwork, NiosLease, NiosDnsZone, etc.)
-           |
-           v
-nios/schema.py  (NiosObject dataclasses)
-  NiosMember(virtual_oid, hostname)
-  NiosNetwork(cidr, network_view, member_oid)
-  NiosLease(ip, state, member_oid)
-  NiosFixedAddress(ip, member_oid)
-  NiosHostObject(name, ips, member_oid)
-  NiosDnsZone(name, type, view, member_oid)
-  NiosDnsRecord(type, name, member_oid)
-  NiosDhcpRange(start, end, member_oid)
-  NiosExclusionRange(start, end, member_oid)
-           |
-           v
-nios/filter.py
-  FilterConfig(whitelist_patterns, blacklist_patterns)
-  resolve member IDs from NiosMember objects
-  apply whitelist-first semantics (FILTER-03)
-  record: matched members, excluded count per type
-  yield only objects whose member_oid is in allowed set
-           |
-           v
-nios/counter.py
-  iterate filtered objects
-  build MemberCounts(virtual_oid, hostname, group,
-                     ddi_objects, active_ips, assets)
-  DDI object count:
-    dns_records + host_object_expanded_records + host_aliases
-    + dns_zones + dns_views + dhcp_ranges + exclusion_ranges
-    + networks + network_containers + network_views
-  Active IP count:
-    active/static leases + fixed_addresses + host_addresses
-    + (2 per subnet: network addr + broadcast addr)
-  Note: lease states included are configurable (COUNT-03)
-  Output: GridCounts (per-member + aggregate totals)
-           |
-           v
-nios/scenarios.py
-  ScenarioEngine(grid_counts, migration_split)
-  Scenario 1 — Current Grid:
-    all members -> NIOS Object formula (DDI/50 + IPs/25 + Assets/13)
-  Scenario 2 — Hybrid UDDI (requires migration split):
-    nios group -> NIOS Object formula
-    niosx group -> UDDI native formula (DDI/25 + IPs/13 + Assets/3)
-    output: nios_tokens + niosx_tokens + combined
-  Scenario 3 — Full Migration:
-    all members -> UDDI native formula (DDI/25 + IPs/13 + Assets/3)
-  Output: ScenarioResults (three ScenarioTotals + per-member attribution)
-           |
-           v
-nios/output/nios_xlsx.py
-  xlsxwriter.Workbook (write-only, matches existing output/xlsx_report.py style)
-  Sheet 1: Object Counters (raw counts per type, "in UDDI" flag)
-  Sheet 2: DDI Objects (Native vs NIOS column split)
-  Sheet 3: Active IP by Type (leases / fixed / host / reservations)
-  Sheet 4: Scenario Comparison (current / hybrid / full migration, side-by-side)
-  Sheet 5: Member Attribution (per-member: oid, hostname, group, counts, tokens)
-  Header block: NIOS version, snapshot date, filter config, migration split, timestamp
-  Output: nios_analysis_<timestamp>.xlsx
+    nios/counter.py
+          _DDI_FAMILIES: frozenset[str]   — families that contribute to DDI count
 ```
 
 ---
 
-## New Files
+## Feature 1: Cloud Per-Account Attribution Table
 
-| File | Status | Purpose |
-|------|--------|---------|
-| `src/cloud_usage/nios/__init__.py` | **NEW** | Package entry; exports `run_nios_analysis()`, `NiosConfig` |
-| `src/cloud_usage/nios/runner.py` | **NEW** | Orchestrates parse → filter → count → scenarios → output |
-| `src/cloud_usage/nios/config.py` | **NEW** | `NiosConfig` dataclass loaded from YAML or dict |
-| `src/cloud_usage/nios/schema.py` | **NEW** | Dataclasses for all NIOS object types |
-| `src/cloud_usage/nios/parser/__init__.py` | **NEW** | Package init |
-| `src/cloud_usage/nios/parser/extractor.py` | **NEW** | Streaming .tar.gz → onedb.xml file handle |
-| `src/cloud_usage/nios/parser/streaming_xml.py` | **NEW** | SAX/iterparse XML → NiosObject stream |
-| `src/cloud_usage/nios/parser/object_types.py` | **NEW** | XML type name constants |
-| `src/cloud_usage/nios/filter.py` | **NEW** | Whitelist/blacklist member filtering |
-| `src/cloud_usage/nios/counter.py` | **NEW** | DDI/IP/Asset counting with dual token formula |
-| `src/cloud_usage/nios/scenarios.py` | **NEW** | Three scenario computations |
-| `src/cloud_usage/nios/output/__init__.py` | **NEW** | Package init |
-| `src/cloud_usage/nios/output/nios_xlsx.py` | **NEW** | XLS report writer (xlsxwriter) |
+### Where the Data Lives Now
 
----
-
-## Modified Files
-
-Only the integration points are touched. All modifications are additive (new `elif` branches, new imports, new routes) — existing cloud paths are unchanged.
-
-| File | Change | Risk |
-|------|--------|------|
-| `src/cloud_usage/cli.py` | Add `--nios`, `--nios-config` args; add `elif args.nios:` branch in `main()` that calls `nios.runner.run_nios_analysis()` | LOW — new elif branch, no existing code path touched |
-| `src/cloud_usage/dashboard/routes/scan.py` | Add `/api/nios/start` and `/api/nios/status` POST/GET endpoints for file upload and analysis trigger | LOW — new router endpoints, no existing endpoint modified |
-| `src/cloud_usage/dashboard/routes/pages.py` | Add `/tab/nios` GET route for the NIOS tab content | LOW — new route handler |
-| `src/cloud_usage/dashboard/services/scan_manager.py` | Add `nios_state` and `nios_result` fields to `ScanManager` for NIOS analysis lifecycle tracking | LOW — additive field additions to existing dataclass |
-| `src/cloud_usage/dashboard/app.py` | Register new NIOS route file if split into separate module | LOW — `app.include_router(nios_router)` |
-| `src/cloud_usage/dashboard/templates/partials/tab_bar.html` | Add "NIOS Analysis" tab entry | LOW — add `<li>` entry to tab list |
-| `src/cloud_usage/dashboard/templates/pages/nios.html` | **NEW** — NIOS tab page (upload, wizard, results) | NEW — no existing template modified |
-| `src/cloud_usage/dashboard/templates/partials/wizard/nios_step1_upload.html` | **NEW** — file upload step | NEW |
-| `src/cloud_usage/dashboard/templates/partials/wizard/nios_step2_members.html` | **NEW** — member list + migration group toggle | NEW |
-| `src/cloud_usage/dashboard/templates/partials/wizard/nios_step3_review.html` | **NEW** — analysis config review | NEW |
-| `pyproject.toml` | Add `pyyaml>=6.0` for NIOS config file parsing | LOW — new dependency, no version conflicts |
-
----
-
-## Integration Points: CLI
-
-The CLI integration is a clean `elif` branch in the `main()` function. No existing argument parsing or provider path is touched:
+The data is **already fully computed** at scan time. `_run_scan_pipeline()` in `routes/scan.py` (lines 311-323) produces:
 
 ```python
-# cli.py — additive only, no existing code modified
-
-parser.add_argument(
-    "--nios",
-    type=str,
-    default=None,
-    metavar="BACKUP.tar.gz",
-    help="Run NIOS Grid backup analysis on the given .tar.gz file",
-)
-parser.add_argument(
-    "--nios-config",
-    type=str,
-    default=None,
-    metavar="CONFIG.yaml",
-    help="NIOS analysis config: member filters, migration split, lease states",
-)
-
-# In main():
-if args.nios:
-    from cloud_usage.nios import run_nios_analysis, NiosConfig
-    config = NiosConfig.from_yaml(args.nios_config) if args.nios_config else NiosConfig()
-    run_nios_analysis(backup_path=args.nios, config=config, output_dir=args.output_dir)
-    return 0
+account_summaries: dict[str, dict]
+# acct_id -> {ddi_count, ip_count, asset_count, ddi_tokens, ip_tokens, asset_tokens, total_tokens}
 ```
 
-The NIOS path exits before the cloud provider selection logic, so there is no interaction between the two paths at all.
+`pages.py:_compute_summary()` recomputes this same data on every tab render from `scan_manager.resources` (the resource list is the source of truth, not a cached aggregate). It already builds `per_account_details`:
+
+```python
+per_account_details.append({
+    "account_id": account_id,
+    "provider": account_provider[account_id],   # "aws" | "azure" | "gcp"
+    "ddi_count": result["ddi_count"],
+    "ip_count": result["ip_count"],
+    "asset_count": result["asset_count"],
+    "total_tokens": result["total_tokens"],      # only total — sub-totals dropped here
+})
+```
+
+This list is passed to `pages/summary.html` which already renders a basic per-account table. The `results.html` (Results tab) receives this dict too but does not render the per-account section.
+
+### What Is Missing for v1.4
+
+**Gap 1 — Sub-totals dropped.** `_compute_summary()` keeps only `total_tokens` from `calculate_account_tokens()`. For inline formula cards (DDI ÷ 25 = X.X, IPs ÷ 13 = X.X), the template needs `ddi_tokens` and `ip_tokens` individually — or it can compute `ddi_count / 25` itself since divisors are template constants per project convention.
+
+Given the established project decision that formula divisors are hardcoded in templates, **sub-totals do not need to be passed from Python** — the template computes `ddi_count / 25` inline. Only the raw counts (already in `per_account_details`) are needed.
+
+**Gap 2 — Resource type breakdown missing.** The requirement includes "resource type breakdown" per account (e.g., vm=5, subnet=3). This is not computed or stored anywhere currently. It requires iterating `scan_manager.resources` grouped by account and tallying `r.resource_type` for counted resources.
+
+### Integration Path: Cloud Attribution
+
+**Modify `_compute_summary()` in `pages.py`** — add `resource_type_breakdown` to each `per_account_details` entry. The raw counts are already present; only the resource type tally is new.
+
+```python
+# Helper to add inside pages.py
+def _count_resource_types(resources: list) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for r in resources:
+        if r.counted:
+            counts[r.resource_type] = counts.get(r.resource_type, 0) + 1
+    return dict(sorted(counts.items()))
+
+# In _compute_summary(), per-account loop:
+per_account_details.append({
+    "account_id": account_id,
+    "provider": account_provider[account_id],
+    "ddi_count": result["ddi_count"],
+    "ip_count": result["ip_count"],
+    "asset_count": result["asset_count"],
+    "total_tokens": result["total_tokens"],
+    "resource_type_breakdown": _count_resource_types(by_account[account_id]),  # ADD
+})
+```
+
+**Modify `pages/summary.html`** — expand the per-account table to add:
+- Inline formula derivation cells: `{{ acct.ddi_count }} DDI ÷ 25 = {{ "%.1f"|format(acct.ddi_count / 25) }}`
+- Resource type breakdown (collapsed `<details>` or small pill badges per type)
+
+**No new routes, no new SSE events, no new files.** Both `tab_summary` and `tab_results` already call `_compute_summary()` and pass the result to their templates.
+
+### Data Flow: Cloud Attribution
+
+```
+scan_manager._resources: list[CloudResource]
+    │
+    └── pages.py:_compute_summary()               [MODIFY: add resource_type_breakdown]
+            │
+            ├── by_account dict        (group resources by account_id)
+            ├── deduplicate_ips_per_vpc()
+            ├── calculate_account_tokens()
+            │     → {ddi_count, ip_count, asset_count, ddi_tokens, ip_tokens, asset_tokens, total_tokens}
+            ├── _count_resource_types()            [ADD: new helper]
+            │     → {resource_type: count, ...}
+            └── per_account_details list
+                    │
+                    ├── pages/summary.html         [MODIFY: formula derivation + resource types]
+                    └── pages/results.html         [no change — does not render per_account_details]
+```
 
 ---
 
-## Integration Points: Dashboard
+## Feature 2: NIOS Object Family Breakdown Table
 
-The dashboard integration follows the same HTMX tab pattern used for cloud discovery. The NIOS tab is additive — it does not share state with the cloud scan wizard.
+### Where the Data Lives
 
-### New route structure
+The XLS "Object Counters" sheet (sheet 2 of the NIOS report) comes from `IntegrityReport.families_found` — a `dict[str, int]` mapping NiosFamily string constant to raw object count. This is returned by `inspect_backup()` in Step 1 of the NIOS pipeline.
 
-```
-POST /api/nios/upload          # Accept .tar.gz, store to temp path, return member list
-POST /api/nios/start           # Start analysis with config (migration split, filters)
-GET  /api/nios/status          # Poll analysis state (idle/running/complete/error)
-GET  /download/<filename>      # Reuse existing download route (already generic)
-GET  /tab/nios                 # HTMX tab swap — NIOS analysis tab
-POST /wizard/nios/upload       # Step 1: file upload + member extraction
-POST /wizard/nios/members      # Step 2: member list with group toggles
-POST /wizard/nios/review       # Step 3: config review before run
-```
+**Critical gap: `NiosScanManager` does not store `IntegrityReport`.**
 
-### State management in ScanManager
+The pipeline (`_run_nios_pipeline()` in `nios.py`) calls `inspect_backup()` in Step 1 and passes the `IntegrityReport` directly to `write_nios_xlsx_report()` — but **does not persist it** to `nios_manager`. The only result stored on `nios_manager` is `scenario_suite` (a `ScenarioSuite`).
 
-NIOS analysis state is tracked as separate fields on `ScanManager`, independent from cloud scan state. This means a user can run a cloud scan and a NIOS analysis sequentially without state collision:
+What `ScenarioSuite` contains (source-confirmed from `scenarios.py`):
+- `current_grid`, `full_migration`, `hybrid_uddi` — scenario token totals (ScenarioResult)
+- `member_attribution` — list of MemberScenarioRow
+- Does NOT contain per-family raw counts
+
+What `CountResult` contains (source-confirmed from `counter.py`):
+- `member_counts` — per-member DDI/IP/lease counts (collapsed integers)
+- `grid_counts` — global aggregate
+- Does NOT expose per-family breakdowns — family counting is internal to `count_objects()`
+
+**Conclusion:** `IntegrityReport.families_found` is the only existing data structure that holds raw per-family object counts. It must be stored in `NiosScanManager` to be available for template rendering.
+
+### Integration Path: NIOS Family Breakdown
+
+**Step 1 — Add `_integrity_report` to `NiosScanManager`**
 
 ```python
-# scan_manager.py — additive fields
-@dataclass
-class NiosAnalysisState(Enum):
-    IDLE = "idle"
-    PARSING = "parsing"
-    COMPLETE = "complete"
-    ERROR = "error"
+# services/nios_manager.py — additive changes only
+class NiosScanManager:
+    def __init__(self) -> None:
+        ...
+        self._integrity_report = None          # ADD field
 
-class ScanManager:
-    # Existing cloud scan fields unchanged
-    _state: ScanState = ScanState.IDLE
-    _resources: list[CloudResource] = ...
+    @property
+    def integrity_report(self):               # ADD property
+        with self._lock:
+            return self._integrity_report
 
-    # New NIOS fields
-    _nios_state: NiosAnalysisState = NiosAnalysisState.IDLE
-    _nios_result: dict | None = None        # ScenarioResults serialized to dict
-    _nios_output_path: str | None = None    # Path to generated .xlsx
-    _nios_temp_path: str | None = None      # Uploaded .tar.gz temp location
+    def set_integrity_report(self, report) -> None:   # ADD setter
+        with self._lock:
+            self._integrity_report = report
+
+    def reset(self) -> None:
+        with self._lock:
+            ...
+            self._integrity_report = None     # ADD to reset
 ```
 
-No SSE is needed for NIOS analysis. Unlike cloud discovery (which runs for 30+ minutes across 100+ accounts), NIOS analysis completes in seconds to low minutes even for 2GB files. Simple polling via `/api/nios/status` is sufficient.
+**Step 2 — Store it in `_run_nios_pipeline()`**
+
+The `integrity` local already exists. One line addition after `inspect_backup()` returns:
+
+```python
+# routes/nios.py:_run_nios_pipeline() — Step 1 block
+integrity = inspect_backup(backup_path)
+nios_manager.set_integrity_report(integrity)   # ADD
+```
+
+**Step 3 — Add to `tab_nios()` context**
+
+```python
+# routes/pages.py:tab_nios()
+context.update({
+    ...
+    "scenario_suite": scenario_suite,
+    "integrity_report": nios_manager.integrity_report,   # ADD
+})
+```
+
+**Step 4 — Render in `partials/nios/complete.html`**
+
+Append a family breakdown section after the existing member attribution table. The template receives `integrity_report.families_found` (a plain dict) and filters it to non-zero families only.
+
+For display order and display names, the template can use an inline ordered list or the Python route can pre-process into an ordered list. The cleaner approach is pre-processing in the route (or a helper), passing `family_rows: list[dict]` to the template rather than having the template import Python constants.
+
+**Recommended approach:** Add a `_build_family_rows(integrity_report)` helper to `routes/pages.py` (or inline in `tab_nios()`) that produces:
+
+```python
+# Produced in tab_nios() or a helper:
+family_rows = [
+    {
+        "name": family_name,           # NiosFamily constant string (e.g., "dns_record_a")
+        "display_name": display_name,  # human-readable (e.g., "dns_record_a")
+        "count": count,
+        "is_ddi": family_name in _DDI_FAMILIES,
+    }
+    for family_name in _ALL_FAMILIES_ORDERED
+    if integrity_report.families_found.get(family_name, 0) > 0
+]
+# Passed to template as context["family_rows"]
+```
+
+This keeps business logic (DDI classification, display order) in Python, not Jinja2.
+
+**No new routes, no new SSE events.** The complete screen renders synchronously from `GET /tab/nios` (triggered by `nios_complete` SSE event + HTMX swap). All data is available at that point.
+
+### Data Flow: NIOS Family Breakdown
+
+```
+nios/parser:inspect_backup(backup_path)
+    → IntegrityReport.families_found: dict[str, int]
+          │
+          ├── routes/nios.py:_run_nios_pipeline()
+          │     nios_manager.set_integrity_report(integrity)   [ADD]
+          │
+          └── NiosScanManager._integrity_report                [ADD field]
+                    │
+                    └── routes/pages.py:tab_nios()             [ADD to context]
+                              │
+                              ├── _build_family_rows(integrity_report)   [ADD helper]
+                              │     filters non-zero families
+                              │     orders by _ALL_FAMILIES_ORDERED (from nios/output.py)
+                              │     tags is_ddi from _DDI_FAMILIES (from nios/counter.py)
+                              │
+                              └── pages/nios.html → partials/nios/complete.html
+                                        family_rows: list[dict]
+                                        → table: family_name | count | DDI? (yes/no)
+```
 
 ---
 
-## Architectural Patterns for NIOS
+## Component Boundary Summary
 
-### Pattern 1: SAX/iterparse for Streaming XML
+### Modified Components
 
-**What:** Use `xml.etree.ElementTree.iterparse()` to process onedb.xml as a stream of SAX-like events. Accumulate properties within a single `<OBJECT>` element, then emit a typed `NiosObject` and discard the element from memory with `elem.clear()`.
+| Component | Change | Risk |
+|-----------|--------|------|
+| `routes/pages.py` | Add `_count_resource_types()` helper; extend `per_account_details` entries in `_compute_summary()` with `resource_type_breakdown`; add `integrity_report` and `family_rows` to `tab_nios()` context; add `_build_family_rows()` helper | Low — all additive, no existing logic removed |
+| `pages/summary.html` | Extend per-account table with formula derivation cells and resource type breakdown | Low — template-only, additive |
+| `services/nios_manager.py` | Add `_integrity_report` field, `set_integrity_report()` setter, `integrity_report` property; clear in `reset()` | Low — additive, thread-safe pattern identical to existing fields |
+| `routes/nios.py:_run_nios_pipeline()` | Add `nios_manager.set_integrity_report(integrity)` after Step 1 | Low — one line addition |
+| `partials/nios/complete.html` | Add family breakdown section | Low — template-only, appended after existing content |
 
-**When to use:** The primary parse pattern. The validated reference backup (ZF Friedrichshafen) is 2.5M objects, 2GB+ on disk. Loading the full document into memory would require 4-8GB RAM, which is not viable on customer laptops.
+### New Components
 
-**Trade-offs:**
-- Pro: O(1) memory per object; total memory is bounded by the largest single OBJECT element (typically a few KB)
-- Pro: Works on 2GB+ files without OS-level file mapping
-- Con: No random access; must make a full pass to build indexes (member map, then object filtering)
-- Con: Cannot use XPath or full document traversal patterns
+None required. No new routes, no new services, no new files.
 
-**Implementation sketch:**
-```python
-import xml.etree.ElementTree as ET
+---
 
-def iter_nios_objects(xml_fileobj):
-    """Yield (type_name, properties_dict) for each OBJECT element."""
-    context = ET.iterparse(xml_fileobj, events=("start", "end"))
-    current_type = None
-    current_props = {}
-    inside_object = False
+## Architectural Patterns to Follow
 
-    for event, elem in context:
-        if event == "start" and elem.tag == "OBJECT":
-            inside_object = True
-            current_type = None
-            current_props = {}
-        elif event == "end" and elem.tag == "OBJECT":
-            if current_type:
-                yield current_type, current_props
-            inside_object = False
-            elem.clear()  # release memory
-        elif inside_object and event == "end" and elem.tag == "PROPERTY":
-            name = elem.get("name") or elem.tag
-            val = elem.text or ""
-            if name == "NIOS_OBJECT_TYPE":
-                current_type = val
-            else:
-                current_props[name] = val
-```
+### Pattern 1: Additive Context Extension
 
-### Pattern 2: Two-Pass Processing (Members First)
+**What:** Route handlers pass context dicts to templates. Templates use `{% if key %}` guards before rendering optional sections.
 
-**What:** Make one forward pass through the XML to collect all `NiosMember` objects. Build the `virtual_oid → hostname` map. Then make a second pass (or continue the same stream with the map available) to emit all other object types with member attribution resolved.
+**When to use:** Adding display data to an existing render path without breaking other callers.
 
-**When to use:** The member map is needed to attribute every other object. Since members may appear anywhere in the XML, a two-pass approach is the safe design. In practice, members appear early in the file (they are a small object family), so the first pass completes quickly.
+**Example from codebase:** `tab_nios()` calls `_get_tab_context()` and then `context.update({...})`. New keys in the update do not affect other tabs.
 
-**Trade-offs:**
-- Pro: Every object emitted by pass 2 has a resolved `hostname` field — no post-hoc resolution needed
-- Pro: Filter can apply during pass 2 using the already-built member map, avoiding storing all objects before filtering
-- Con: Requires two passes over the file — for a 2GB file this means reading the compressed archive twice; mitigate by storing the decompressed stream to a temp file or by holding only the member-offset map in memory for a seek-based approach
+**Apply to:** Both features. Add keys to context dicts; templates check `{% if integrity_report %}` before rendering the family table.
 
-**Simplification:** For the ZF reference size (2.5M objects), two sequential passes over the compressed .tar.gz complete in under 60 seconds on a typical laptop SSD. Simplicity wins over a streaming single-pass approach.
+### Pattern 2: Thread-Safe State Accumulation in Manager
 
-### Pattern 3: Member-Attributed Counting
+**What:** `NiosScanManager` stores pipeline output using a single `threading.Lock`. All setters use `with self._lock`. Properties return copies where needed.
 
-**What:** Assign every parsed object to its owning member via `virtual_oid`. Aggregate counts into a `MemberCounts` dict keyed by `virtual_oid`. This allows per-member attribution (SCEN-02 hybrid split) and the global grid view to both be computed from the same counts structure.
+**When to use:** Any pipeline result that must outlive the background thread and be readable from async route handlers.
 
-**When to use:** Always. Counting at member granularity first, then aggregating for scenarios, is the only design that supports all three scenario views without re-parsing.
+**Example from codebase:** `set_complete(output_path, scenario_suite)` — exactly this pattern.
 
-**Trade-offs:**
-- Pro: Single counting pass produces data for all three scenarios
-- Pro: Member-level counts are independently auditable
-- Con: Objects with no member attribution (grid-level objects) need a sentinel member ID (e.g., `virtual_oid=0` → "Grid-Level")
+**Apply to:** `set_integrity_report(report)` — same discipline, same lock.
+
+### Pattern 3: Compute Display Aggregations on Render, Not at Scan Time
+
+**What:** `_compute_summary()` recomputes token totals and per-account aggregates from raw `scan_manager.resources` on every tab render. `ScanManager` stores only the raw resource list, not derived display data.
+
+**When to use:** Display aggregates that can be computed quickly from the raw data.
+
+**Apply to:** `_count_resource_types()` — compute inside `_compute_summary()`. Do not store in `ScanManager`.
+
+**Caveat on performance:** At 100+ accounts with thousands of resources, `_compute_summary()` recomputes on every tab load. The existing implementation already does this (it is the established pattern). `_count_resource_types()` adds one linear pass per account — same complexity as the existing token calculation loop.
+
+### Pattern 4: Template-Owned Formula Constants
+
+**What:** Formula divisors (DDI ÷ 25, IPs ÷ 13, Assets ÷ 3) are hardcoded in Jinja2 templates. This is an established project decision (PROJECT.md Key Decisions, entry: "Formula divisors hardcoded in template").
+
+**When to use:** All inline formula derivation rendering.
+
+**Apply to:** Cloud attribution formula cells. The template computes `ddi_count / 25` in Jinja2 arithmetic (`{{ "%.1f"|format(acct.ddi_count / 25) }}`). The backend passes only counts.
+
+**Do not:** Pass `DDI_PER_TOKEN = 25` as a context variable or compute formatted strings in the route handler.
+
+### Pattern 5: Business Logic Classification Stays in Python, Display in Templates
+
+**What:** DDI family classification (`is_ddi`) and display ordering (`_ALL_FAMILIES_ORDERED`) are Python constants defined in `nios/counter.py` and `nios/output.py`. Templates should not import or re-implement these.
+
+**When to use:** When template logic would require knowledge of domain constants.
+
+**Apply to:** NIOS family breakdown — the `_build_family_rows()` helper in `pages.py` applies DDI classification and ordering before passing a clean list to the template.
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Reusing `CloudResource` for NIOS Objects
+### Anti-Pattern 1: Treating CountResult as the Family Breakdown Source
 
-**What people do:** Add NIOS-specific fields to `CloudResource` or map NIOS objects into the cloud resource schema to reuse the existing counting and output pipeline.
+**What people might do:** Attempt to extract per-family counts from `ScenarioSuite` or `CountResult` rather than `IntegrityReport`.
 
-**Why it's wrong:** `CloudResource` has `provider`, `account_id`, `region`, `resource_type`, `ip_addresses`, and `counted/category/skip_reason` — none of which map cleanly to NIOS objects. NIOS objects have `virtual_oid`, `network_view`, `lease_state`, `zone_type`, and member attribution. Forcing the NIOS data model into `CloudResource` creates either a bloated schema (many None fields) or misleading field repurposing. The NIOS token formula also differs fundamentally (dual NIOS/UDDI rates vs single UDDI rate).
+**Why it's wrong:** `ScenarioSuite` has no family-level data. `CountResult.member_counts` exposes per-member DDI totals (collapsed integers). `CountResult.grid_counts.ddi_count` is the total grid-level DDI — not split by family. The counting logic in `count_objects()` accumulates family counts internally but does not expose them on the output struct.
 
-**Do this instead:** Introduce `nios/schema.py` with purpose-built dataclasses. Keep `CloudResource` untouched.
+**Do this instead:** Store `IntegrityReport` in `NiosScanManager`. `IntegrityReport.families_found` is the canonical source used by the XLS Object Counters sheet.
 
-### Anti-Pattern 2: Loading the Entire XML into Memory
+### Anti-Pattern 2: Async Partial Load for the Family Table
 
-**What people do:** `tree = ET.parse(xml_fileobj)` or `lxml.etree.parse()`. This loads the full document tree into RAM before any processing begins.
+**What people might do:** Add an HTMX partial route (`GET /api/nios/family-breakdown`) that loads asynchronously after the complete screen renders.
 
-**Why it's wrong:** The validated reference backup is 2.5M objects. Parsed into an lxml element tree, this requires 3-5GB of RAM. Customer laptops typically have 8-16GB total, and the tool may compete with their browser, IDE, and VPN client.
+**Why it's wrong:** The complete screen (`partials/nios/complete.html`) is not included until the pipeline finishes and HTMX swaps the tab from the `nios_complete` SSE event. All data is available at render time. An async partial adds round-trip latency and complexity with no benefit.
 
-**Do this instead:** `ET.iterparse()` with `elem.clear()` after each OBJECT is emitted. Constant memory usage regardless of file size.
+**Do this instead:** Include the family breakdown synchronously in `complete.html`. It is a static read from `IntegrityReport.families_found` stored in `nios_manager`.
 
-### Anti-Pattern 3: Sharing Scan State Between Cloud and NIOS Pipelines
+### Anti-Pattern 3: Computing Resource-Type Breakdown at Scan Time
 
-**What people do:** Add `nios` as a fourth "provider" in `ScanConfig.providers` and run it through the existing `DiscoveryOrchestrator`.
+**What people might do:** Compute `resource_type_breakdown` inside `_run_scan_pipeline()` and store it in `ScanManager`.
 
-**Why it's wrong:** The `DiscoveryOrchestrator` is built for concurrent account-level discovery with rate limiting, checkpoint/resume, and `CloudResource` output. NIOS analysis is single-file, sequential, has no API rate limits, produces no `CloudResource` objects, and completes in under a minute. Forcing it into the orchestrator adds all that machinery for zero benefit, and requires the orchestrator to know about NIOS types — breaking its provider-agnostic design.
+**Why it's wrong:** Breaks the established pattern. `ScanManager` stores raw `_resources` and `_output_paths` only. All display aggregations are computed on render in `_compute_summary()`. Adding scan-time aggregations to `ScanManager` creates a split model where some display data is pre-computed and some is computed on render.
 
-**Do this instead:** `nios/runner.py` is a standalone synchronous function. The CLI and dashboard call it directly, not via the orchestrator.
+**Do this instead:** Compute `resource_type_breakdown` inside `_compute_summary()` alongside the other per-account aggregates.
 
-### Anti-Pattern 4: Treating Migration Split as a Filter
+### Anti-Pattern 4: Inline Formula Computation in Python Route Handlers
 
-**What people do:** Treat the NIOSX member group as a filter that excludes those members from counting, then compute the "rest" as NIOS-remaining.
+**What people might do:** Pre-compute formatted strings like `f"{ddi_count} ÷ 25 = {ddi_count/25:.1f}"` in the route handler and pass them as context strings.
 
-**Why it's wrong:** The hybrid scenario requires counting NIOSX-assigned members under one formula AND NIOS-remaining members under another formula, then reporting both sub-totals plus the combined total. If you filter NIOSX members out, you lose their contribution to the hybrid total. The member attribution table must include every member.
+**Why it's wrong:** Violates template-owns-display-logic. Hard to maintain. Mixes concerns. Inconsistent with how the existing NIOS formula cards work (`complete.html` does all arithmetic inline in Jinja2).
 
-**Do this instead:** The migration split is a group assignment, not an exclusion filter. `scenarios.py` receives all member counts plus the split config, then applies the appropriate formula per group.
+**Do this instead:** Pass raw integers; let Jinja2 format: `{{ "{:,}".format(acct.ddi_count) }} ÷ 25 = {{ "%.1f"|format(acct.ddi_count / 25) }}`.
 
-### Anti-Pattern 5: Computing NIOS Tokens in `counting/token_calculator.py`
+### Anti-Pattern 5: New SSE Events for v1.4 Features
 
-**What people do:** Add NIOS formula constants and a NIOS-specific function to the existing `token_calculator.py` to avoid code duplication.
+**What people might do:** Emit a new SSE event (e.g., `nios_family_ready`) after the pipeline completes to trigger an HTMX swap for the family table.
 
-**Why it's wrong:** `token_calculator.py` is used by the cloud pipeline and is tested against cloud-specific scenarios. Adding NIOS constants (`DDI_PER_TOKEN_NIOS = 50`) and a parallel function conflates two independent licensing domains. Future changes to either formula become hazardous.
+**Why it's wrong:** The existing `nios_complete` event already triggers `GET /tab/nios`, which renders the complete screen including all its sections. There is nothing to trigger separately.
 
-**Do this instead:** `nios/counter.py` contains its own formula constants and token math. A single `_ceil_div()` helper is identical to the one in `token_calculator.py` but is defined locally — four lines of code duplication is better than cross-domain coupling.
-
----
-
-## Component Boundaries
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| `cli.py` → `nios/runner.py` | Direct function call with `NiosConfig` | No orchestrator, no cloud code involved |
-| `dashboard/routes/scan.py` → `nios/runner.py` | `asyncio.to_thread()` with `NiosConfig` | Same pattern as cloud scan pipeline in background thread |
-| `nios/runner.py` → `nios/parser/` | Pass file path; receive NiosObject stream via generator | Parser never imports runner |
-| `nios/runner.py` → `nios/filter.py` | Pass NiosObject stream + FilterConfig; receive filtered stream | Pure function on the stream |
-| `nios/runner.py` → `nios/counter.py` | Pass filtered NiosObject stream; receive `GridCounts` | Pure function, no side effects |
-| `nios/runner.py` → `nios/scenarios.py` | Pass `GridCounts` + `MigrationSplit`; receive `ScenarioResults` | Pure computation |
-| `nios/runner.py` → `nios/output/nios_xlsx.py` | Pass `ScenarioResults` + file path; receive written file path | File I/O only |
-| `nios/` → `output/xlsx_report.py` | **No import** — separate output module | NIOS XLS format is entirely different from cloud XLS format |
-| `nios/` → `counting/` | **No import** | Counting logic is NIOS-specific |
-| `nios/` → `providers/` | **No import** | No cloud SDK dependencies |
-| `nios/` → `schema/resource.py` | **No import** | `CloudResource` is for cloud providers only |
+**Do this instead:** Include the family breakdown in `complete.html` as a static section. It renders as part of the tab reload on `nios_complete`.
 
 ---
 
-## Build Order
+## Build Order and Dependencies
 
-This sequence respects data dependencies. Each phase has no forward dependencies on phases above it.
+The two features are independent of each other (cloud and NIOS state share nothing). Either can be built first.
 
-### Phase 10: Parser + Schema (foundation)
-**Builds:** `nios/schema.py`, `nios/parser/`
-**Why first:** Every subsequent module depends on the typed `NiosObject` stream. The schema defines the data model. The parser is the only module that reads raw XML. No other module should know about XML structure.
-**Testable alone:** Unit tests with a minimal synthetic `onedb.xml` fixture (50 objects of each type). Test that each object type parses correctly. Test that 2GB+ file iteration does not exhaust memory.
-**No dependencies on:** anything else in `nios/`
+**Recommended order:**
 
-### Phase 11: Filter + Counter
-**Builds:** `nios/filter.py`, `nios/counter.py`, `nios/config.py`
-**Why second:** Filter and counter take the `NiosObject` stream as input. `config.py` is needed by filter and counter (lease state config, whitelist/blacklist patterns).
-**Depends on:** Phase 10 (`nios/schema.py`, `nios/parser/`)
-**Testable alone:** Unit tests with synthetic object streams. Test whitelist-first semantics (FILTER-03). Test all DDI object types contribute to DDI count (COUNT-01). Test active IP calculation (COUNT-02). Test configurable lease states (COUNT-03). Test per-member attribution (COUNT-06).
+1. **Cloud attribution table** — zero structural changes needed (no new manager fields, no new pipeline calls). Touches only `pages.py` logic and one template. Lower risk; establishes patterns before touching NIOS.
 
-### Phase 12: Scenarios
-**Builds:** `nios/scenarios.py`
-**Why third:** Scenarios are pure computation over `GridCounts` (output of counter). No file I/O. No parsing. This is the most logic-rich module and benefits from clean isolated testing.
-**Depends on:** Phase 11 (`nios/counter.py` for `GridCounts` type)
-**Testable alone:** Unit tests with constructed `GridCounts` objects. Verify all three formula outputs (SCEN-01, SCEN-02, SCEN-03). Verify hybrid sub-totals sum to combined total. Verify that members with no explicit group assignment default to NIOS-remaining (MIGR-03).
+2. **NIOS family breakdown** — requires the `NiosScanManager` extension (new field + setter + property) and the `_run_nios_pipeline()` call site change. Build second.
 
-### Phase 13: Output + Runner
-**Builds:** `nios/output/nios_xlsx.py`, `nios/runner.py`, `nios/__init__.py`
-**Why fourth:** Output depends on `ScenarioResults` (Phase 12 output). Runner wires all phases together and is the last piece before integration.
-**Depends on:** Phases 10–12 for data types; `xlsxwriter` (already a project dependency from `output/xlsx_report.py`)
-**Testable alone:** Integration test with the ZF reference backup or a synthetic large fixture. Verify XLS sheet structure and content (OUT-01 through OUT-05).
+### Step-by-step within each feature
 
-### Phase 14: CLI Integration
-**Builds:** Modified `cli.py` (new `--nios`, `--nios-config` args and `elif` branch)
-**Depends on:** Phase 13 (`nios.run_nios_analysis`)
-**Test:** End-to-end CLI invocation: `python -m cloud_usage.cli --nios backup.tar.gz` produces `nios_analysis_<timestamp>.xlsx` in the output dir. INTEG-01 acceptance.
+**Cloud attribution:**
+```
+Step 1: Add _count_resource_types() helper to pages.py
+Step 2: Extend per_account_details in _compute_summary() with resource_type_breakdown
+Step 3: Update pages/summary.html — add formula derivation row + resource type breakdown
+Step 4: Verify: run cloud scan, check Summary tab shows formula derivation and resource types
+```
 
-### Phase 15: Dashboard Integration
-**Builds:** New routes in `dashboard/routes/`, new templates, `ScanManager` NIOS state fields, tab bar update
-**Depends on:** Phase 13 (`nios.run_nios_analysis`), existing dashboard infrastructure
-**Test:** Dashboard NIOS tab renders. Upload wizard accepts .tar.gz. Member list displays. Analysis runs. XLS download works. INTEG-02 acceptance.
+**NIOS family breakdown:**
+```
+Step 1: Add _integrity_report field + set_integrity_report() + integrity_report property + reset() clear to NiosScanManager
+Step 2: Add nios_manager.set_integrity_report(integrity) call in _run_nios_pipeline() after inspect_backup
+Step 3: Add _build_family_rows() helper to pages.py; add integrity_report + family_rows to tab_nios() context
+Step 4: Add family breakdown section to partials/nios/complete.html
+Step 5: Verify: run NIOS analysis, check complete screen shows family breakdown table
+```
+
+---
+
+## Integration Points with Existing Routes/Templates
+
+| Existing Component | v1.4 Touch | Change Type |
+|-------------------|------------|-------------|
+| `routes/pages.py:_compute_summary()` | Cloud attribution | Modify — add `_count_resource_types()` helper call per account |
+| `routes/pages.py:tab_summary()` | Inherits automatically | No change — calls `_compute_summary()` |
+| `routes/pages.py:tab_results()` | Inherits automatically | No change — calls `_compute_summary()` |
+| `routes/pages.py:tab_nios()` | NIOS family | Modify — add `integrity_report` + `family_rows` to context |
+| `pages/summary.html` | Cloud attribution | Modify — expand per-account table with formula + resource types |
+| `partials/nios/complete.html` | NIOS family | Modify — append family breakdown section |
+| `services/nios_manager.py` | NIOS family | Modify — add field + property + setter + reset clear |
+| `routes/nios.py:_run_nios_pipeline()` | NIOS family | Modify — one line: call set_integrity_report after inspect_backup |
+
+**No new files. No new routes. No new SSE events. No new services.**
 
 ---
 
 ## Scaling Considerations
 
-NIOS analysis does not have the same scaling concerns as cloud discovery. There are no external APIs, no rate limits, and no concurrent workers. The scale challenge is file size.
+| Concern | Current scale | v1.4 impact |
+|---------|---------------|-------------|
+| `_count_resource_types()` per account | O(resources-per-account) | Same complexity as existing token loop inside `_compute_summary()`. Negligible extra cost. |
+| `IntegrityReport.families_found` dict | At most 26 keys | Zero cost. Written once at analysis start; stored as one dict reference. |
+| Memory for `_integrity_report` in manager | One small dict | Negligible — replaces `None`. |
+| `_build_family_rows()` filter + sort | At most 26 items | Instantaneous. |
 
-| Concern | Approach |
-|---------|----------|
-| 2GB+ onedb.xml (inside .tar.gz) | `ET.iterparse()` with `elem.clear()`. Constant memory regardless of file size. Validated ref: 2.5M objects. |
-| 2GB compressed archive | `tarfile.open()` in streaming mode (`r|gz`). Decompress on the fly; never extract full file to disk. |
-| Member attribution for 2.5M objects | `dict[int, MemberCounts]` keyed by `virtual_oid`. With 168 members (ZF reference), the dict stays tiny. |
-| Counter memory | Running totals only (one `MemberCounts` per member). Never holds more than one `NiosObject` in memory at a time during counting pass. |
-| Dashboard file upload | Write .tar.gz to a named temp file in `output/.nios_temp/`. Delete after analysis completes or on new upload. Do not hold the file bytes in process memory. |
+---
+
+## Confidence Assessment
+
+| Area | Confidence | Basis |
+|------|------------|-------|
+| Cloud per-account data already computed | HIGH | Source-read `pages.py:_compute_summary()` + `counting/token_calculator.py:calculate_account_tokens()` return shape confirmed |
+| `resource_type` field on CloudResource | HIGH | Source-read `schema/resource.py` — `resource_type: str` field confirmed |
+| `resource_type_breakdown` not currently computed | HIGH | Source-read `_compute_summary()` — no such tally exists |
+| `IntegrityReport` not stored in `NiosScanManager` | HIGH | Source-read `services/nios_manager.py` — confirmed no `_integrity_report` field |
+| `families_found` as family breakdown source | HIGH | Source-read `nios/output.py` — Object Counters sheet uses `integrity_report.families_found` |
+| `_ALL_FAMILIES_ORDERED` available for ordering | HIGH | Source-read `nios/output.py` lines 63-91 — confirmed list exists |
+| `_DDI_FAMILIES` available for DDI tagging | HIGH | Source-read `nios/counter.py` lines 96-119 — confirmed frozenset exists |
+| No new routes needed | HIGH | Complete screen renders synchronously on full tab GET; cloud summary already renders per-account |
+| Formula constants belong in templates | HIGH | PROJECT.md Key Decisions entry confirmed; `complete.html` uses inline Jinja2 arithmetic for existing formula cards |
 
 ---
 
 ## Sources
 
-- Direct codebase analysis of `src/cloud_usage/` (HIGH confidence — read every relevant module)
-- `REQUIREMENTS.md` v1.1 requirements (HIGH confidence — authoritative spec)
-- `PROJECT.md` context and constraints (HIGH confidence)
-- Python `xml.etree.ElementTree.iterparse()` documentation — stdlib, HIGH confidence
-- Validated reference data: ZF Friedrichshafen backup, 2.5M objects, 2GB+, cited in PROJECT.md
+- Direct source reads: `services/nios_manager.py`, `services/scan_manager.py`
+- Direct source reads: `routes/nios.py` (`_run_nios_pipeline()` lines 97-242)
+- Direct source reads: `routes/scan.py` (`_run_scan_pipeline()` lines 198-394)
+- Direct source reads: `routes/pages.py` (`_compute_summary()` lines 71-159, `tab_nios()` lines 288-328)
+- Direct source reads: `routes/partials.py`
+- Direct source reads: `nios/counter.py` (`CountResult`, `MemberCounts`, `_DDI_FAMILIES`)
+- Direct source reads: `nios/scenarios.py` (`ScenarioSuite` fields)
+- Direct source reads: `nios/output.py` (`_ALL_FAMILIES_ORDERED`, `_FAMILY_DISPLAY_NAMES`, `write_nios_xlsx_report()` signature)
+- Direct source reads: `nios/schema.py` (`IntegrityReport.families_found`, `NiosFamily`)
+- Direct source reads: `counting/token_calculator.py` (`calculate_account_tokens` return shape)
+- Direct source reads: `schema/resource.py` (`CloudResource` fields)
+- Direct source reads: `templates/partials/nios/complete.html`, `templates/pages/nios.html`, `templates/pages/summary.html`, `templates/partials/summary_cards.html`
+- Project context: `.planning/PROJECT.md` (v1.4 requirements, key decisions)
 
 ---
 
-*Architecture research for: NIOS Grid Analysis integration into Universal DDI Cloud Usage Estimator*
-*Researched: 2026-02-28*
+*Architecture research for: Infoblox Universal DDI Cloud Usage Estimator — v1.4 Audit Depth*
+*Researched: 2026-03-03*

@@ -1,149 +1,221 @@
 # Stack Research
 
-**Domain:** NIOS Grid backup parsing + UDDI token analysis (Python add-on module)
-**Researched:** 2026-02-28
+**Domain:** FastAPI + HTMX dashboard — adding audit depth tables to existing app
+**Researched:** 2026-03-03
 **Confidence:** HIGH
 
 ---
 
-## Context: What Already Exists
+## Context: What Already Exists (Do Not Re-Add)
 
-This is a subsequent milestone on top of a validated Python codebase. The following are
-already present and must NOT be re-added:
+This is a v1.4 milestone on an existing, validated codebase. The following stack is
+fully in place and must NOT be replaced or re-added:
 
-| Existing | Already in stack |
-|----------|-----------------|
-| FastAPI + Uvicorn + Jinja2 + HTMX | Web dashboard layer |
-| openpyxl | XLS/XLSX multi-sheet output |
-| PyYAML (via requirements) | Config parsing — see note below |
-| stdlib `tarfile`, `io` | tar.gz handling — no new library needed |
-| stdlib `xml.etree.ElementTree` | XML — but should be replaced for this use case (see below) |
-| Pydantic v2 | Data modelling and validation |
-| pytest + moto | Test framework (853 passing tests) |
+| Existing | Role |
+|----------|------|
+| FastAPI >= 0.115.0 | Web framework, route handlers, HTMX partial endpoints |
+| Jinja2 >= 3.1.0 | Server-side HTML templating — all rendering lives here |
+| HTMX (vendored) | Partial swaps, SSE event wiring, hx-get/hx-target patterns |
+| PicoCSS (vendored) | Base styling — `<table>`, `<article>`, `<details>` all styled |
+| lxml >= 5.3.0 | NIOS backup XML streaming parser |
+| xlsxwriter >= 3.1.0 | XLS report generation (NIOS and cloud output) |
+| PyYAML >= 6.0 | NIOS config file parsing |
+| python-multipart >= 0.0.5 | File upload support |
+| janus >= 2.0.0 | Thread-safe async queue (SSE event bridge) |
+| pytest >= 8.0.0, moto >= 5.0.0 | Test framework |
+| Python 3.9+ | Required minimum (3.9 guarded throughout) |
 
-The only new dependency this milestone needs is **lxml** for performant 2GB+ streaming XML
-parsing. Everything else is stdlib or already installed.
+The existing `_compute_summary()` function in `pages.py` already computes
+`per_account_details` (list with account_id, provider, ddi_count, ip_count,
+asset_count, total_tokens) and `per_provider_details`. This data is passed to
+templates but only rendered in the Summary tab. The cloud attribution table feature
+reuses this existing data — no new data pipeline is needed.
 
 ---
 
-## Recommended Stack — New Additions Only
+## Recommended Stack — New Additions for v1.4
 
-### Core Technologies (new for v1.1)
+**Answer: No new libraries required.** Both new features are pure template + data
+plumbing work within the existing FastAPI + HTMX + Jinja2 stack.
 
-| Technology | Version | Purpose | Why Recommended | Confidence |
-|------------|---------|---------|-----------------|------------|
-| lxml | >=5.3.0 | Streaming XML parse of onedb.xml (2GB+) | C-backed parser (libxml2). `iterparse` is 2-20x faster than stdlib ElementTree, handles `huge_tree=True` for files with >10M nodes, and the memory management pattern (clear processed elements + delete preceding siblings) keeps RAM flat at ~50–100MB regardless of file size. The 2GB+ onedb.xml with 2.5M flat `<OBJECT>` records is exactly the use case iterparse was designed for. Latest stable 6.0.2 (Sep 2025) has wheels for Python 3.8–3.13 on Windows, macOS, Linux. | HIGH |
+### Core Technologies (unchanged)
 
-### YAML Config Library — Recommendation
+| Technology | Version | Purpose | Why Still Correct |
+|------------|---------|---------|-------------------|
+| FastAPI | >= 0.115.0 | Route handlers for new partials | Existing pattern: add route, pass data to template. No framework change needed. |
+| Jinja2 | >= 3.1.0 | Render new table partials | Both new tables are HTML `<table>` elements in Jinja2 templates — identical to `complete.html` member attribution table already shipped. |
+| HTMX (vendored) | 1.9.x | Tab swap, optional scroll target | No new HTMX attributes needed; existing `hx-get`, `hx-target`, `hx-swap` patterns cover both features. |
+| PicoCSS (vendored) | 2.x | Table, article, scrollable div styling | PicoCSS `<table role="grid">` and the inline `max-height + overflow-y: auto` pattern already used in `complete.html` member attribution section. |
 
-**Use PyYAML 6.0.3** — already present in the project's requirements.txt (implicitly, as it
-is a dependency of other packages). Add it explicitly if needed.
+### Supporting Libraries (unchanged)
 
-| Technology | Version | Purpose | Why Recommended | Confidence |
-|------------|---------|---------|-----------------|------------|
-| PyYAML | >=6.0.2 | Parse NIOS analysis config file (migration split, filter patterns) | The config schema is simple: a flat YAML file with member lists and glob patterns. PyYAML handles this with zero ceremony. Already a transitive dependency. No comment-preservation needed (config is write-once, not round-tripped). YAML 1.1 limitations (Yes/No as bool) do not apply to member hostnames or virtual_oid lists. Latest stable 6.0.3 (Sep 2025). | HIGH |
+| Library | Version | Purpose | Integration Note |
+|---------|---------|---------|------------------|
+| xlsxwriter | >= 3.1.0 | XLS Object Counters sheet (existing) | Source of truth for family names and display order via `_ALL_FAMILIES_ORDERED` and `_FAMILY_DISPLAY_NAMES` in `nios/output.py`. WebUI table mirrors this ordering. |
+| lxml | >= 5.3.0 | NIOS XML parsing (existing) | `inspect_backup()` returns `IntegrityReport.families_found` — the per-family counts needed for the NIOS WebUI table. No change to parsing. |
+| stdlib `collections.defaultdict` | stdlib | Per-account resource type counting | Already used in `pages.py` `_compute_summary()`. Extend same function to add resource_type breakdown per account. |
+| stdlib `dataclasses` | stdlib | NiosScanManager state extension | Store `integrity_report` (or a `dict[str, int]` family_counts snapshot) on `NiosScanManager` via a new `set_complete()` parameter. |
 
-### What NOT to Add
+---
+
+## Integration Points — Where to Wire the New Features
+
+### Cloud Per-Account Attribution Table
+
+**Data is already computed.** `_compute_summary()` in
+`src/cloud_usage/dashboard/routes/pages.py` builds `per_account_details` (a list of
+dicts: account_id, provider, ddi_count, ip_count, asset_count, total_tokens) and
+passes it to the Results tab context. The Summary tab already renders this list as a
+table.
+
+**What is missing and where to add it:**
+
+1. **Resource type breakdown per account** — `_compute_summary()` iterates resources
+   by account already. Add a secondary dict `{account_id: Counter(resource_type: count)}`
+   in the same loop. Attach it as `resource_type_breakdown` on each account dict.
+   No new library: `collections.Counter` (stdlib) suffices.
+
+2. **Formula derivation display** — DDI ÷ 25, IPs ÷ 13, Assets ÷ 3 inline text.
+   These are UDDI spec constants already hardcoded in `token_calculator.py`
+   (`DDI_PER_TOKEN = 25`, `IPS_PER_TOKEN = 13`, `ASSETS_PER_TOKEN = 3`). The
+   template renders them directly (same pattern as `complete.html` which hardcodes
+   divisors as Jinja2 template literals per the v1.3 decision: "Formula divisors
+   hardcoded in template — values are UDDI spec constants, immutable").
+
+3. **Template location** — Add a new partial
+   `templates/partials/account_attribution.html` rendered inside the Results tab
+   (`pages/results.html`). Follow the same scrollable-div + `<table>` pattern used
+   in `partials/nios/complete.html` member attribution section (max-height: 400px,
+   overflow-y: auto, 1px border, border-radius 6px).
+
+4. **No new route needed** — `tab_results` in `pages.py` already passes `per_account_details`
+   to the template (via `**summary`). Extend the dict to include resource type breakdown
+   and the data is available in the template. The partial just needs to be included.
+
+**Account name vs account ID:** `CloudResource.account_id` stores AWS account IDs,
+Azure subscription IDs, and GCP project IDs — no human-readable account name is
+fetched or stored by any provider. The table heading should be "Account ID" (or
+"Account / Subscription / Project") not "Account Name". Do not attempt to add a
+name lookup — it requires live cloud API calls which are out of scope for this tool's
+offline result-browsing model.
+
+### NIOS Object Family Breakdown Table
+
+**Data is available from `IntegrityReport.families_found` but not stored in
+`NiosScanManager`.** The pipeline in `routes/nios.py` computes `integrity_report`
+from `inspect_backup()` in Step 1, uses it only for the XLS report, and does not
+store it on `NiosScanManager`. Currently only `scenario_suite` is stored via
+`set_complete(output_path, scenario_suite=scenario_suite)`.
+
+**What is missing and where to add it:**
+
+1. **Store family counts on NiosScanManager** — extend `set_complete()` in
+   `src/cloud_usage/dashboard/services/nios_manager.py` with an additional parameter
+   `family_counts: dict[str, int] | None = None`. Store it as `self._family_counts`.
+   Expose via a `family_counts` property. In `_run_nios_pipeline()` in
+   `routes/nios.py`, pass `integrity_report.families_found` to the updated
+   `set_complete()` call. This is a minimal, backwards-compatible change.
+
+2. **Filter to non-zero families only** — the template iterates
+   `family_counts.items()` and skips rows where count == 0, matching the "non-zero
+   families only" requirement. No backend filtering needed; Jinja2 `{% if count > 0 %}`
+   suffices.
+
+3. **Display order** — mirror the XLS Object Counters sheet ordering. The canonical
+   order is `_ALL_FAMILIES_ORDERED` from `nios/output.py`. For the WebUI, pass the
+   family counts as an ordered list rather than a raw dict so Jinja2 renders in the
+   correct sequence. Build this ordered list in the route handler by iterating
+   `_ALL_FAMILIES_ORDERED` and looking up counts from `family_counts`.
+
+4. **Template location** — add to `templates/partials/nios/complete.html`, below
+   the existing member attribution section. Use the same scrollable-div + `<table>`
+   pattern. Columns: Object Family | Object Count | Counted in UDDI (Yes/No).
+
+5. **No new route needed** — `tab_nios` in `pages.py` reads from `nios_manager`
+   and passes context to `pages/nios.html` which includes `partials/nios/complete.html`.
+   Add `family_counts` (the ordered list) to the context dict. The partial template
+   reads it directly.
+
+---
+
+## What NOT to Add
 
 | Do NOT add | Why | Use instead |
 |------------|-----|-------------|
-| `ruamel.yaml` | Overkill for simple read-only config. Higher complexity, no benefit for a flat config file that is never round-tripped. | `PyYAML` — already in the project |
-| `defusedxml` | lxml 5.x+ disables external entity expansion by default. The onedb.xml is a known trusted file from a NIOS backup. defusedxml adds a layer of protection we do not need here and does not support iterparse. | lxml with `resolve_entities=False, no_network=True` explicitly set on the parser |
-| `xml.sax` (stdlib) | SAX is lower-level than iterparse, requires a ContentHandler class, and is not worth the added complexity for a flat `<OBJECT>` record stream where iterparse is cleaner code and similar or better performance. | `lxml.etree.iterparse` |
-| `xml.etree.ElementTree.iterparse` (stdlib) | The stdlib iterparse has a known memory leak issue where `elem.clear()` on tag-filtered events does not release ancestor nodes, leading to unbounded memory growth on 2GB+ files. lxml's iterparse handles this correctly with explicit sibling deletion. | `lxml.etree.iterparse` |
-| Any tar/gz library (python-libarchive, tarfile-stream, etc.) | Python stdlib `tarfile` handles `.tar.gz` extraction to a file-like object (`tar.extractfile(member)`) without writing to disk. No new library needed. | `import tarfile` (stdlib) |
-| `pandas` for new analysis output | Already called out in existing STACK.md as overkill. openpyxl handles multi-sheet XLSX output. | `openpyxl` (already in stack) |
+| Any JavaScript charting library | PROJECT.md explicitly calls out "Charts / visualizations — text tables sufficient for enterprise audit context" as out of scope | Plain `<table>` in Jinja2 template |
+| pandas | Already avoided throughout codebase; `collections.Counter` and `defaultdict` handle the resource type breakdown in 3 lines | `collections.Counter` (stdlib) |
+| Any new Python web framework feature | FastAPI + Jinja2 + HTMX pattern is established and consistent across all existing features; adding anything new (e.g., Alpine.js, htmx extensions) creates maintenance burden | Existing HTMX + Jinja2 partial pattern |
+| Live account name lookup | Requires cloud API calls during result-browsing (post-scan); tool is offline for result display, and CloudResource.account_id carries no name — fetching at browse time would require re-auth | Show account_id as-is; label column "Account ID" |
+| A new `family_counts` dataclass | `dict[str, int]` (already the type of `IntegrityReport.families_found`) is sufficient for storage and template consumption | Raw `dict[str, int]` stored on NiosScanManager |
+| `openpyxl` | Already replaced by xlsxwriter in this codebase | xlsxwriter (already in stack) |
 
 ---
 
-## Integration Points with Existing Stack
+## Stack Patterns for These Features
 
-### tar.gz Handling — stdlib tarfile
+**Pattern: Extend `_compute_summary()` for resource type breakdown**
 
-Use `tarfile.open(path, "r:gz")` (colon mode = seeking, not streaming). This is critical:
-the streaming `r|gz` mode has a known quadratic performance bug in Python's stdlib that makes
-it 14x slower on gzip archives (cpython issue #121109, open as of Feb 2026). With seeking
-mode, call `tar.extractfile(member)` to obtain an `io.BufferedReader` for `onedb.xml` — no
-extraction to disk, no temp files.
-
-```python
-import tarfile
-
-with tarfile.open("backup.tar.gz", "r:gz") as tar:
-    member = tar.getmember("onedb.xml")
-    fileobj = tar.extractfile(member)  # io.BufferedReader, no disk write
-    # pass fileobj to lxml.etree.iterparse(fileobj, events=("end",), tag="OBJECT")
-```
-
-### lxml iterparse — Memory Management Pattern
-
-The flat `<OBJECT><PROPERTY NAME="...">value</PROPERTY></OBJECT>` structure maps cleanly to
-iterparse's end-event pattern. Fire on `end` for `OBJECT`, extract properties, clear the
-element, and delete the preceding sibling to release parent references:
+`_compute_summary()` already iterates `by_account` (dict of account_id -> list of
+CloudResource). Extend the per-account loop to count `resource.resource_type` for
+counted resources using `collections.Counter`. Attach as `resource_type_breakdown`
+in the `per_account_details` dicts.
 
 ```python
-from lxml import etree
-
-parser = etree.XMLParser(
-    resolve_entities=False,
-    no_network=True,
-    huge_tree=True,    # Required: onedb.xml nodes exceed default 5M node limit
-    recover=True,      # Continue past malformed sections (backup corruption resilience)
+# Inside the per-account loop in _compute_summary()
+from collections import Counter
+type_breakdown = Counter(
+    r.resource_type for r in acct_resources if r.counted
 )
-
-for event, elem in etree.iterparse(fileobj, events=("end",), tag="OBJECT", parser=parser):
-    obj_type = elem.get("type")
-    props = {p.get("NAME"): p.text for p in elem}
-    yield obj_type, props
-
-    # Critical: release memory or RAM grows unboundedly on 2GB files
-    elem.clear(keep_tail=True)
-    while elem.getprevious() is not None:
-        del elem.getparent()[0]
+per_account_details.append({
+    "account_id": account_id,
+    "provider": account_provider[account_id],
+    "ddi_count": result["ddi_count"],
+    "ip_count": result["ip_count"],
+    "asset_count": result["asset_count"],
+    "total_tokens": result["total_tokens"],
+    "resource_type_breakdown": dict(sorted(type_breakdown.items())),
+})
 ```
 
-This pattern keeps memory flat at ~50–100MB while processing the full 2.5M object ZF
-Friedrichshafen reference backup. Without the `while getprevious()` loop, lxml accumulates
-processed elements as parent-level siblings and RAM grows linearly.
+**Pattern: Ordered family counts for Jinja2**
 
-### YAML Config — Integration with existing CLI / dashboard
+Build an ordered list in the route handler so Jinja2 doesn't need to know about
+`_ALL_FAMILIES_ORDERED`:
 
-MIGR-01 requires a `--nios-config <config.yaml>` CLI flag. The config schema is straightforward:
+```python
+# In tab_nios route handler (pages.py)
+from cloud_usage.nios.output import _ALL_FAMILIES_ORDERED, _DDI_FAMILIES
 
-```yaml
-# nios_config.yaml — migration split and filters
-migration_split:
-  niosx:
-    - "infoblox-gm.corp.example.com"
-    - "infoblox-m1.corp.example.com"
-  # all others default to nios
-
-filters:
-  member_whitelist: []   # empty = include all
-  member_blacklist:
-    - "infoblox-test-*"
-
-lease_states:
-  count: ["active", "static"]  # default
+raw_family_counts = nios_manager.family_counts or {}
+ordered_families = [
+    {
+        "family": family,
+        "count": raw_family_counts.get(family, 0),
+        "is_ddi": family in _DDI_FAMILIES,
+    }
+    for family in _ALL_FAMILIES_ORDERED
+    if raw_family_counts.get(family, 0) > 0  # non-zero only
+]
+context["ordered_families"] = ordered_families
 ```
 
-PyYAML parses this in three lines; no schema validation library needed for this structure.
-If validation is desired, run the parsed dict through a Pydantic model (already in stack).
+**Pattern: Scrollable attribution table (established in complete.html)**
 
-### XLS Output — openpyxl (already in stack)
+```html
+<div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--ib-gray-200); border-radius: 6px;">
+  <table style="margin: 0; font-size: 0.85rem;">
+    <thead>...</thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>...</tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+```
 
-The five-sheet report (Object Counters, DDI Objects, Active IP by Type, Scenario Comparison,
-Member Attribution) maps directly to openpyxl's `Workbook` / `add_sheet` API. No new library
-needed. The existing cloud provider XLS output pattern (already implemented with openpyxl) is
-the model to follow.
-
-### Token Calculator — Extend, Don't Replace
-
-`cloud_usage/counting/token_calculator.py` implements the UDDI native formula
-(`DDI/25 + IPs/13 + Assets/3`). For v1.1, add a parallel `calculate_nios_tokens()` function
-in the same module with NIOS Object formula constants (`DDI/50 + IPs/25 + Assets/13`). The
-`_ceil_div()` helper is already correct for both formulas. No new library; only new constants
-and a new function.
+This pattern already exists in `partials/nios/complete.html` (member attribution
+table). Both new tables should use it identically.
 
 ---
 
@@ -151,90 +223,50 @@ and a new function.
 
 | Category | Recommended | Alternative | Why Not Alternative |
 |----------|-------------|-------------|---------------------|
-| XML parser | `lxml.etree.iterparse` | `xml.etree.ElementTree.iterparse` (stdlib) | Stdlib iterparse memory leak on tag-filtered events means ancestor nodes are not freed — RAM grows unboundedly on 2GB files. lxml handles this correctly with explicit sibling deletion. |
-| XML parser | `lxml.etree.iterparse` | `xml.sax` (stdlib) | SAX requires a ContentHandler class with start/end element callbacks — more code, more state to manage, no memory advantage over lxml iterparse. Not worth the complexity for a flat `<OBJECT>` record stream. |
-| XML parser | `lxml.etree.iterparse` | `expat` (stdlib via `xml.parsers.expat`) | Expat is the C parser underlying stdlib ET/SAX. Using it directly bypasses Python abstractions entirely. Extremely low-level for no benefit in this use case. |
-| tar.gz access | `tarfile` stdlib | `python-libarchive-c` | Additional C dependency, more complex install (especially on Windows). stdlib tarfile handles .tar.gz fully without any new dependency. |
-| tar.gz access | `tarfile` stdlib (`r:gz`) | `tarfile` streaming mode (`r\|gz`) | The streaming `r\|gz` mode has a known quadratic performance bug (cpython #121109): 14x slower than seeking mode on gzip. Always use `r:gz` for local .tar.gz files. |
-| YAML | PyYAML | `ruamel.yaml` | ruamel.yaml is warranted when preserving comments or round-tripping YAML is required. The NIOS config is write-once; PyYAML's simpler API is appropriate. |
-| YAML | PyYAML | `tomllib` (stdlib Python 3.11+) | TOML is a reasonable alternative for the config format. YAML was specified in MIGR-01 (`--nios-config <config.yaml>`). If the requirement changes to TOML, `tomllib` is zero-dependency on Python 3.11+. |
-| YAML | PyYAML | `json` (stdlib) | JSON is a valid alternative for the config file. YAML is more readable for lists of hostnames. The requirement specifies YAML. |
-
----
-
-## Stack Patterns by Variant
-
-**If the onedb.xml exceeds available RAM (e.g., on a 4GB laptop):**
-- The `lxml.etree.iterparse` + `elem.clear()` + sibling deletion pattern described above
-  keeps peak memory at ~50–100MB regardless of file size.
-- Do not load the file into memory first — pass the `io.BufferedReader` directly to iterparse.
-
-**If the .tar.gz contains multiple files and onedb.xml is not at root:**
-- Use `tar.getmembers()` to enumerate all members, filter by `member.name.endswith("onedb.xml")`,
-  then call `tar.extractfile(member)`.
-- NIOS backup archives consistently place onedb.xml at the archive root, but handle the
-  nested case defensively.
-
-**If the config file uses JSON instead of YAML (customer preference):**
-- stdlib `json.load()` requires zero new dependencies.
-- Validate the parsed dict through the same Pydantic model as the YAML path.
-
-**If running on Windows without C compiler (lxml wheel not available):**
-- lxml distributes pre-built wheels for Python 3.8–3.13 on Windows x64 and ARM64.
-- `pip install lxml` or `uv add lxml` resolves a wheel — no C compiler needed.
-- Verified: lxml 6.0.2 has cp39-win_amd64, cp39-win32, cp39-win_arm64 wheels on PyPI.
+| Family counts storage | Extend `NiosScanManager.set_complete()` with `family_counts` param | Re-run `inspect_backup()` in the route handler on demand | Re-running requires the backup file to still exist on disk and takes seconds on large backups. Storing the dict is zero-cost. |
+| Resource type breakdown | Extend `_compute_summary()` in the existing request/response cycle | New API endpoint that computes breakdown lazily | The scan is already complete when the user views results; computing in `_compute_summary()` is the existing pattern (called by both `tab_results` and `tab_summary`). |
+| Family ordering in template | Build ordered list in route handler, pass to template | Import `_ALL_FAMILIES_ORDERED` directly in template | Jinja2 templates cannot import Python modules. The route handler is the correct layer for data transformation. |
+| Account name display | Show account_id only | Attempt to cache account names during scan | CloudResource has no account name field. Adding name lookup during scan would require new cloud API calls per account and change the discovery pipeline. Not warranted for a table-label improvement. |
 
 ---
 
 ## Version Compatibility
 
-| Package | Min Version | Tested / Latest | Notes |
-|---------|-------------|-----------------|-------|
-| lxml | 5.3.0 | 6.0.2 (Sep 2025) | 5.3+ supports Python 3.8–3.12; 6.0+ adds Python 3.13 support. `huge_tree=True` available since 3.x. Minimum 5.3 for libxml2 security fixes. |
-| PyYAML | 6.0.2 | 6.0.3 (Sep 2025) | 6.0 fixes the unsafe YAML loader CVE. Always use `yaml.safe_load()`, never `yaml.load()`. |
-| tarfile | stdlib | Python 3.9.6 | stdlib. `extractfile()` returns `io.BufferedReader` since Python 3.x. No version pinning needed. |
-| openpyxl | 3.1.5 | 3.1.5 | Already in stack. Multi-sheet workbook support stable since 3.0. |
-| Python | 3.9+ | 3.12 recommended | The venv in this repo runs 3.9.6. lxml 6.0.2 and PyYAML 6.0.3 both support Python 3.8+, so no Python upgrade is forced by this milestone. The existing research STACK.md targets >=3.12 for production; the parsing module is compatible with either. |
+| Package | Current in requirements.txt | Python 3.9 Compatible | Notes |
+|---------|-----------------------------|-----------------------|-------|
+| FastAPI | >= 0.115.0 | Yes | 0.115+ supports Python 3.8+ |
+| Jinja2 | >= 3.1.0 | Yes | 3.x supports Python 3.7+ |
+| xlsxwriter | >= 3.1.0 | Yes | Pure Python, no version constraint |
+| lxml | >= 5.3.0 | Yes | 5.3+ has cp39 wheels on Windows, macOS, Linux |
+| stdlib (collections, dataclasses) | stdlib | Yes | dataclasses available since Python 3.7 |
+
+No version bumps required. No new packages required.
 
 ---
 
 ## Installation
 
-```bash
-# Add lxml to project dependencies
-# If using pyproject.toml (recommended per existing STACK.md):
-uv add "lxml>=5.3.0"
-
-# If using requirements.txt (current state of this repo):
-pip install "lxml>=5.3.0"
-```
-
-PyYAML is either already installed (as a transitive dependency) or:
-
-```bash
-# Make it explicit:
-uv add "PyYAML>=6.0.2"
-# or:
-pip install "PyYAML>=6.0.2"
-```
-
-No other new packages are required for the NIOS parsing milestone.
+No new packages to install. All capabilities needed for v1.4 are already in the
+existing requirements.txt and virtual environment.
 
 ---
 
 ## Sources
 
-- [lxml PyPI page](https://pypi.org/project/lxml/) — version 6.0.2 confirmed, Python 3.9 wheel support confirmed, HIGH confidence
-- [lxml Performance Benchmarks](https://lxml.de/performance.html) — iterparse vs cElementTree benchmark numbers, HIGH confidence
-- [lxml API: iterparse](https://lxml.de/api/lxml.etree.iterparse-class.html) — huge_tree, recover parameters confirmed, HIGH confidence
-- [cpython issue #121109](https://github.com/python/cpython/issues/121109) — tarfile r|gz 14x slower bug, HIGH confidence (open issue, Feb 2026)
-- [Python tarfile docs](https://docs.python.org/3/library/tarfile.html) — extractfile() returning io.BufferedReader confirmed, HIGH confidence
-- [PyYAML PyPI page](https://pypi.org/project/PyYAML/) — version 6.0.3 confirmed, Python >=3.8 support, HIGH confidence
-- [Nick Janetakis: lxml 20x faster XML parsing](https://nickjanetakis.com/blog/how-i-used-the-lxml-library-to-parse-xml-20x-faster-in-python) — practical benchmark, MEDIUM confidence
-- [WebScraping.AI: lxml memory management](https://webscraping.ai/faq/lxml/what-are-the-best-practices-for-managing-memory-usage-when-using-lxml) — elem.clear() + sibling deletion pattern, MEDIUM confidence
-- [WebScraping.AI: lxml security](https://webscraping.ai/faq/lxml/what-are-the-security-implications-of-using-lxml-for-parsing-untrusted-xml) — resolve_entities=False default since lxml 5.x confirmed, MEDIUM confidence
+- Codebase audit of `src/cloud_usage/dashboard/` — routes/pages.py, services/nios_manager.py,
+  templates/partials/nios/complete.html, templates/pages/summary.html (HIGH confidence — direct
+  code inspection)
+- `src/cloud_usage/nios/output.py` — `_ALL_FAMILIES_ORDERED`, `_FAMILY_DISPLAY_NAMES`,
+  `_DDI_FAMILIES` confirmed as authoritative ordering/classification (HIGH confidence)
+- `src/cloud_usage/nios/schema.py` — `IntegrityReport.families_found: dict[str, int]`
+  confirmed as the family count source (HIGH confidence)
+- `src/cloud_usage/schema/resource.py` — `CloudResource.account_id` confirmed as the only
+  account identifier; no account_name field exists (HIGH confidence)
+- `.planning/PROJECT.md` — "Charts / visualizations — text tables sufficient" out-of-scope
+  decision confirmed; Python 3.9+ constraint confirmed (HIGH confidence)
+- requirements.txt — current pinned versions confirmed (HIGH confidence)
 
 ---
 
-*Stack research for: NIOS Grid backup parsing and UDDI token analysis (v1.1 milestone)*
-*Researched: 2026-02-28*
+*Stack research for: v1.4 Audit Depth — cloud per-account attribution tables + NIOS object family breakdown*
+*Researched: 2026-03-03*
