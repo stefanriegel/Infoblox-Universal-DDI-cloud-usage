@@ -18,20 +18,58 @@
         <span class="sc-label">Current Grid (NIOS Objects)</span>
         <span class="hero-tokens">{{ scenario_suite.current_grid.token_total | int }}</span>
         <small>tokens</small>
+        <div class="sc-breakdown" style="margin-top:0.75rem; text-align:left; font-size:0.8rem; line-height:1.6;">
+          <div>{{ "{:,}".format(scenario_suite.current_grid.ddi_count) }} DDI ÷ 50 = {{ "%.1f"|format(scenario_suite.current_grid.ddi_count / 50) }}</div>
+          <div>{{ "{:,}".format(scenario_suite.current_grid.active_ip_count) }} IPs ÷ 25 = {{ "%.1f"|format(scenario_suite.current_grid.active_ip_count / 25) }}</div>
+          {% if scenario_suite.current_grid.asset_count > 0 %}
+          <div>{{ "{:,}".format(scenario_suite.current_grid.asset_count) }} Assets ÷ 13 = {{ "%.1f"|format(scenario_suite.current_grid.asset_count / 13) }}</div>
+          {% endif %}
+          <div style="border-top:1px solid rgba(0,0,0,0.15); margin:0.25rem 0;"></div>
+          <div><strong>Total: {{ "%.1f"|format(scenario_suite.current_grid.token_total) }} tokens</strong></div>
+        </div>
       </div>
 
       {% if scenario_suite.hybrid_uddi %}
       <div class="scenario-card">
         <span class="sc-label">Hybrid UDDI (NIOS + NIOSX)</span>
         <span class="hero-tokens">{{ scenario_suite.hybrid_uddi.combined_total | int }}</span>
-        <small>tokens</small>
+        <small>tokens combined</small>
+        <div class="sc-breakdown" style="margin-top:0.75rem; text-align:left; font-size:0.8rem; line-height:1.6;">
+          <div style="font-weight:600; margin-bottom:0.15rem; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; opacity:0.7;">NIOS-remaining</div>
+          <div>{{ "{:,}".format(scenario_suite.hybrid_uddi.nios_sub.ddi_count) }} DDI ÷ 50 = {{ "%.1f"|format(scenario_suite.hybrid_uddi.nios_sub.ddi_count / 50) }}</div>
+          <div>{{ "{:,}".format(scenario_suite.hybrid_uddi.nios_sub.active_ip_count) }} IPs ÷ 25 = {{ "%.1f"|format(scenario_suite.hybrid_uddi.nios_sub.active_ip_count / 25) }}</div>
+          {% if scenario_suite.hybrid_uddi.nios_sub.asset_count > 0 %}
+          <div>{{ "{:,}".format(scenario_suite.hybrid_uddi.nios_sub.asset_count) }} Assets ÷ 13 = {{ "%.1f"|format(scenario_suite.hybrid_uddi.nios_sub.asset_count / 13) }}</div>
+          {% endif %}
+          <div style="font-size:0.75rem; opacity:0.75; margin-bottom:0.35rem;">= {{ "%.1f"|format(scenario_suite.hybrid_uddi.nios_sub.token_total) }} tokens</div>
+
+          <div style="font-weight:600; margin-bottom:0.15rem; font-size:0.75rem; text-transform:uppercase; letter-spacing:0.04em; opacity:0.7;">NIOSX-migrated</div>
+          <div>{{ "{:,}".format(scenario_suite.hybrid_uddi.niosx_sub.ddi_count) }} DDI ÷ 25 = {{ "%.1f"|format(scenario_suite.hybrid_uddi.niosx_sub.ddi_count / 25) }}</div>
+          <div>{{ "{:,}".format(scenario_suite.hybrid_uddi.niosx_sub.active_ip_count) }} IPs ÷ 13 = {{ "%.1f"|format(scenario_suite.hybrid_uddi.niosx_sub.active_ip_count / 13) }}</div>
+          {% if scenario_suite.hybrid_uddi.niosx_sub.asset_count > 0 %}
+          <div>{{ "{:,}".format(scenario_suite.hybrid_uddi.niosx_sub.asset_count) }} Assets ÷ 3 = {{ "%.1f"|format(scenario_suite.hybrid_uddi.niosx_sub.asset_count / 3) }}</div>
+          {% endif %}
+          <div style="font-size:0.75rem; opacity:0.75; margin-bottom:0.35rem;">= {{ "%.1f"|format(scenario_suite.hybrid_uddi.niosx_sub.token_total) }} tokens</div>
+
+          <div style="border-top:1px solid rgba(0,0,0,0.15); margin:0.25rem 0;"></div>
+          <div><strong>Total: {{ "%.1f"|format(scenario_suite.hybrid_uddi.combined_total) }} tokens</strong></div>
+        </div>
       </div>
       {% endif %}
 
       <div class="scenario-card primary">
         <span class="sc-label">Full Migration (Universal DDI)</span>
-        <span class="hero-tokens">{{ scenario_suite.full_migration.token_total | int }}</span>
+        <span class="hero-tokens" style="color:#fff;">{{ scenario_suite.full_migration.token_total | int }}</span>
         <small style="color:rgba(255,255,255,0.75)">tokens</small>
+        <div class="sc-breakdown" style="margin-top:0.75rem; text-align:left; font-size:0.8rem; line-height:1.6; color:rgba(255,255,255,0.9);">
+          <div>{{ "{:,}".format(scenario_suite.full_migration.ddi_count) }} DDI ÷ 25 = {{ "%.1f"|format(scenario_suite.full_migration.ddi_count / 25) }}</div>
+          <div>{{ "{:,}".format(scenario_suite.full_migration.active_ip_count) }} IPs ÷ 13 = {{ "%.1f"|format(scenario_suite.full_migration.active_ip_count / 13) }}</div>
+          {% if scenario_suite.full_migration.asset_count > 0 %}
+          <div>{{ "{:,}".format(scenario_suite.full_migration.asset_count) }} Assets ÷ 3 = {{ "%.1f"|format(scenario_suite.full_migration.asset_count / 3) }}</div>
+          {% endif %}
+          <div style="border-top:1px solid rgba(255,255,255,0.3); margin:0.25rem 0;"></div>
+          <div><strong>Total: {{ "%.1f"|format(scenario_suite.full_migration.token_total) }} tokens</strong></div>
+        </div>
       </div>
     </div>
   {% endif %}
@@ -47,6 +85,41 @@
     </div>
   {% else %}
     <p><em>Output file not available.</em></p>
+  {% endif %}
+
+  {% if scenario_suite and scenario_suite.member_attribution %}
+  <section style="margin-top: 2rem;">
+    <p style="margin: 0 0 0.25rem; font-size: 0.85rem; color: var(--ib-gray-600); text-transform: uppercase; letter-spacing: 0.05em;">Member Attribution</p>
+    <p style="font-size: 0.8rem; color: var(--ib-gray-600); margin: 0 0 0.75rem;">
+      Per-member DDI and IP counts are shown for attribution. Note: per-member Active IP counts are lease-only and will not sum to the scenario total, which uses the globally deduplicated IP count.
+    </p>
+    <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--ib-gray-200); border-radius: 6px;">
+      <table style="margin: 0; font-size: 0.85rem;">
+        <thead>
+          <tr>
+            <th>Member</th>
+            <th>Group</th>
+            <th style="text-align:right;">DDI Objects</th>
+            <th style="text-align:right;">Active IPs</th>
+            <th style="text-align:right;">Token Contribution</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in scenario_suite.member_attribution %}
+          <tr>
+            <td style="font-family: monospace; font-size: 0.8rem;">{{ row.member_hostname }}</td>
+            <td>
+              <span style="font-size: 0.72rem; font-weight: 600; letter-spacing: 0.04em; padding: 0.15rem 0.4rem; border-radius: 3px; background: {% if row.group == 'niosx' %}var(--ib-blue-light){% else %}var(--ib-gray-200){% endif %}; color: {% if row.group == 'niosx' %}var(--ib-blue){% else %}var(--ib-gray-600){% endif %};">{{ row.group | upper }}</span>
+            </td>
+            <td style="text-align:right;">{{ "{:,}".format(row.ddi_count) }}</td>
+            <td style="text-align:right;">{{ "{:,}".format(row.active_ip_count) }}</td>
+            <td style="text-align:right;">{{ "%.2f"|format(row.token_contribution) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
   {% endif %}
 
   <p style="margin-top: 1.5rem;">

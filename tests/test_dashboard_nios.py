@@ -522,3 +522,408 @@ class TestRunAndDownload:
         finally:
             if os.path.exists(temp_path):
                 os.remove(temp_path)
+
+
+# ---------------------------------------------------------------------------
+# Phase 19 — BRKDN-01, BRKDN-02: Scenario formula breakdown
+# ---------------------------------------------------------------------------
+
+
+def _make_scenario_suite_no_hybrid():
+    """Build a minimal ScenarioSuite without a hybrid scenario for testing."""
+    from cloud_usage.nios.scenarios import (
+        MemberScenarioRow,
+        ScenarioResult,
+        ScenarioSuite,
+    )
+
+    current_grid = ScenarioResult(
+        name="current_grid",
+        formula_name="NIOS Object (DDI/50 + IPs/25 + Assets/13)",
+        ddi_count=1234,
+        active_ip_count=500,
+        asset_count=0,
+        token_total=44.68,
+    )
+    full_migration = ScenarioResult(
+        name="full_migration",
+        formula_name="UDDI native (DDI/25 + IPs/13 + Assets/3)",
+        ddi_count=1234,
+        active_ip_count=500,
+        asset_count=0,
+        token_total=88.08,
+    )
+    member_attribution = [
+        MemberScenarioRow(
+            member_hostname="grid-master.example.com",
+            group="nios",
+            ddi_count=800,
+            active_ip_count=300,
+            asset_count=0,
+            token_contribution=28.0,
+        ),
+        MemberScenarioRow(
+            member_hostname="member-01.example.com",
+            group="nios",
+            ddi_count=434,
+            active_ip_count=200,
+            asset_count=0,
+            token_contribution=16.68,
+        ),
+    ]
+    return ScenarioSuite(
+        current_grid=current_grid,
+        full_migration=full_migration,
+        hybrid_uddi=None,
+        member_attribution=member_attribution,
+        migration_split_used=None,
+    )
+
+
+def _make_scenario_suite_with_hybrid():
+    """Build a ScenarioSuite with a hybrid scenario for testing."""
+    from cloud_usage.nios.scenarios import (
+        HybridScenarioResult,
+        MemberScenarioRow,
+        ScenarioResult,
+        ScenarioSuite,
+    )
+
+    current_grid = ScenarioResult(
+        name="current_grid",
+        formula_name="NIOS Object (DDI/50 + IPs/25 + Assets/13)",
+        ddi_count=2000,
+        active_ip_count=1000,
+        asset_count=0,
+        token_total=80.0,
+    )
+    full_migration = ScenarioResult(
+        name="full_migration",
+        formula_name="UDDI native (DDI/25 + IPs/13 + Assets/3)",
+        ddi_count=2000,
+        active_ip_count=1000,
+        asset_count=0,
+        token_total=156.92,
+    )
+    nios_sub = ScenarioResult(
+        name="nios_remaining",
+        formula_name="NIOS Object (DDI/50 + IPs/25 + Assets/13)",
+        ddi_count=1200,
+        active_ip_count=700,
+        asset_count=0,
+        token_total=52.0,
+    )
+    niosx_sub = ScenarioResult(
+        name="niosx_migrated",
+        formula_name="UDDI native (DDI/25 + IPs/13 + Assets/3)",
+        ddi_count=800,
+        active_ip_count=300,
+        asset_count=0,
+        token_total=55.08,
+    )
+    hybrid_uddi = HybridScenarioResult(
+        nios_sub=nios_sub,
+        niosx_sub=niosx_sub,
+        combined_total=107.08,
+    )
+    member_attribution = [
+        MemberScenarioRow(
+            member_hostname="grid-master.example.com",
+            group="nios",
+            ddi_count=1200,
+            active_ip_count=700,
+            asset_count=0,
+            token_contribution=52.0,
+        ),
+        MemberScenarioRow(
+            member_hostname="niosx-member.example.com",
+            group="niosx",
+            ddi_count=800,
+            active_ip_count=300,
+            asset_count=0,
+            token_contribution=55.08,
+        ),
+    ]
+    from cloud_usage.nios.scenarios import MigrationSplitConfig
+    split_config = MigrationSplitConfig(
+        niosx_members=("niosx-member.example.com",),
+        default_group="nios",
+        assignment_source="dashboard",
+    )
+    return ScenarioSuite(
+        current_grid=current_grid,
+        full_migration=full_migration,
+        hybrid_uddi=hybrid_uddi,
+        member_attribution=member_attribution,
+        migration_split_used=split_config,
+    )
+
+
+class TestScenarioBreakdown:
+    """Phase 19 — BRKDN-01 and BRKDN-02: Inline formula derivation in scenario cards."""
+
+    def _complete_state_with_suite(self, suite):
+        """Return a started TestClient with nios_manager in COMPLETE state and the given suite."""
+        app = create_app()
+        client = TestClient(app)
+        client.__enter__()
+        client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+        client.app.state.nios_manager.start()
+        client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+        return client
+
+    def test_current_grid_shows_ddi_formula(self) -> None:
+        """BRKDN-02: Current Grid card shows 'DDI ÷ 50' formula string."""
+        suite = _make_scenario_suite_no_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "DDI ÷ 50" in r.text
+
+    def test_full_migration_shows_ddi_formula(self) -> None:
+        """BRKDN-02: Full Migration card shows 'DDI ÷ 25' formula string."""
+        suite = _make_scenario_suite_no_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "DDI ÷ 25" in r.text
+
+    def test_comma_formatted_ddi_count(self) -> None:
+        """BRKDN-02: DDI count >= 1000 is formatted with comma thousands separator."""
+        suite = _make_scenario_suite_no_hybrid()  # ddi_count=1234
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "1,234" in r.text  # comma-formatted DDI count
+
+    def test_current_grid_shows_ip_formula(self) -> None:
+        """BRKDN-02: Current Grid card shows 'IPs ÷ 25' formula string."""
+        suite = _make_scenario_suite_no_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "IPs ÷ 25" in r.text
+
+    def test_full_migration_shows_ip_formula(self) -> None:
+        """BRKDN-02: Full Migration card shows 'IPs ÷ 13' formula string."""
+        suite = _make_scenario_suite_no_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "IPs ÷ 13" in r.text
+
+    def test_assets_row_absent_when_zero(self) -> None:
+        """BRKDN-01: Assets row is not rendered when asset_count == 0."""
+        suite = _make_scenario_suite_no_hybrid()  # asset_count=0
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "Assets ÷" not in r.text
+
+    def test_hero_tokens_still_present(self) -> None:
+        """hero-tokens span preserved after adding breakdown rows."""
+        suite = _make_scenario_suite_no_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "hero-tokens" in r.text
+
+    def test_hybrid_card_absent_when_no_hybrid(self) -> None:
+        """Hybrid UDDI card does not appear when hybrid_uddi is None."""
+        suite = _make_scenario_suite_no_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "NIOS-remaining" not in r.text
+            assert "NIOSX-migrated" not in r.text
+
+    def test_hybrid_card_renders_sub_blocks(self) -> None:
+        """Hybrid UDDI card shows NIOS-remaining and NIOSX-migrated sub-blocks."""
+        suite = _make_scenario_suite_with_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "NIOS-remaining" in r.text
+            assert "NIOSX-migrated" in r.text
+
+    def test_breakdown_absent_when_no_scenario_suite(self) -> None:
+        """No breakdown rows rendered when scenario_suite is None (non-complete state)."""
+        app = create_app()
+        with TestClient(app) as client:
+            # IDLE state — no scenario_suite
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "DDI ÷" not in r.text
+
+
+# ---------------------------------------------------------------------------
+# Phase 19 — BRKDN-03, BRKDN-04: Member attribution table
+# ---------------------------------------------------------------------------
+
+
+class TestMemberAttribution:
+    """Phase 19 — BRKDN-03 and BRKDN-04: Per-member breakdown table with group labels."""
+
+    def test_member_attribution_section_present(self) -> None:
+        """BRKDN-03: 'Member Attribution' heading is rendered in complete state."""
+        suite = _make_scenario_suite_no_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "Member Attribution" in r.text
+
+    def test_member_hostname_in_table(self) -> None:
+        """BRKDN-03: Member hostname appears in the attribution table."""
+        suite = _make_scenario_suite_no_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "grid-master.example.com" in r.text
+            assert "member-01.example.com" in r.text
+
+    def test_nios_group_label_rendered(self) -> None:
+        """BRKDN-04: NIOS group label is rendered for nios-group members."""
+        suite = _make_scenario_suite_no_hybrid()  # all members group="nios"
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "NIOS" in r.text
+
+    def test_niosx_group_label_rendered(self) -> None:
+        """BRKDN-04: NIOSX group label is rendered for niosx-group members."""
+        suite = _make_scenario_suite_with_hybrid()  # has one niosx member
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "NIOSX" in r.text
+
+    def test_all_nios_when_no_split(self) -> None:
+        """BRKDN-04: When no hybrid split configured, all members show 'NIOS' label."""
+        suite = _make_scenario_suite_no_hybrid()  # no hybrid, all group="nios"
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            # NIOS should appear (as group labels), NIOSX should not appear in group column
+            assert "NIOS" in r.text
+            # "NIOSX" label string should NOT appear (no niosx members in this suite)
+            assert "NIOSX" not in r.text
+
+    def test_scrollable_container_present(self) -> None:
+        """BRKDN-03: Member table is wrapped in a scrollable container."""
+        suite = _make_scenario_suite_no_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "overflow-y" in r.text
+
+    def test_lease_only_note_present(self) -> None:
+        """BRKDN-03: Subtitle note about lease-only per-member IPs is visible."""
+        suite = _make_scenario_suite_no_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "lease-only" in r.text
+
+    def test_run_another_button_after_attribution(self) -> None:
+        """'Run Another Analysis' button still present after member attribution section."""
+        suite = _make_scenario_suite_no_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "Run Another Analysis" in r.text
+            # Both "Member Attribution" and "Run Another Analysis" must be present
+            # and attribution must come before the button in the document
+            pos_attribution = r.text.find("Member Attribution")
+            pos_run_another = r.text.find("Run Another Analysis")
+            assert pos_attribution < pos_run_another
+
+    def test_table_columns_present(self) -> None:
+        """BRKDN-03: Table headers include Member, Group, DDI Objects, Active IPs, Token Contribution."""
+        suite = _make_scenario_suite_no_hybrid()
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "backup.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete("/tmp/fake.xlsx", scenario_suite=suite)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "DDI Objects" in r.text
+            assert "Active IPs" in r.text
+            assert "Token Contribution" in r.text
+
+    def test_member_attribution_absent_without_scenario_suite(self) -> None:
+        """Member Attribution section not rendered when scenario_suite is None."""
+        app = create_app()
+        with TestClient(app) as client:
+            # IDLE state — no scenario_suite
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "Member Attribution" not in r.text
