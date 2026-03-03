@@ -25,6 +25,7 @@ def _make_resource(
     account_id: str,
     provider: str,
     counted: bool = True,
+    ip_addresses: list | None = None,
 ) -> CloudResource:
     """Factory for CloudResource test instances."""
     return CloudResource(
@@ -36,6 +37,7 @@ def _make_resource(
         name=resource_type,
         counted=counted,
         category=category,
+        ip_addresses=ip_addresses or [],
     )
 
 
@@ -58,7 +60,8 @@ class TestFormulaCards:
             resources = [
                 _make_resource("dns-zone", "ddi", "111111111111", "aws"),
                 _make_resource("vm", "asset", "111111111111", "aws"),
-                _make_resource("vpc", "ip", "111111111111", "aws"),
+                _make_resource("network-interface", "ip", "111111111111", "aws",
+                               ip_addresses=["10.0.0.1"]),
             ]
             client.app.state.scan_manager.set_resources(resources)
             response = client.get("/tab/results")
@@ -72,7 +75,8 @@ class TestFormulaCards:
             resources = [
                 _make_resource("dns-zone", "ddi", "111111111111", "aws"),
                 _make_resource("vm", "asset", "111111111111", "aws"),
-                _make_resource("vpc", "ip", "111111111111", "aws"),
+                _make_resource("network-interface", "ip", "111111111111", "aws",
+                               ip_addresses=["10.0.0.1"]),
             ]
             client.app.state.scan_manager.set_resources(resources)
             response = client.get("/tab/summary")
@@ -80,13 +84,15 @@ class TestFormulaCards:
             assert "\u00f7 13 =" in response.text  # ÷ 13 =
 
     def test_formula_card_suppresses_zero_count_lines(self):
-        """GET /tab/summary where azure has no IP resources does NOT show ÷ 13 = for AZURE."""
+        """GET /tab/summary where azure has no IP resources does NOT show ÷ 13 = for AZURE card."""
         app = create_app()
         with TestClient(app) as client:
-            # AWS has all three; azure has only ddi + asset (no ips)
+            # AWS has all three categories (ddi, ip with address, asset)
+            # azure has only ddi + asset — no IP resources, so ips == 0 for azure
             resources = [
                 _make_resource("dns-zone", "ddi", "111111111111", "aws"),
-                _make_resource("vpc", "ip", "111111111111", "aws"),
+                _make_resource("network-interface", "ip", "111111111111", "aws",
+                               ip_addresses=["10.0.0.1"]),
                 _make_resource("vm", "asset", "111111111111", "aws"),
                 _make_resource("private-dns-zone", "ddi", "sub-azure-001", "azure"),
                 _make_resource("vm", "asset", "sub-azure-001", "azure"),
@@ -94,13 +100,18 @@ class TestFormulaCards:
             client.app.state.scan_manager.set_resources(resources)
             response = client.get("/tab/summary")
             assert response.status_code == 200
-            # AWS has IPs so ÷ 13 = should appear somewhere in the page
-            assert "\u00f7 13 =" in response.text  # ÷ 13 =
-            # But specifically the AZURE section should NOT contain ÷ 13 = because azure ips == 0
-            # We check by locating the AZURE card and confirming ÷ 13 = is absent before the
-            # next provider card. We do a simple structural check: count of ÷ 13 = occurrences
-            # equals the number of providers that have ips > 0 (just aws = 1).
-            assert response.text.count("\u00f7 13 =") == 1
+            assert "\u00f7 13 =" in response.text  # ÷ 13 = present for AWS (has IPs)
+            # The AZURE card appears after the AWS card in sorted order.
+            # Find the AZURE section of the per-provider formula breakdown and confirm
+            # it does NOT contain ÷ 13 = (azure has 0 IPs so the formula line is suppressed).
+            text = response.text
+            azure_idx = text.find("AZURE")
+            assert azure_idx != -1, "AZURE section should be present"
+            # Slice from AZURE heading to the end of the details block
+            # The per-provider breakdown section ends at </details>
+            details_end = text.find("</details>", azure_idx)
+            azure_section = text[azure_idx:details_end if details_end != -1 else azure_idx + 2000]
+            assert "\u00f7 13 =" not in azure_section  # ÷ 13 = absent in AZURE card
 
     def test_formula_card_shows_provider_name(self):
         """HTML contains provider name in upper case (e.g. AWS)."""
@@ -109,7 +120,8 @@ class TestFormulaCards:
             resources = [
                 _make_resource("dns-zone", "ddi", "111111111111", "aws"),
                 _make_resource("vm", "asset", "111111111111", "aws"),
-                _make_resource("vpc", "ip", "111111111111", "aws"),
+                _make_resource("network-interface", "ip", "111111111111", "aws",
+                               ip_addresses=["10.0.0.1"]),
             ]
             client.app.state.scan_manager.set_resources(resources)
             response = client.get("/tab/summary")

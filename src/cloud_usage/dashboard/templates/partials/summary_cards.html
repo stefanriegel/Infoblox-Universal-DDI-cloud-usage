@@ -21,14 +21,31 @@
         <p class="stat-label">Managed Assets</p>
     </article>
 </div>
-{% if provider_breakdown is defined and provider_breakdown %}
+{% if per_provider_details %}
 <details style="margin-bottom: 1rem;">
-    <summary>Per-Provider Breakdown</summary>
+    <summary>Per-Provider Formula Breakdown</summary>
     <div class="summary-cards" style="margin-top: 0.5rem;">
-        {% for provider_name, token_count in provider_breakdown.items() %}
+        {% for provider_name, data in per_provider_details.items() | sort %}
         <article>
-            <span class="stat-value">{{ token_count }}</span>
-            <p class="stat-label">{{ provider_name|upper }} Tokens</p>
+            <span class="stat-value">{{ provider_name | upper }}</span>
+            <div style="font-size: 0.85rem; line-height: 1.8; margin-top: 0.5rem;">
+                <div>{{ data.ddi }} DDI Objects
+                {% if data.ddi > 0 %}
+                <small style="display: block; color: var(--ib-gray-600);">÷ 25 = {{ "%.1f" | format(data.ddi / 25) }}</small>
+                {% endif %}
+                </div>
+                <div>{{ data.ips }} Active IPs
+                {% if data.ips > 0 %}
+                <small style="display: block; color: var(--ib-gray-600);">÷ 13 = {{ "%.1f" | format(data.ips / 13) }}</small>
+                {% endif %}
+                </div>
+                <div>{{ data.assets }} Managed Assets
+                {% if data.assets > 0 %}
+                <small style="display: block; color: var(--ib-gray-600);">÷ 3 = {{ "%.1f" | format(data.assets / 3) }}</small>
+                {% endif %}
+                </div>
+            </div>
+            <p class="stat-label"><strong>{{ data.tokens }}</strong> tokens</p>
         </article>
         {% endfor %}
     </div>
