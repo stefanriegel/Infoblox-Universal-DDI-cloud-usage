@@ -2,13 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Results Navigation
-status: ready_to_plan
-last_updated: "2026-03-03"
+status: planning
+last_updated: "2026-03-03T18:48:57.174Z"
+last_activity: 2026-03-03 — Roadmap created, Phase 23 defined (CLOUD-06, CLOUD-07, ANA-07)
 progress:
-  total_phases: 1
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_phases: 3
+  completed_phases: 2
+  total_plans: 6
+  completed_plans: 5
+  percent: 0
 ---
 
 # Session State
@@ -23,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-03 after v1.5 milestone started)
 ## Current Position
 
 Phase: 23 of 23 (Results Navigation)
-Plan: —
-Status: Ready to plan
-Last activity: 2026-03-03 — Roadmap created, Phase 23 defined (CLOUD-06, CLOUD-07, ANA-07)
+Plan: 1 of 2 complete (23-01 done — CLOUD-06 formula cards)
+Status: In Progress
+Last activity: 2026-03-03 — 23-01 complete (formula cards), ready for 23-02 (sortable table)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [██████████] 97%
 
 ## Accumulated Context
 
@@ -38,6 +40,14 @@ Progress: [░░░░░░░░░░] 0%
 - IIFE scripts in Jinja2 templates: scoped DOM logic, no globals, `dispatchEvent(new Event('change', {bubbles: true}))` for batch operations
 - v1.4 delivered: CLOUD-01–05 (cloud attribution table) + ANA-01–06 (NIOS family breakdown) — DDI-adjusted counts used for HOST_OBJECT per ANA-02
 - v1.5 Phase 23: all three requirements (CLOUD-06, CLOUD-07, ANA-07) grouped into one phase — same dashboard templates/routes, same test context
+- [Phase 23-results-navigation]: Use per_provider_details (ddi/ips/assets/tokens) for formula cards instead of provider_breakdown (token only) — data already in template context, no backend changes
+- [Phase 23-results-navigation]: IP resources in tests need ip_addresses populated to register in dedup counter — use network-interface with ip_addresses rather than bare vpc resource
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 6 | Speed enhancement for large NIOS backup analysis | 2026-03-03 | c1de86a | [6-speed-enhancement-for-large-nios-backup-](./quick/6-speed-enhancement-for-large-nios-backup-/) |
 
 ### Blockers/Concerns
 
@@ -55,3 +65,4 @@ Progress: [░░░░░░░░░░] 0%
 - 2026-03-03: v1.5 milestone started — Results Navigation (3 requirements: CLOUD-06, CLOUD-07, ANA-07)
 - 2026-03-03: v1.5 roadmap created — Phase 23 defined, 3/3 requirements mapped
 - 2026-03-03: Quick Task 6 complete — NIOS parse pass reduction (7+ → 2), ip_by_type inline + member_map skip (PERF-01)
+- 2026-03-03: Phase 23 Plan 01 complete — per-provider formula cards (÷ 25/÷ 13/÷ 3 derivations) in summary_cards.html, CLOUD-06 delivered (2 tasks, 6 tests)

@@ -118,7 +118,7 @@ Archive: `.planning/milestones/v1.3-ROADMAP.md`
   3. Clicking the token contribution column header toggles sort direction (descending → ascending → descending) without a server round-trip — all sort state is client-side JavaScript only
   4. Each per-account resource-type breakdown is wrapped in a native `<details>/<summary>` element that is collapsed by default, and clicking the summary row expands only that account's breakdown, leaving all other rows unaffected
   5. The collapsed state of resource-type rows persists independently per account — expanding one account does not affect any other account's collapsed/expanded state
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 Plans:
 - [ ] 23-01-PLAN.md — Per-provider formula cards in summary_cards.html (CLOUD-06)
 - [ ] 23-02-PLAN.md — Sortable attribution table IIFE + ANA-07 verification (CLOUD-07, ANA-07)
@@ -150,4 +150,4 @@ Plans:
 | 20. Migration Wizard UX | v1.3 | 2/2 | Complete | 2026-03-03 |
 | 21. Cloud Per-Account Attribution Table | v1.4 | 2/2 | Complete | 2026-03-03 |
 | 22. NIOS Object Family Breakdown | v1.4 | 2/2 | Complete | 2026-03-03 |
-| 23. Results Navigation | v1.5 | 0/2 | Not started | - |
+| 23. Results Navigation | 1/2 | In Progress|  | - |
