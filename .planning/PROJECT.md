@@ -32,7 +32,19 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 
 ### Active
 
-(None — planning next milestone)
+<!-- v1.4 Audit Depth — in progress -->
+
+- [ ] Cloud scan results show per-provider formula derivation (DDI ÷ 25, IPs ÷ 13, Assets ÷ 3 inline)
+- [ ] Cloud scan results show per-account attribution table (account, DDI/IP/Asset counts, token contribution, resource type breakdown)
+- [ ] NIOS complete screen shows per-object-family DDI breakdown (non-zero families only, mirrors XLS Object Counters sheet)
+
+## Current Milestone: v1.4 Audit Depth
+
+**Goal:** Surface formula derivation and object-level attribution in both cloud and NIOS WebUI so every token total is fully explainable without leaving the browser.
+
+**Target features:**
+- Per-provider formula cards + per-account attribution tables for AWS, Azure, and GCP scan results
+- NIOS object family breakdown table in WebUI (non-zero families, mirrors XLS Object Counters sheet)
 
 ### Out of Scope
 
@@ -120,4 +132,4 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 | Select All / Clear All use `type='button'` with bubbling `change` events | Prevents accidental form submission; dispatching change events keeps IIFE counter in sync with batch ops | ✓ Good — clean pattern; no jQuery or external JS needed |
 
 ---
-*Last updated: 2026-03-03 after v1.3 milestone*
+*Last updated: 2026-03-03 after v1.4 milestone started*
