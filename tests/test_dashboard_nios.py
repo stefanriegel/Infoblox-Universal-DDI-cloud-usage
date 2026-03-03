@@ -927,3 +927,192 @@ class TestMemberAttribution:
             r = client.get("/tab/nios")
             assert r.status_code == 200
             assert "Member Attribution" not in r.text
+
+
+# ---------------------------------------------------------------------------
+# Phase 22: HTML content tests for Object Family Breakdown section
+# ---------------------------------------------------------------------------
+
+
+def _make_fake_family_breakdown():
+    """Build a minimal family_breakdown list for rendering tests.
+
+    Includes:
+    - host_object: DDI family, ddi_adjusted reflects expansion
+    - dns_record_a: DDI family, ddi_adjusted == raw_count
+    - lease: non-DDI family with reason 'Active IP source only'
+    - member: non-DDI family with reason 'Metadata only'
+    """
+    return [
+        {
+            "family": "host_object",
+            "display_name": "host_object",
+            "raw_count": 100,
+            "ddi_adjusted": 220,
+            "is_ddi": True,
+            "reason": "",
+        },
+        {
+            "family": "dns_record_a",
+            "display_name": "dns_record_a",
+            "raw_count": 500,
+            "ddi_adjusted": 500,
+            "is_ddi": True,
+            "reason": "",
+        },
+        {
+            "family": "lease",
+            "display_name": "lease",
+            "raw_count": 1000,
+            "ddi_adjusted": 0,
+            "is_ddi": False,
+            "reason": "Active IP source only",
+        },
+        {
+            "family": "member",
+            "display_name": "member",
+            "raw_count": 5,
+            "ddi_adjusted": 0,
+            "is_ddi": False,
+            "reason": "Metadata only",
+        },
+    ]
+
+
+class TestNiosCompleteFamilyBreakdown:
+    """HTML content tests for Phase 22 Object Family Breakdown section.
+
+    ANA-01: Section present listing non-zero families.
+    ANA-02: DDI Adjusted column shows DDI-adjusted counts.
+    ANA-03: DDI? column shows Yes/No.
+    ANA-04: Reason column shows reason strings for non-DDI families.
+    ANA-05: DDI Subtotal row present in tfoot.
+    ANA-06: Section heading and scenario-independence subtext present.
+    """
+
+    def _nios_complete_with_breakdown(self, breakdown=None):
+        """Set up TestClient with nios_manager in COMPLETE state with family_breakdown."""
+        app = create_app()
+        client = TestClient(app)
+        client.__enter__()
+        suite = _make_scenario_suite_no_hybrid()
+        client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "fake.tar.gz")
+        client.app.state.nios_manager.start()
+        if breakdown is None:
+            breakdown = _make_fake_family_breakdown()
+
+        # Create a temp xlsx file so download link works
+        os.makedirs("output", exist_ok=True)
+        tmp = tempfile.NamedTemporaryFile(dir="output", suffix=".xlsx", delete=False, prefix="nios_test_")
+        tmp.close()
+        client.app.state.nios_manager.set_complete(
+            tmp.name,
+            scenario_suite=suite,
+            family_breakdown=breakdown,
+        )
+        return client
+
+    def test_section_heading_present(self) -> None:
+        """GET /tab/nios in COMPLETE state contains 'Object Family Breakdown' heading."""
+        client = self._nios_complete_with_breakdown()
+        r = client.get("/tab/nios")
+        assert r.status_code == 200
+        assert "Object Family Breakdown" in r.text
+
+    def test_scenario_independence_subtext_present(self) -> None:
+        """Section subtext states breakdown is scenario-independent (ANA-06)."""
+        client = self._nios_complete_with_breakdown()
+        r = client.get("/tab/nios")
+        assert r.status_code == 200
+        assert "Scenario-independent" in r.text
+
+    def test_family_names_present(self) -> None:
+        """Family names from breakdown appear in the rendered table (ANA-01)."""
+        client = self._nios_complete_with_breakdown()
+        r = client.get("/tab/nios")
+        assert r.status_code == 200
+        assert "host_object" in r.text
+        assert "dns_record_a" in r.text
+        assert "lease" in r.text
+
+    def test_ddi_adjusted_column_present(self) -> None:
+        """'DDI Adjusted' column header appears in the table (ANA-02)."""
+        client = self._nios_complete_with_breakdown()
+        r = client.get("/tab/nios")
+        assert r.status_code == 200
+        assert "DDI Adjusted" in r.text
+
+    def test_ddi_yes_present_for_ddi_families(self) -> None:
+        """DDI? column shows 'Yes' for DDI-contributing families (ANA-03)."""
+        client = self._nios_complete_with_breakdown()
+        r = client.get("/tab/nios")
+        assert r.status_code == 200
+        assert "Yes" in r.text
+
+    def test_ddi_no_present_for_non_ddi_families(self) -> None:
+        """DDI? column shows 'No' for non-DDI families (ANA-03)."""
+        client = self._nios_complete_with_breakdown()
+        r = client.get("/tab/nios")
+        assert r.status_code == 200
+        assert "No" in r.text
+
+    def test_reason_active_ip_source_present(self) -> None:
+        """Reason column shows 'Active IP source only' for lease family (ANA-04)."""
+        client = self._nios_complete_with_breakdown()
+        r = client.get("/tab/nios")
+        assert r.status_code == 200
+        assert "Active IP source only" in r.text
+
+    def test_reason_metadata_only_present(self) -> None:
+        """Reason column shows 'Metadata only' for member family (ANA-04)."""
+        client = self._nios_complete_with_breakdown()
+        r = client.get("/tab/nios")
+        assert r.status_code == 200
+        assert "Metadata only" in r.text
+
+    def test_ddi_subtotal_row_present(self) -> None:
+        """tfoot DDI Subtotal row is present in the table (ANA-05)."""
+        client = self._nios_complete_with_breakdown()
+        r = client.get("/tab/nios")
+        assert r.status_code == 200
+        assert "DDI Subtotal" in r.text
+
+    def test_section_absent_when_no_breakdown(self) -> None:
+        """Object Family Breakdown section is absent when family_breakdown is None (ANA-01 guard)."""
+        app = create_app()
+        with TestClient(app) as client:
+            suite = _make_scenario_suite_no_hybrid()
+            os.makedirs("output", exist_ok=True)
+            tmp = tempfile.NamedTemporaryFile(dir="output", suffix=".xlsx", delete=False, prefix="nios_nobd_")
+            tmp.close()
+            client.app.state.nios_manager.set_upload("/tmp/fake.tar.gz", "fake.tar.gz")
+            client.app.state.nios_manager.start()
+            client.app.state.nios_manager.set_complete(tmp.name, scenario_suite=suite, family_breakdown=None)
+            r = client.get("/tab/nios")
+            assert r.status_code == 200
+            assert "Object Family Breakdown" not in r.text
+
+    def test_section_between_scenario_cards_and_member_attribution(self) -> None:
+        """Object Family Breakdown appears between scenario cards and member attribution."""
+        client = self._nios_complete_with_breakdown()
+        r = client.get("/tab/nios")
+        assert r.status_code == 200
+        text = r.text
+        # All three sections present
+        assert "Current Grid" in text
+        assert "Object Family Breakdown" in text
+        assert "Member Attribution" in text
+        # Order: scenario info comes before breakdown, breakdown comes before attribution
+        scenario_pos = text.find("Current Grid")
+        breakdown_pos = text.find("Object Family Breakdown")
+        attribution_pos = text.find("Member Attribution")
+        assert scenario_pos < breakdown_pos < attribution_pos, (
+            f"Expected order: scenario ({scenario_pos}) < breakdown ({breakdown_pos}) < attribution ({attribution_pos})"
+        )
+
+    def test_raw_count_column_present(self) -> None:
+        """Raw Count column header appears in the table."""
+        client = self._nios_complete_with_breakdown()
+        r = client.get("/tab/nios")
+        assert r.status_code == 200
+        assert "Raw Count" in r.text

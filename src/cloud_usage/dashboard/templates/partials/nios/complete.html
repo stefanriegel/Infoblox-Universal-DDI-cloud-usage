@@ -87,6 +87,50 @@
     <p><em>Output file not available.</em></p>
   {% endif %}
 
+  {% if family_breakdown %}
+  <section style="margin-top: 2rem;">
+    <p style="margin: 0 0 0.1rem; font-size: 0.85rem; color: var(--ib-gray-600); text-transform: uppercase; letter-spacing: 0.05em;">Object Family Breakdown</p>
+    <p style="font-size: 0.8rem; color: var(--ib-gray-600); margin: 0 0 0.75rem;">
+      Scenario-independent &mdash; all three scenarios count the same objects; only the formula divisors differ.
+    </p>
+    <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--ib-gray-200); border-radius: 6px;">
+      <table style="margin: 0; font-size: 0.85rem;">
+        <thead>
+          <tr>
+            <th>Family Name</th>
+            <th style="text-align: right;">Raw Count</th>
+            <th style="text-align: right;">DDI Adjusted</th>
+            <th style="text-align: center;">DDI?</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in family_breakdown %}
+          <tr>
+            <td style="font-family: monospace; font-size: 0.8rem;">{{ row.display_name }}</td>
+            <td style="text-align: right;">{{ "{:,}".format(row.raw_count) }}</td>
+            <td style="text-align: right;">{% if row.is_ddi %}{{ "{:,}".format(row.ddi_adjusted) }}{% else %}&mdash;{% endif %}</td>
+            <td style="text-align: center;">
+              <span style="font-size: 0.75rem; font-weight: 600;">{{ "Yes" if row.is_ddi else "No" }}</span>
+            </td>
+            <td style="font-size: 0.8rem; color: var(--ib-gray-600);">{{ row.reason }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td><strong>DDI Subtotal</strong></td>
+            <td></td>
+            <td style="text-align: right;"><strong>{{ "{:,}".format(family_breakdown | selectattr("is_ddi") | sum(attribute="ddi_adjusted")) }}</strong></td>
+            <td></td>
+            <td style="font-size: 0.75rem; color: var(--ib-gray-600);">Sum of DDI-contributing families</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
   {% if scenario_suite and scenario_suite.member_attribution %}
   <section style="margin-top: 2rem;">
     <p style="margin: 0 0 0.25rem; font-size: 0.85rem; color: var(--ib-gray-600); text-transform: uppercase; letter-spacing: 0.05em;">Member Attribution</p>
