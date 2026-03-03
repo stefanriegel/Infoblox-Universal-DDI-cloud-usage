@@ -1,8 +1,11 @@
-"""Tests for Phase 23 Results Navigation — per-provider formula cards (CLOUD-06).
+"""Tests for Phase 23 Results Navigation — per-provider formula cards (CLOUD-06)
+and sortable per-account attribution table (CLOUD-07).
 
 Covers:
   TestFormulaCards: formula derivation lines (÷ 25, ÷ 13, ÷ 3) appear in Results and Summary
                     tab HTML when the per_provider_details template variable is populated.
+  TestSortableTable: data attributes (data-col, data-value, acct-row class) present in the
+                     per-account attribution table, and IIFE sort script is embedded (CLOUD-07).
   TestANA07: collapsible <details> breakdown already present (ANA-07 verification only).
 """
 
@@ -135,6 +138,60 @@ class TestFormulaCards:
             # No resources set — scan_manager defaults to empty list
             response = client.get("/tab/summary")
             assert response.status_code == 200
+
+
+class TestSortableTable:
+    """HTML structure tests for sortable per-account attribution table (CLOUD-07)."""
+
+    def _make_multi_account_resources(self) -> list:
+        """Create resources across 2 accounts to produce per_account_details with multiple rows."""
+        return [
+            _make_resource("dns-zone", "ddi", "acct-111", "aws"),
+            _make_resource("dns-zone", "ddi", "acct-111", "aws"),
+            _make_resource("vm", "asset", "acct-111", "aws"),
+            _make_resource("network-interface", "ip", "acct-111", "aws",
+                           ip_addresses=["10.0.0.1"]),
+            _make_resource("dns-zone", "ddi", "acct-222", "aws"),
+            _make_resource("vm", "asset", "acct-222", "aws"),
+            _make_resource("vm", "asset", "acct-222", "aws"),
+        ]
+
+    def test_sortable_headers_present(self):
+        """GET /tab/summary HTML contains data-col="tokens" and data-col="ddi" on table headers."""
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.scan_manager.set_resources(self._make_multi_account_resources())
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert 'data-col="tokens"' in response.text
+            assert 'data-col="ddi"' in response.text
+
+    def test_data_value_attrs_present(self):
+        """GET /tab/summary with multi-account data contains data-value= in HTML (numeric cells)."""
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.scan_manager.set_resources(self._make_multi_account_resources())
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert "data-value=" in response.text
+
+    def test_sort_iife_present(self):
+        """GET /tab/summary HTML contains 'acct-attribution-table' (IIFE script target id)."""
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.scan_manager.set_resources(self._make_multi_account_resources())
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert "acct-attribution-table" in response.text
+
+    def test_acct_row_class_present(self):
+        """GET /tab/summary HTML contains 'acct-row' (CSS class used by IIFE sort targeting)."""
+        app = create_app()
+        with TestClient(app) as client:
+            client.app.state.scan_manager.set_resources(self._make_multi_account_resources())
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert "acct-row" in response.text
 
 
 class TestANA07:
