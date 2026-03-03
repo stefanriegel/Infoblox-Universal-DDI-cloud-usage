@@ -663,60 +663,6 @@ def _write_member_attribution_sheet(
 
 
 # ---------------------------------------------------------------------------
-# Per-source IP counting helper (used by run_nios_analysis)
-# ---------------------------------------------------------------------------
-
-def _count_ip_by_type(
-    objects,
-    lease_states: set[str],
-) -> dict[str, int]:
-    """Count Active IPs by source in a single pass. No cross-source deduplication.
-
-    Returns raw (potentially overlapping) counts per source. The grand total for
-    display MUST use grid_counts.active_ip_count (the authoritative deduped total),
-    not the sum of these per-source counts.
-
-    Args:
-        objects: Filtered NiosObject stream (already past filter_objects()).
-        lease_states: Set of binding_state values to count as active leases.
-            Passed from FilterConfig.lease_states.
-
-    Returns:
-        Dict with keys "leases", "fixed", "host", "reservations" — each is the
-        raw count of IPs from that source (may overlap with other sources).
-    """
-    import ipaddress
-
-    counts: dict[str, int] = {"leases": 0, "fixed": 0, "host": 0, "reservations": 0}
-
-    for obj in objects:
-        if obj.family == NiosFamily.LEASE:
-            state = obj.raw_attrs.get("binding_state", "")
-            ip = obj.raw_attrs.get("ip_address", "").strip()
-            if state in lease_states and ip:
-                counts["leases"] += 1
-        elif obj.family == NiosFamily.FIXED_ADDRESS:
-            ip = obj.raw_attrs.get("ip_address", "").strip()
-            if ip:
-                counts["fixed"] += 1
-        elif obj.family == NiosFamily.HOST_ADDRESS:
-            # ZF backup stores host IPs under "address" key (NOT "ip_address")
-            ip = obj.raw_attrs.get("address", "").strip()
-            if ip:
-                counts["host"] += 1
-        elif obj.family == NiosFamily.NETWORK:
-            cidr = obj.raw_attrs.get("cidr", "").strip()
-            if cidr:
-                try:
-                    ipaddress.IPv4Network(cidr, strict=False)
-                    counts["reservations"] += 2  # network_address + broadcast_address
-                except ValueError:
-                    pass  # Malformed CIDR — skip silently
-
-    return counts
-
-
-# ---------------------------------------------------------------------------
 # Public API: run_nios_analysis (pipeline runner)
 # ---------------------------------------------------------------------------
 
@@ -735,9 +681,9 @@ def run_nios_analysis(
     1. inspect_backup()  — extract nios_version, snapshot_date for report header
     2. get_member_map()  — virtual_oid -> hostname for Member Attribution sheet
     3. Pass A: parse_backup() -> filter_objects() -> count_objects() -> CountResult
-    4. Pass B: parse_backup() -> filter_objects() -> _count_ip_by_type() -> ip_by_type dict
-    5. compute_scenarios(count_result, split_config) -> ScenarioSuite
-    6. write_nios_xlsx_report(filepath, ...) -> str
+       (ip_by_type is now populated inline by count_objects, no separate Pass B needed)
+    4. compute_scenarios(count_result, split_config) -> ScenarioSuite
+    5. write_nios_xlsx_report(filepath, ...) -> str
 
     Args:
         backup_path: Path to the .tar.gz NIOS Grid backup file.
@@ -767,17 +713,15 @@ def run_nios_analysis(
     # Step 2: Build member map for virtual_oid lookup in Member Attribution sheet
     member_map = get_member_map(backup_path)
 
-    # Step 3 (Pass A): parse -> filter -> count
+    # Step 3 (Pass A): parse -> filter -> count (ip_by_type accumulated inline)
     raw_stream_a = parse_backup(backup_path)
     filtered_a = filter_objects(raw_stream_a, filter_config)
     count_result = count_objects(filtered_a, filter_config)
 
-    # Step 4 (Pass B): parse -> filter -> ip_by_type (per-source raw counts)
-    raw_stream_b = parse_backup(backup_path)
-    filtered_b = filter_objects(raw_stream_b, filter_config)
-    ip_by_type = _count_ip_by_type(filtered_b, set(filter_config.lease_states))
+    # ip_by_type is now sourced directly from CountResult (no separate Pass B)
+    ip_by_type = count_result.ip_by_type
 
-    # Step 5: compute scenarios
+    # Step 4: compute scenarios
     scenario_suite = compute_scenarios(count_result, split_config)
 
     # Step 6: resolve output path
@@ -791,7 +735,7 @@ def run_nios_analysis(
         os.makedirs(str(Path(output_path).parent), exist_ok=True)
         resolved_path = output_path
 
-    # Step 7: write report
+    # Step 5: write report
     return write_nios_xlsx_report(
         filepath=resolved_path,
         integrity_report=integrity,

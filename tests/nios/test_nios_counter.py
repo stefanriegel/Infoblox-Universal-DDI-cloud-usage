@@ -691,3 +691,97 @@ class TestPerFamilyDdi:
         # Note: grid_counts.ddi_count only tracks grid-level (member=None); member DDI goes to per_member
         # per_family_ddi is GRID-WIDE (sum of both), matching the use case for family breakdown table
         assert sum(result.per_family_ddi.values()) == 2
+
+
+# ---------------------------------------------------------------------------
+# PERF-01: ip_by_type field on CountResult (quick task 6)
+# ---------------------------------------------------------------------------
+
+
+class TestIpByType:
+    """Tests for CountResult.ip_by_type — per-source IP counts accumulated in count_objects().
+
+    PERF-01: Eliminates the separate _count_ip_by_type() pass in output.py by
+    computing ip_by_type inline alongside the existing global_ip_set logic.
+    """
+
+    def test_ip_by_type_present_on_count_result(self) -> None:
+        """CountResult has an ip_by_type attribute (dict)."""
+        config = _default_config()
+        result = count_objects(iter([]), config)
+        assert hasattr(result, "ip_by_type")
+        assert isinstance(result.ip_by_type, dict)
+
+    def test_ip_by_type_empty_stream_all_zeros(self) -> None:
+        """Empty stream produces ip_by_type with all four keys at 0."""
+        config = _default_config()
+        result = count_objects(iter([]), config)
+        assert result.ip_by_type == {"leases": 0, "fixed": 0, "host": 0, "reservations": 0}
+
+    def test_ip_by_type_leases_counts_only_active_state(self) -> None:
+        """ip_by_type['leases'] counts only leases in the active binding_state.
+
+        Non-active states (free, abandoned) do NOT increment the leases counter.
+        """
+        objects = [
+            _lease("member-01.example.com", ip="10.0.0.1", binding_state="active"),
+            _lease("member-01.example.com", ip="10.0.0.2", binding_state="active"),
+            _lease("member-01.example.com", ip="10.0.0.3", binding_state="free"),
+            _lease("member-01.example.com", ip="10.0.0.4", binding_state="abandoned"),
+        ]
+        config = _default_config()  # lease_states=("active",)
+        result = count_objects(iter(objects), config)
+        # Only 2 active-state leases with non-empty IPs should be counted
+        assert result.ip_by_type["leases"] == 2
+
+    def test_ip_by_type_reservations_is_two_per_valid_network(self) -> None:
+        """ip_by_type['reservations'] = 2 * number of valid NETWORK objects with CIDR.
+
+        Each valid CIDR contributes network_address + broadcast_address = 2 entries.
+        """
+        objects = [
+            _network("10.0.1.0/24"),   # 1 valid CIDR -> +2
+            _network("192.168.0.0/30"),  # 1 valid CIDR -> +2
+            _obj(NiosFamily.NETWORK, member=None),  # no cidr -> 0
+            _obj(NiosFamily.NETWORK, member=None, cidr="not-a-cidr"),  # malformed -> 0
+        ]
+        config = _default_config()
+        result = count_objects(iter(objects), config)
+        # 2 valid CIDRs × 2 = 4
+        assert result.ip_by_type["reservations"] == 4
+
+    def test_ip_by_type_fixed_counts_non_empty_ip(self) -> None:
+        """ip_by_type['fixed'] counts FIXED_ADDRESS objects with non-empty ip_address."""
+        objects = [
+            _fixed("10.0.0.1"),
+            _fixed("10.0.0.2"),
+            _obj(NiosFamily.FIXED_ADDRESS, member=None, ip_address=""),  # empty -> 0
+        ]
+        config = _default_config()
+        result = count_objects(iter(objects), config)
+        assert result.ip_by_type["fixed"] == 2
+
+    def test_ip_by_type_host_counts_non_empty_address_key(self) -> None:
+        """ip_by_type['host'] counts HOST_ADDRESS objects with non-empty 'address' key."""
+        objects = [
+            _host_addr("10.1.1.1"),
+            _obj(NiosFamily.HOST_ADDRESS, member=None, address=""),  # empty -> 0
+        ]
+        config = _default_config()
+        result = count_objects(iter(objects), config)
+        assert result.ip_by_type["host"] == 1
+
+    def test_ip_by_type_all_four_sources_mixed(self) -> None:
+        """Mixed stream accumulates all four ip_by_type counters correctly."""
+        objects = [
+            _lease("member-01.example.com", ip="10.0.1.1", binding_state="active"),
+            _fixed("10.0.2.1"),
+            _host_addr("10.0.3.1"),
+            _network("10.0.4.0/30"),  # +2
+        ]
+        config = _default_config()
+        result = count_objects(iter(objects), config)
+        assert result.ip_by_type["leases"] == 1
+        assert result.ip_by_type["fixed"] == 1
+        assert result.ip_by_type["host"] == 1
+        assert result.ip_by_type["reservations"] == 2

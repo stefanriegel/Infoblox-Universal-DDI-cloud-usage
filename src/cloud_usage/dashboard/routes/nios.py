@@ -108,11 +108,10 @@ def _run_nios_pipeline(
     Pipeline:
       1. inspect_backup()    -- extract nios_version, snapshot_date
       2. get_member_map()    -- {virtual_oid: hostname}
-      3. Pass A: parse -> filter -> count_objects -> CountResult
-      4. Pass B: parse -> filter -> _count_ip_by_type -> ip_by_type
-      5. compute_scenarios() -- ScenarioSuite (captured for nios_manager)
-      6. write_nios_xlsx_report() -- write .xlsx
-      7. nios_manager.set_complete(output_path, scenario_suite)
+      3. Pass A: parse -> filter -> count_objects -> CountResult (ip_by_type inline)
+      4. compute_scenarios() -- ScenarioSuite (captured for nios_manager)
+      5. write_nios_xlsx_report() -- write .xlsx
+      6. nios_manager.set_complete(output_path, scenario_suite)
 
     On any exception: nios_manager.set_error(str(exc)) and log via logger.exception.
     In finally: always emit "nios_complete" then emit_done() to close SSE stream.
@@ -125,7 +124,7 @@ def _run_nios_pipeline(
     """
     from cloud_usage.nios.counter import count_objects
     from cloud_usage.nios.filter import FilterConfig, filter_objects
-    from cloud_usage.nios.output import _count_ip_by_type, write_nios_xlsx_report
+    from cloud_usage.nios.output import write_nios_xlsx_report
     from cloud_usage.nios.parser import get_member_map, inspect_backup, parse_backup
     from cloud_usage.nios.scenarios import MigrationSplitConfig, compute_scenarios
 
@@ -133,20 +132,20 @@ def _run_nios_pipeline(
         start_time = time.monotonic()
 
         # Step 1: Inspect backup for metadata
-        nios_manager.set_progress(1, 6, "Inspecting backup", round(time.monotonic() - start_time, 1))
+        nios_manager.set_progress(1, 5, "Inspecting backup", round(time.monotonic() - start_time, 1))
         nios_event_bridge.emit("nios_progress", {
             "step": 1,
-            "total": 6,
+            "total": 5,
             "label": "Inspecting backup",
             "elapsed_seconds": round(time.monotonic() - start_time, 1),
         })
         integrity = inspect_backup(backup_path)
 
         # Step 2: Build member map for Member Attribution sheet
-        nios_manager.set_progress(2, 6, "Reading members", round(time.monotonic() - start_time, 1))
+        nios_manager.set_progress(2, 5, "Reading members", round(time.monotonic() - start_time, 1))
         nios_event_bridge.emit("nios_progress", {
             "step": 2,
-            "total": 6,
+            "total": 5,
             "label": "Reading members",
             "elapsed_seconds": round(time.monotonic() - start_time, 1),
         })
@@ -159,11 +158,11 @@ def _run_nios_pipeline(
             lease_states=("active",),
         )
 
-        # Step 3 (Pass A): parse -> filter -> count
-        nios_manager.set_progress(3, 6, "Counting objects", round(time.monotonic() - start_time, 1))
+        # Step 3: parse -> filter -> count (ip_by_type accumulated inline, no separate pass)
+        nios_manager.set_progress(3, 5, "Counting objects", round(time.monotonic() - start_time, 1))
         nios_event_bridge.emit("nios_progress", {
             "step": 3,
-            "total": 6,
+            "total": 5,
             "label": "Counting objects",
             "elapsed_seconds": round(time.monotonic() - start_time, 1),
         })
@@ -171,23 +170,14 @@ def _run_nios_pipeline(
         filtered_a = filter_objects(raw_stream_a, filter_config)
         count_result = count_objects(filtered_a, filter_config)
 
-        # Step 4 (Pass B): parse -> filter -> ip_by_type
-        nios_manager.set_progress(4, 6, "Counting IP records", round(time.monotonic() - start_time, 1))
+        # ip_by_type sourced directly from CountResult (no separate pass needed)
+        ip_by_type = count_result.ip_by_type
+
+        # Step 4: compute scenarios — capture suite for summary card
+        nios_manager.set_progress(4, 5, "Computing scenarios", round(time.monotonic() - start_time, 1))
         nios_event_bridge.emit("nios_progress", {
             "step": 4,
-            "total": 6,
-            "label": "Counting IP records",
-            "elapsed_seconds": round(time.monotonic() - start_time, 1),
-        })
-        raw_stream_b = parse_backup(backup_path)
-        filtered_b = filter_objects(raw_stream_b, filter_config)
-        ip_by_type = _count_ip_by_type(filtered_b, set(filter_config.lease_states))
-
-        # Step 5: compute scenarios — capture suite for summary card
-        nios_manager.set_progress(5, 6, "Computing scenarios", round(time.monotonic() - start_time, 1))
-        nios_event_bridge.emit("nios_progress", {
-            "step": 5,
-            "total": 6,
+            "total": 5,
             "label": "Computing scenarios",
             "elapsed_seconds": round(time.monotonic() - start_time, 1),
         })
@@ -198,11 +188,11 @@ def _run_nios_pipeline(
         )
         scenario_suite = compute_scenarios(count_result, split_config)
 
-        # Step 6: resolve output path and write report
-        nios_manager.set_progress(6, 6, "Writing report", round(time.monotonic() - start_time, 1))
+        # Step 5: resolve output path and write report
+        nios_manager.set_progress(5, 5, "Writing report", round(time.monotonic() - start_time, 1))
         nios_event_bridge.emit("nios_progress", {
-            "step": 6,
-            "total": 6,
+            "step": 5,
+            "total": 5,
             "label": "Writing report",
             "elapsed_seconds": round(time.monotonic() - start_time, 1),
         })

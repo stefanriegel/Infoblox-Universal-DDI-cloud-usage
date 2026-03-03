@@ -162,11 +162,19 @@ class CountResult:
             HOST_OBJECT entries reflect the +2/+3 expansion (not raw object count).
             Only DDI families appear as keys; non-DDI families are absent.
             sum(per_family_ddi.values()) == total grid + member DDI (the scenario total_ddi).
+        ip_by_type: Per-source IP counts with keys "leases", "fixed", "host",
+            "reservations". Raw (potentially overlapping) counts — accumulated inline
+            alongside the global_ip_set in count_objects(), eliminating a separate pass.
+            leases: state-filtered active lease IPs (non-empty ip_address).
+            fixed: FIXED_ADDRESS objects with non-empty ip_address.
+            host: HOST_ADDRESS objects with non-empty "address" key.
+            reservations: 2 * number of valid NETWORK CIDRs (network + broadcast).
     """
 
     member_counts: list[MemberCounts]
     grid_counts: MemberCounts
     per_family_ddi: dict[str, int] = field(default_factory=dict)
+    ip_by_type: dict[str, int] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -225,6 +233,13 @@ def count_objects(
     # Per-family DDI-adjusted contributions (DDI families only, HOST_OBJECT uses expanded delta).
     per_family_ddi: dict[str, int] = defaultdict(int)
 
+    # Per-source IP counters (raw, potentially overlapping — same conditions as global_ip_set
+    # but without deduplication, matching _count_ip_by_type() behaviour).
+    ip_leases: int = 0
+    ip_fixed: int = 0
+    ip_host: int = 0
+    ip_reservations: int = 0
+
     for obj in objects:
         family = obj.family
         hostname = obj.member_hostname
@@ -260,6 +275,7 @@ def count_objects(
             # State-filtered: contribute to global and per-member IP sets.
             if state in lease_states_set and ip:
                 global_ip_set.add(ip)
+                ip_leases += 1
                 if hostname:
                     per_member[hostname].lease_ip_set.add(ip)
 
@@ -268,6 +284,7 @@ def count_objects(
             ip = attrs.get("ip_address", "").strip()
             if ip:
                 global_ip_set.add(ip)
+                ip_fixed += 1
 
         # --- Host address IPs (grid-level; ZF backup stores IP under "address" key) ---
         elif family == NiosFamily.HOST_ADDRESS:
@@ -275,6 +292,7 @@ def count_objects(
             ip = attrs.get("address", "").strip()
             if ip:
                 global_ip_set.add(ip)
+                ip_host += 1
 
         # --- Network reservation IPs (network_address + broadcast_address) ---
         elif family == NiosFamily.NETWORK:
@@ -284,6 +302,7 @@ def count_objects(
                     net = ipaddress.IPv4Network(cidr, strict=False)
                     global_ip_set.add(str(net.network_address))
                     global_ip_set.add(str(net.broadcast_address))
+                    ip_reservations += 2
                 except ValueError:
                     # Malformed CIDR — skip silently.
                     _logger.debug("Skipping malformed CIDR %r in NETWORK object", cidr)
@@ -312,4 +331,5 @@ def count_objects(
         member_counts=member_counts,
         grid_counts=grid_counts,
         per_family_ddi=dict(per_family_ddi),
+        ip_by_type={"leases": ip_leases, "fixed": ip_fixed, "host": ip_host, "reservations": ip_reservations},
     )

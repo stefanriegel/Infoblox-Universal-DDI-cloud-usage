@@ -1390,7 +1390,11 @@ def test_all_public_names_are_callable():
 
 
 # ---------------------------------------------------------------------------
-# _count_ip_by_type unit tests (Plan 13-02)
+# ip_by_type unit tests (formerly _count_ip_by_type — now inline in count_objects)
+# ---------------------------------------------------------------------------
+# _count_ip_by_type() was removed (PERF-01 quick task 6). The same per-source
+# IP counts are now accumulated inline in count_objects() and exposed via
+# CountResult.ip_by_type. Tests are rewritten to use count_objects() directly.
 # ---------------------------------------------------------------------------
 
 
@@ -1398,85 +1402,75 @@ def _make_nios_object(family: str, raw_attrs: dict) -> "NiosObject":
     return NiosObject(family=family, member_hostname=None, raw_attrs=raw_attrs)
 
 
+def _count_via_count_objects(objects, lease_states=("active",)):
+    """Helper: run count_objects() and return ip_by_type dict."""
+    from cloud_usage.nios.counter import count_objects
+    from cloud_usage.nios.filter import FilterConfig
+    config = FilterConfig(whitelist=(), blacklist=(), lease_states=lease_states)
+    return count_objects(iter(objects), config).ip_by_type
+
+
 def test_count_ip_by_type_empty_stream():
     """Empty stream returns all-zero counts."""
-    from cloud_usage.nios.output import _count_ip_by_type
-
-    result = _count_ip_by_type(iter([]), lease_states={"active"})
+    result = _count_via_count_objects([])
     assert result == {"leases": 0, "fixed": 0, "host": 0, "reservations": 0}
 
 
 def test_count_ip_by_type_lease_active_increments():
     """LEASE with binding_state 'active' and ip_address increments leases by 1."""
-    from cloud_usage.nios.output import _count_ip_by_type
-
     obj = _make_nios_object(NiosFamily.LEASE, {"binding_state": "active", "ip_address": "10.0.0.1"})
-    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    result = _count_via_count_objects([obj])
     assert result["leases"] == 1
 
 
 def test_count_ip_by_type_lease_expired_not_counted():
-    """LEASE with binding_state 'expired' is NOT counted when lease_states={'active'}."""
-    from cloud_usage.nios.output import _count_ip_by_type
-
+    """LEASE with binding_state 'expired' is NOT counted when lease_states=('active',)."""
     obj = _make_nios_object(NiosFamily.LEASE, {"binding_state": "expired", "ip_address": "10.0.0.1"})
-    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    result = _count_via_count_objects([obj])
     assert result["leases"] == 0
 
 
 def test_count_ip_by_type_fixed_address_increments():
     """FIXED_ADDRESS with ip_address increments fixed by 1."""
-    from cloud_usage.nios.output import _count_ip_by_type
-
     obj = _make_nios_object(NiosFamily.FIXED_ADDRESS, {"ip_address": "10.0.0.2"})
-    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    result = _count_via_count_objects([obj])
     assert result["fixed"] == 1
 
 
 def test_count_ip_by_type_host_address_uses_address_key():
     """HOST_ADDRESS with raw_attrs['address'] increments host by 1."""
-    from cloud_usage.nios.output import _count_ip_by_type
-
     obj = _make_nios_object(NiosFamily.HOST_ADDRESS, {"address": "10.0.0.3"})
-    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    result = _count_via_count_objects([obj])
     assert result["host"] == 1
 
 
 def test_count_ip_by_type_host_address_wrong_key_not_counted():
     """HOST_ADDRESS with raw_attrs['ip_address'] (wrong key) does NOT increment host."""
-    from cloud_usage.nios.output import _count_ip_by_type
-
     obj = _make_nios_object(NiosFamily.HOST_ADDRESS, {"ip_address": "10.0.0.3"})
-    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    result = _count_via_count_objects([obj])
     assert result["host"] == 0
 
 
 def test_count_ip_by_type_network_cidr_increments_by_2():
     """NETWORK object with valid cidr increments reservations by 2 (network + broadcast)."""
-    from cloud_usage.nios.output import _count_ip_by_type
-
     obj = _make_nios_object(NiosFamily.NETWORK, {"cidr": "192.168.1.0/24"})
-    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    result = _count_via_count_objects([obj])
     assert result["reservations"] == 2
 
 
 def test_count_ip_by_type_same_ip_counted_in_both_sources():
     """Same IP appearing as both LEASE and FIXED_ADDRESS is counted in BOTH (no cross-source dedup)."""
-    from cloud_usage.nios.output import _count_ip_by_type
-
     lease_obj = _make_nios_object(NiosFamily.LEASE, {"binding_state": "active", "ip_address": "10.0.0.1"})
     fixed_obj = _make_nios_object(NiosFamily.FIXED_ADDRESS, {"ip_address": "10.0.0.1"})
-    result = _count_ip_by_type(iter([lease_obj, fixed_obj]), lease_states={"active"})
+    result = _count_via_count_objects([lease_obj, fixed_obj])
     assert result["leases"] == 1
     assert result["fixed"] == 1
 
 
 def test_count_ip_by_type_malformed_cidr_skipped():
     """NETWORK object with malformed CIDR is skipped without raising."""
-    from cloud_usage.nios.output import _count_ip_by_type
-
     obj = _make_nios_object(NiosFamily.NETWORK, {"cidr": "not-a-cidr"})
-    result = _count_ip_by_type(iter([obj]), lease_states={"active"})
+    result = _count_via_count_objects([obj])
     assert result["reservations"] == 0
 
 
