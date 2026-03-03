@@ -13,11 +13,11 @@ __all__ = ["parse_backup", "inspect_backup", "get_member_map"]
 # Import at call time to avoid circular imports during package bootstrap.
 
 
-def parse_backup(path):
+def parse_backup(path, *, member_map=None):
     """Stream all NIOS object families from a .tar.gz backup. See _parse.py."""
     from cloud_usage.nios.parser._parse import parse_backup as _impl
 
-    return _impl(path)
+    return _impl(path, member_map=member_map)
 
 
 def inspect_backup(path):

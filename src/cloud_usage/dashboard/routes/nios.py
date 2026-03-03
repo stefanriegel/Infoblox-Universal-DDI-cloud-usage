@@ -45,51 +45,28 @@ router = APIRouter()
 
 
 def _get_member_counts_sync(backup_path: str) -> list[dict]:
-    """Parse backup, count DHCP leases per member, and return member list.
+    """Enumerate grid members from a backup using get_member_map() only.
 
-    Runs the full parse -> filter -> count pipeline to obtain both the
-    member hostname map and per-member DHCP lease counts.
+    Simplified from a full parse+count pipeline to a single archive read
+    (Pass 1 only). Lease counts per member are not available at upload time;
+    they are deferred to the full analysis run (see _run_nios_pipeline).
 
     Args:
         backup_path: Path to the saved .tar.gz NIOS Grid backup file.
 
     Returns:
-        List of dicts with keys "virtual_oid", "hostname", "lease_count",
+        List of dicts with keys "virtual_oid", "hostname", "lease_count" (always 0),
         sorted ascending by hostname.
     """
-    from cloud_usage.nios.counter import count_objects
-    from cloud_usage.nios.filter import FilterConfig, filter_objects
-    from cloud_usage.nios.parser import get_member_map, parse_backup
+    from cloud_usage.nios.parser import get_member_map
 
     member_map = get_member_map(backup_path)  # {virtual_oid: hostname}
 
-    filter_config = FilterConfig(
-        whitelist=(),
-        blacklist=(),
-        lease_states=("active",),
-    )
-
-    raw_stream = parse_backup(backup_path)
-    filtered = filter_objects(raw_stream, filter_config)
-    count_result = count_objects(filtered, filter_config)
-
-    # Build {hostname: lease_count} from member_counts, excluding the __grid__ sentinel
-    lease_by_hostname: dict[str, int] = {
-        mc.member_hostname: mc.lease_count
-        for mc in count_result.member_counts
-        if mc.member_hostname != "__grid__"
-    }
-
-    members = []
-    for virtual_oid, hostname in member_map.items():
-        members.append(
-            {
-                "virtual_oid": virtual_oid,
-                "hostname": hostname,
-                "lease_count": lease_by_hostname.get(hostname, 0),
-            }
-        )
-
+    # lease_count is always 0 at upload time — deferred to analysis run.
+    members = [
+        {"virtual_oid": oid, "hostname": hostname, "lease_count": 0}
+        for oid, hostname in member_map.items()
+    ]
     members.sort(key=lambda m: m["hostname"])
     return members
 
@@ -159,6 +136,7 @@ def _run_nios_pipeline(
         )
 
         # Step 3: parse -> filter -> count (ip_by_type accumulated inline, no separate pass)
+        # Pass pre-built member_map to skip parse_backup's internal Pass 1 (already done in Step 2).
         nios_manager.set_progress(3, 5, "Counting objects", round(time.monotonic() - start_time, 1))
         nios_event_bridge.emit("nios_progress", {
             "step": 3,
@@ -166,7 +144,7 @@ def _run_nios_pipeline(
             "label": "Counting objects",
             "elapsed_seconds": round(time.monotonic() - start_time, 1),
         })
-        raw_stream_a = parse_backup(backup_path)
+        raw_stream_a = parse_backup(backup_path, member_map=member_map)
         filtered_a = filter_objects(raw_stream_a, filter_config)
         count_result = count_objects(filtered_a, filter_config)
 

@@ -78,7 +78,6 @@
             <tr>
               <th scope="col">Hostname</th>
               <th scope="col">Virtual OID</th>
-              <th scope="col">DHCP Leases (active)</th>
               <th scope="col">Assign NIOSX</th>
             </tr>
           </thead>
@@ -87,7 +86,6 @@
             <tr>
               <td>{{ member.hostname }}</td>
               <td><code>{{ member.virtual_oid }}</code></td>
-              <td>{{ member.lease_count | int }}</td>
               <td>
                 <label>
                   <input type="checkbox"

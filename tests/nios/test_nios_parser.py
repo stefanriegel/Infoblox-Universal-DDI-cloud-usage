@@ -373,3 +373,63 @@ def test_parse_backup_dtc_topology_both_subtypes(tmp_path: Path) -> None:
     assert families == {NiosFamily.DTC_TOPOLOGY}, (
         f"Expected only dtc_topology family, got: {families}"
     )
+
+
+# ---------------------------------------------------------------------------
+# PERF-01: parse_backup(path, member_map=...) skips Pass 1 (quick task 6)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_backup_accepts_member_map_kwarg(tmp_path: Path) -> None:
+    """parse_backup() accepts an optional member_map keyword argument without error."""
+    xml = _build_onedb_xml(_network_object())
+    backup = _make_backup(xml, tmp_path)
+
+    # Should not raise — keyword argument must be accepted
+    objects = list(parse_backup(backup, member_map=None))
+    assert len(objects) == 1
+
+
+def test_parse_backup_with_supplied_member_map_resolves_lease(tmp_path: Path) -> None:
+    """parse_backup(path, member_map={"42": "host.example.com"}) resolves LEASE objects
+    with vnode_id="42" to member_hostname="host.example.com" without running Pass 1.
+
+    Verifies the supplied map is used rather than a fresh one: the backup contains NO
+    Member objects, so if Pass 1 ran internally the lease would get member_hostname=None.
+    By passing a pre-built member_map, the lease resolves correctly.
+    """
+    # Backup has NO Member objects — a fresh Pass 1 would return an empty member_map.
+    xml = _build_onedb_xml(
+        _lease_object("42", ip_address="10.0.0.1"),
+    )
+    backup = _make_backup(xml, tmp_path)
+
+    # Supply the pre-built member_map directly — Pass 1 must be skipped.
+    supplied_map = {"42": "host.example.com"}
+    objects = list(parse_backup(backup, member_map=supplied_map))
+    leases = [o for o in objects if o.family == "lease"]
+
+    assert len(leases) == 1, f"Expected 1 lease, got {len(leases)}"
+    assert leases[0].member_hostname == "host.example.com", (
+        f"Expected member_hostname='host.example.com', got {leases[0].member_hostname!r}. "
+        "Supplied member_map was not used — Pass 1 may have run internally."
+    )
+
+
+def test_parse_backup_without_member_map_kwarg_unchanged_behaviour(tmp_path: Path) -> None:
+    """parse_backup(path) without member_map kwarg has unchanged behaviour (Pass 1 runs).
+
+    Existing call sites that do not pass member_map still work correctly — the backup
+    contains a Member object, and the lease resolves via the internally-built map.
+    """
+    xml = _build_onedb_xml(
+        _member_object("77", "ns1.grid.example.com"),
+        _lease_object("77", ip_address="192.168.1.10"),
+    )
+    backup = _make_backup(xml, tmp_path)
+
+    objects = list(parse_backup(backup))
+    leases = [o for o in objects if o.family == "lease"]
+
+    assert len(leases) == 1
+    assert leases[0].member_hostname == "ns1.grid.example.com"

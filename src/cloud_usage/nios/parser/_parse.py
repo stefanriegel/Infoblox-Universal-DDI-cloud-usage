@@ -28,13 +28,21 @@ from cloud_usage.nios.schema import NiosObject
 _logger = logging.getLogger(__name__)
 
 
-def parse_backup(path: str | Path) -> Iterator[NiosObject]:
+def parse_backup(
+    path: str | Path,
+    *,
+    member_map: dict[str, str] | None = None,
+) -> Iterator[NiosObject]:
     """Stream all NIOS Grid object families as resolved NiosObject instances.
 
-    Two-pass design:
+    Two-pass design (when member_map is not supplied):
     - Pass 1: reads the archive once to build virtual_oid -> hostname member map.
     - Pass 2: reads the archive again, yields NiosObject for all 21 families
       with member_hostname already resolved.
+
+    When member_map is supplied (not None), Pass 1 is skipped entirely and the
+    provided map is used directly. This allows callers that have already built
+    the member map (via get_member_map()) to avoid a redundant archive read.
 
     MEMBER_SCOPED families (currently only LEASE) use the vnode_id field to
     resolve member_hostname via the member map. All other families are GRID_LEVEL
@@ -42,6 +50,9 @@ def parse_backup(path: str | Path) -> Iterator[NiosObject]:
 
     Args:
         path: Path to the .tar.gz NIOS Grid backup file.
+        member_map: Optional pre-built virtual_oid -> hostname dict. When provided,
+            Pass 1 (_build_member_map) is skipped. When None (default), Pass 1
+            runs internally as before.
 
     Yields:
         NiosObject instances. Every object has family set to a NiosFamily constant.
@@ -54,7 +65,9 @@ def parse_backup(path: str | Path) -> Iterator[NiosObject]:
     path = Path(path)
 
     # Pass 1: build complete member identity map before yielding any object.
-    member_map = _build_member_map(path)
+    # Skip if a pre-built member_map was supplied by the caller.
+    if member_map is None:
+        member_map = _build_member_map(path)
     if not member_map:
         _logger.warning(
             "No Member objects found in %s — all objects will have member_hostname=None",

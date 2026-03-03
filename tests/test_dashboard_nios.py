@@ -375,8 +375,13 @@ class TestMemberList:
             if saved_path and os.path.exists(saved_path):
                 os.remove(saved_path)
 
-    def test_upload_response_contains_virtual_oid_and_lease_count(self) -> None:
-        """POST /nios/upload HTML response contains virtual_oid and lease_count values."""
+    def test_upload_response_contains_virtual_oid(self) -> None:
+        """POST /nios/upload HTML response contains virtual_oid values.
+
+        Note (PERF-01): lease_count column removed from the upload step. Lease counts
+        are deferred to the analysis run result. The template now shows only
+        Hostname, Virtual OID, and Assign NIOSX columns.
+        """
         app = create_app()
         tar_gz_bytes = _make_minimal_tar_gz()
 
@@ -391,7 +396,8 @@ class TestMemberList:
                 )
                 assert r.status_code == 200
                 assert "oid-001" in r.text
-                assert "150" in r.text  # lease_count for grid-master
+                # lease_count column no longer rendered at upload time (PERF-01)
+                assert "DHCP Leases" not in r.text
 
             saved_path = client.app.state.nios_manager.upload_path
             if saved_path and os.path.exists(saved_path):
@@ -464,8 +470,8 @@ class TestRunAndDownload:
                 r = client.post("/nios/run", data={})
                 assert r.status_code == 200
                 assert "text/html" in r.headers["content-type"]
-                # step2_run.html contains running indicator
-                assert "running" in r.text.lower() or "NIOS" in r.text
+                # step2_run.html contains running state content
+                assert "Run Analysis" in r.text or "nios-progress-area" in r.text
 
     def test_run_while_already_running_returns_409(self) -> None:
         """POST /nios/run while analysis is already RUNNING returns 409."""

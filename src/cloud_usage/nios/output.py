@@ -714,7 +714,8 @@ def run_nios_analysis(
     member_map = get_member_map(backup_path)
 
     # Step 3 (Pass A): parse -> filter -> count (ip_by_type accumulated inline)
-    raw_stream_a = parse_backup(backup_path)
+    # Pass pre-built member_map to skip parse_backup's internal Pass 1 (already done in Step 2).
+    raw_stream_a = parse_backup(backup_path, member_map=member_map)
     filtered_a = filter_objects(raw_stream_a, filter_config)
     count_result = count_objects(filtered_a, filter_config)
 
