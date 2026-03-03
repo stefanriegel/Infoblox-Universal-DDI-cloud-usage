@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.5
 milestone_name: Results Navigation
-status: planning
-last_updated: "2026-03-03T18:48:57.174Z"
-last_activity: 2026-03-03 — Roadmap created, Phase 23 defined (CLOUD-06, CLOUD-07, ANA-07)
+status: complete
+last_updated: "2026-03-03T19:18:25Z"
+last_activity: 2026-03-03 — 23-02 complete (sortable table + IIFE), CLOUD-07 and ANA-07 delivered, v1.5 milestone complete
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
-  percent: 0
+  completed_plans: 6
+  percent: 100
 ---
 
 # Session State
@@ -25,11 +25,11 @@ See: .planning/PROJECT.md (updated 2026-03-03 after v1.5 milestone started)
 ## Current Position
 
 Phase: 23 of 23 (Results Navigation)
-Plan: 1 of 2 complete (23-01 done — CLOUD-06 formula cards)
-Status: In Progress
-Last activity: 2026-03-03 — 23-01 complete (formula cards), ready for 23-02 (sortable table)
+Plan: 2 of 2 complete (23-02 done — CLOUD-07 sortable table + ANA-07 verification)
+Status: Complete — v1.5 milestone fully delivered
+Last activity: 2026-03-03 — 23-02 complete (sortable table IIFE, CLOUD-07 + ANA-07)
 
-Progress: [██████████] 97%
+Progress: [██████████] 100%
 
 ## Accumulated Context
 
@@ -42,6 +42,7 @@ Progress: [██████████] 97%
 - v1.5 Phase 23: all three requirements (CLOUD-06, CLOUD-07, ANA-07) grouped into one phase — same dashboard templates/routes, same test context
 - [Phase 23-results-navigation]: Use per_provider_details (ddi/ips/assets/tokens) for formula cards instead of provider_breakdown (token only) — data already in template context, no backend changes
 - [Phase 23-results-navigation]: IP resources in tests need ip_addresses populated to register in dedup counter — use network-interface with ip_addresses rather than bare vpc resource
+- [Phase 23-results-navigation]: IIFE sort script with data-col/data-value attributes: Tokens-descending on load, detail rows stay adjacent via nextElementSibling re-append
 
 ### Quick Tasks Completed
 
@@ -66,3 +67,5 @@ Progress: [██████████] 97%
 - 2026-03-03: v1.5 roadmap created — Phase 23 defined, 3/3 requirements mapped
 - 2026-03-03: Quick Task 6 complete — NIOS parse pass reduction (7+ → 2), ip_by_type inline + member_map skip (PERF-01)
 - 2026-03-03: Phase 23 Plan 01 complete — per-provider formula cards (÷ 25/÷ 13/÷ 3 derivations) in summary_cards.html, CLOUD-06 delivered (2 tasks, 6 tests)
+- 2026-03-03: Phase 23 Plan 02 complete — client-side sortable per-account attribution table, CLOUD-07 + ANA-07 delivered (2 tasks, 4+1 tests, IIFE + data attributes in summary.html)
+- 2026-03-03: v1.5 milestone complete — all 3 requirements (CLOUD-06, CLOUD-07, ANA-07) delivered across Phase 23

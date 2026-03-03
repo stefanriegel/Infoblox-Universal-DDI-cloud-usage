@@ -11,11 +11,11 @@ Requirements for the Results Navigation milestone. Each maps to a roadmap phase.
 ### Cloud Results Navigation
 
 - [x] **CLOUD-06**: Cloud scan Results tab shows a per-provider formula summary card listing total DDI object count, Active IP count, Asset count, and their respective token derivations (DDI ÷ 25 = X, IPs ÷ 13 = X, Assets ÷ 3 = X, ceiling total) for each provider that was scanned
-- [ ] **CLOUD-07**: Per-account attribution table is client-side sortable by token contribution column descending (default) so pre-sales engineers can instantly surface the highest-contributing accounts on 50+ account scans; sorting is interactive without a server round-trip
+- [x] **CLOUD-07**: Per-account attribution table is client-side sortable by token contribution column descending (default) so pre-sales engineers can instantly surface the highest-contributing accounts on 50+ account scans; sorting is interactive without a server round-trip
 
 ### NIOS Results Navigation
 
-- [ ] **ANA-07**: Per-account resource-type breakdown rows within the cloud attribution table are collapsible using native `<details>/<summary>` so customers can expand only the accounts they want to inspect, reducing visual noise when many accounts are visible simultaneously
+- [x] **ANA-07**: Per-account resource-type breakdown rows within the cloud attribution table are collapsible using native `<details>/<summary>` so customers can expand only the accounts they want to inspect, reducing visual noise when many accounts are visible simultaneously
 
 ## Future Requirements
 
@@ -49,8 +49,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CLOUD-06 | Phase 23 | Complete |
-| CLOUD-07 | Phase 23 | Pending |
-| ANA-07 | Phase 23 | Pending |
+| CLOUD-07 | Phase 23 | Complete |
+| ANA-07 | Phase 23 | Complete |
 
 **Coverage:**
 - v1.5 requirements: 3 total
