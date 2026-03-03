@@ -225,8 +225,31 @@ def _run_nios_pipeline(
             ip_by_type=ip_by_type,
         )
 
-        # Step 7: record success
-        nios_manager.set_complete(output_path, scenario_suite=scenario_suite)
+        # Step 7: build family_breakdown and record success
+        from cloud_usage.nios.output import (
+            _ALL_FAMILIES_ORDERED,
+            _FAMILY_DISPLAY_NAMES,
+            _UDDI_FLAG_REASON,
+        )
+        from cloud_usage.nios.counter import _DDI_FAMILIES
+
+        family_breakdown = []
+        for family in _ALL_FAMILIES_ORDERED:
+            raw_count = integrity.families_found.get(family, 0)
+            if raw_count == 0:
+                continue
+            is_ddi = family in _DDI_FAMILIES
+            ddi_adjusted = count_result.per_family_ddi.get(family, 0) if is_ddi else 0
+            family_breakdown.append({
+                "family": family,
+                "display_name": _FAMILY_DISPLAY_NAMES.get(family, family),
+                "raw_count": raw_count,
+                "ddi_adjusted": ddi_adjusted,
+                "is_ddi": is_ddi,
+                "reason": "" if is_ddi else _UDDI_FLAG_REASON.get(family, "Not a DDI or IP object"),
+            })
+
+        nios_manager.set_complete(output_path, scenario_suite=scenario_suite, family_breakdown=family_breakdown)
         logger.info("NIOS analysis complete: %s", output_path)
 
     except Exception as exc:

@@ -577,3 +577,117 @@ def test_count_objects_dtc_does_not_produce_member_rows() -> None:
     assert result.grid_counts.ddi_count == 1, (
         f"Expected grid ddi_count=1 (DTC_LBDN), got {result.grid_counts.ddi_count}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 22: per_family_ddi accumulation tests
+# ---------------------------------------------------------------------------
+
+
+class TestPerFamilyDdi:
+    """Tests for CountResult.per_family_ddi — DDI-adjusted per-family accumulation.
+
+    ANA-02: DDI-adjusted counts per family (with HOST_OBJECT expansion).
+    ANA-05: sum(per_family_ddi.values()) == total DDI (grid + member combined, matching scenario total_ddi).
+    """
+
+    def test_per_family_ddi_present_in_count_result(self) -> None:
+        """CountResult has a per_family_ddi attribute (dict)."""
+        config = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+        result = count_objects(iter([]), config)
+        assert hasattr(result, "per_family_ddi")
+        assert isinstance(result.per_family_ddi, dict)
+
+    def test_empty_stream_per_family_ddi_empty(self) -> None:
+        """Empty stream produces empty per_family_ddi dict."""
+        config = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+        result = count_objects(iter([]), config)
+        assert result.per_family_ddi == {}
+
+    def test_ddi_family_counted_in_per_family_ddi(self) -> None:
+        """DDI family (dns_record_a) appears in per_family_ddi with count 1."""
+        config = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+        objs = [_obj(NiosFamily.DNS_RECORD_A, member=None)]
+        result = count_objects(iter(objs), config)
+        assert result.per_family_ddi.get(NiosFamily.DNS_RECORD_A, 0) == 1
+
+    def test_multiple_ddi_objects_accumulate(self) -> None:
+        """Three dns_record_a objects produce per_family_ddi[dns_record_a] == 3."""
+        config = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+        objs = [_obj(NiosFamily.DNS_RECORD_A, member=None) for _ in range(3)]
+        result = count_objects(iter(objs), config)
+        assert result.per_family_ddi.get(NiosFamily.DNS_RECORD_A, 0) == 3
+
+    def test_host_object_no_aliases_counts_2(self) -> None:
+        """HOST_OBJECT without aliases contributes +2 to per_family_ddi."""
+        config = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+        objs = [_obj(NiosFamily.HOST_OBJECT, member=None)]
+        result = count_objects(iter(objs), config)
+        assert result.per_family_ddi.get(NiosFamily.HOST_OBJECT, 0) == 2
+
+    def test_host_object_with_aliases_counts_3(self) -> None:
+        """HOST_OBJECT with aliases contributes +3 to per_family_ddi."""
+        config = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+        objs = [_obj(NiosFamily.HOST_OBJECT, member=None, aliases="alias.example.com")]
+        result = count_objects(iter(objs), config)
+        assert result.per_family_ddi.get(NiosFamily.HOST_OBJECT, 0) == 3
+
+    def test_host_object_mixed_aliases_accumulates_correctly(self) -> None:
+        """Mix of HOST_OBJECT with and without aliases: 2+3=5 in per_family_ddi."""
+        config = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+        objs = [
+            _obj(NiosFamily.HOST_OBJECT, member=None),
+            _obj(NiosFamily.HOST_OBJECT, member=None, aliases="alias.example.com"),
+        ]
+        result = count_objects(iter(objs), config)
+        assert result.per_family_ddi.get(NiosFamily.HOST_OBJECT, 0) == 5
+
+    def test_non_ddi_family_absent_from_per_family_ddi(self) -> None:
+        """Non-DDI families (LEASE, FIXED_ADDRESS, MEMBER) do not appear in per_family_ddi."""
+        config = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+        objs = [
+            _lease(member=None, ip="10.0.0.1"),
+            _fixed("10.0.0.2"),
+            _obj(NiosFamily.MEMBER, member=None),
+        ]
+        result = count_objects(iter(objs), config)
+        assert NiosFamily.LEASE not in result.per_family_ddi
+        assert NiosFamily.FIXED_ADDRESS not in result.per_family_ddi
+        assert NiosFamily.MEMBER not in result.per_family_ddi
+
+    def test_sum_invariant_single_family(self) -> None:
+        """sum(per_family_ddi.values()) == total DDI for single DDI family (all grid-level here)."""
+        config = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+        objs = [_obj(NiosFamily.DNS_ZONE, member=None) for _ in range(7)]
+        result = count_objects(iter(objs), config)
+        expected = result.grid_counts.ddi_count + sum(m.ddi_count for m in result.member_counts)
+        assert sum(result.per_family_ddi.values()) == expected
+
+    def test_sum_invariant_multiple_families(self) -> None:
+        """sum(per_family_ddi.values()) == total DDI for mixed DDI families (all grid-level here)."""
+        config = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+        objs = [
+            _obj(NiosFamily.DNS_RECORD_A, member=None),
+            _obj(NiosFamily.DNS_RECORD_A, member=None),
+            _obj(NiosFamily.DNS_ZONE, member=None),
+            _obj(NiosFamily.HOST_OBJECT, member=None),                         # +2
+            _obj(NiosFamily.HOST_OBJECT, member=None, aliases="a.example"),    # +3
+            _lease(member=None, ip="10.0.0.1"),
+        ]
+        result = count_objects(iter(objs), config)
+        # dns_record_a=2, dns_zone=1, host_object=5 → total=8
+        expected = result.grid_counts.ddi_count + sum(m.ddi_count for m in result.member_counts)
+        assert sum(result.per_family_ddi.values()) == expected
+
+    def test_per_member_and_grid_objects_both_tracked(self) -> None:
+        """per_family_ddi accumulates DDI from both member-attributed and grid-level objects."""
+        config = FilterConfig(whitelist=(), blacklist=(), lease_states=("active",))
+        objs = [
+            _obj(NiosFamily.DNS_RECORD_A, member="member-1.example.com"),  # member-attributed
+            _obj(NiosFamily.DNS_RECORD_A, member=None),                    # grid-level
+        ]
+        result = count_objects(iter(objs), config)
+        assert result.per_family_ddi.get(NiosFamily.DNS_RECORD_A, 0) == 2
+        # Note: grid_counts.ddi_count only tracks grid-level (member=None); member DDI goes to per_member
+        # per_family_ddi is GRID-WIDE (sum of both), matching the use case for family breakdown table
+        assert sum(result.per_family_ddi.values()) == 2

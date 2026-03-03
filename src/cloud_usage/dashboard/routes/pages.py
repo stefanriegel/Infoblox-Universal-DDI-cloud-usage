@@ -321,6 +321,7 @@ async def tab_nios(request: Request) -> HTMLResponse:
     output_path = nios_manager.output_path
     error = nios_manager.error
     scenario_suite = nios_manager.scenario_suite
+    family_breakdown = nios_manager.family_breakdown
 
     # Build download filename from output_path if complete
     download_filename = None
@@ -335,6 +336,7 @@ async def tab_nios(request: Request) -> HTMLResponse:
         "download_filename": download_filename,
         "error": error,
         "scenario_suite": scenario_suite,
+        "family_breakdown": family_breakdown,
     })
     return templates.TemplateResponse(
         request, "pages/nios.html", context

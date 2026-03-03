@@ -157,10 +157,16 @@ class CountResult:
         grid_counts: Grid-level aggregate: member_hostname="__grid__", ddi_count from
             grid-level objects (member_hostname=None), active_ip_count = len(global_ip_set),
             lease_count = total raw lease rows across all members.
+        per_family_ddi: DDI-adjusted contribution per family across the whole grid.
+            Keyed by NiosFamily constant string (e.g. "host_object").
+            HOST_OBJECT entries reflect the +2/+3 expansion (not raw object count).
+            Only DDI families appear as keys; non-DDI families are absent.
+            sum(per_family_ddi.values()) == total grid + member DDI (the scenario total_ddi).
     """
 
     member_counts: list[MemberCounts]
     grid_counts: MemberCounts
+    per_family_ddi: dict[str, int] = field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
@@ -216,6 +222,9 @@ def count_objects(
     # Total raw lease count across all members (before binding_state filter).
     grid_lease_count: int = 0
 
+    # Per-family DDI-adjusted contributions (DDI families only, HOST_OBJECT uses expanded delta).
+    per_family_ddi: dict[str, int] = defaultdict(int)
+
     for obj in objects:
         family = obj.family
         hostname = obj.member_hostname
@@ -229,6 +238,9 @@ def count_objects(
                 delta = 3 if aliases else 2
             else:
                 delta = 1
+
+            # Accumulate per-family DDI contribution (grid-wide, regardless of member attribution).
+            per_family_ddi[family] += delta
 
             if hostname is None:
                 grid_ddi += delta
@@ -296,4 +308,8 @@ def count_objects(
         asset_count=0,
     )
 
-    return CountResult(member_counts=member_counts, grid_counts=grid_counts)
+    return CountResult(
+        member_counts=member_counts,
+        grid_counts=grid_counts,
+        per_family_ddi=dict(per_family_ddi),
+    )

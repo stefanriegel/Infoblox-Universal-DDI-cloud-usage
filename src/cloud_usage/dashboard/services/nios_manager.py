@@ -53,6 +53,7 @@ class NiosScanManager:
         self._output_path: Optional[str] = None
         self._error: Optional[str] = None
         self._scenario_suite = None
+        self._family_breakdown: Optional[list] = None
         self._current_progress: dict = {
             "step": 0,
             "total": 6,
@@ -97,6 +98,12 @@ class NiosScanManager:
             return self._scenario_suite
 
     @property
+    def family_breakdown(self) -> Optional[list]:
+        """Pre-computed family breakdown list from last complete analysis. Thread-safe read."""
+        with self._lock:
+            return self._family_breakdown
+
+    @property
     def current_progress(self) -> dict:
         """Latest progress step dict. Thread-safe read."""
         with self._lock:
@@ -124,6 +131,7 @@ class NiosScanManager:
             self._output_path = None
             self._error = None
             self._scenario_suite = None
+            self._family_breakdown = None
             self._current_progress = {
                 "step": 0,
                 "total": 6,
@@ -179,17 +187,19 @@ class NiosScanManager:
                 "elapsed_seconds": elapsed_seconds,
             }
 
-    def set_complete(self, output_path: str, scenario_suite=None) -> None:
-        """Transition to COMPLETE with output path and ScenarioSuite. Thread-safe.
+    def set_complete(self, output_path: str, scenario_suite=None, family_breakdown=None) -> None:
+        """Transition to COMPLETE with output path, ScenarioSuite, and family breakdown. Thread-safe.
 
         Args:
             output_path: Path to the generated .xlsx file.
             scenario_suite: ScenarioSuite from compute_scenarios() for summary card.
+            family_breakdown: Pre-computed list of family breakdown dicts for complete screen.
         """
         with self._lock:
             self._state = NiosState.COMPLETE
             self._output_path = output_path
             self._scenario_suite = scenario_suite
+            self._family_breakdown = family_breakdown
 
     def set_error(self, error: str) -> None:
         """Transition to ERROR with message. Thread-safe.
