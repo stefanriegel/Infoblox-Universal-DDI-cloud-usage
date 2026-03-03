@@ -164,26 +164,9 @@ class TestComputeSummaryEnrichment:
 # Template rendering tests (HTML content assertions via TestClient)
 # ---------------------------------------------------------------------------
 
-from unittest import mock
-
 from fastapi.testclient import TestClient
 
 from cloud_usage.dashboard.app import create_app
-from cloud_usage.dashboard.services.scan_manager import ScanState
-
-
-def _make_app_with_resources(resources: list) -> TestClient:
-    """Create a TestClient with a mocked scan_manager returning given resources."""
-    app = create_app()
-    mock_scan_manager = mock.MagicMock()
-    mock_scan_manager.state.value = ScanState.COMPLETE.value
-    mock_scan_manager.resources = resources
-    mock_scan_manager.output_paths = {}
-    app.state.scan_manager = mock_scan_manager
-    mock_nios_manager = mock.MagicMock()
-    mock_nios_manager.state.value = "idle"
-    app.state.nios_manager = mock_nios_manager
-    return TestClient(app)
 
 
 class TestSummaryTabHTMLRendering:
@@ -191,96 +174,118 @@ class TestSummaryTabHTMLRendering:
 
     def test_summary_tab_returns_200(self):
         """GET /tab/summary returns 200 when resources exist."""
-        resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
-        client = _make_app_with_resources(resources)
-        response = client.get("/tab/summary")
-        assert response.status_code == 200
+        app = create_app()
+        with TestClient(app) as client:
+            resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
+            client.app.state.scan_manager.set_resources(resources)
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
 
     def test_account_column_header_present(self):
         """Summary tab shows 'Account / Sub / Project' column header."""
-        resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
-        client = _make_app_with_resources(resources)
-        response = client.get("/tab/summary")
-        assert response.status_code == 200
-        assert "Account / Sub / Project" in response.text
+        app = create_app()
+        with TestClient(app) as client:
+            resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
+            client.app.state.scan_manager.set_resources(resources)
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert "Account / Sub / Project" in response.text
 
     def test_formula_derivation_ddi(self):
         """DDI column shows ÷ 25 = formula for non-zero DDI count."""
-        resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
-        client = _make_app_with_resources(resources)
-        response = client.get("/tab/summary")
-        assert response.status_code == 200
-        assert "÷ 25 =" in response.text
+        app = create_app()
+        with TestClient(app) as client:
+            resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
+            client.app.state.scan_manager.set_resources(resources)
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert "÷ 25 =" in response.text
 
     def test_formula_derivation_assets(self):
         """Asset column shows ÷ 3 = formula for non-zero asset count."""
-        resources = [
-            _make_resource("vm", "asset", "123456789012", "aws"),
-            _make_resource("vm", "asset", "123456789012", "aws"),
-            _make_resource("vm", "asset", "123456789012", "aws"),
-        ]
-        client = _make_app_with_resources(resources)
-        response = client.get("/tab/summary")
-        assert response.status_code == 200
-        assert "÷ 3 =" in response.text
+        app = create_app()
+        with TestClient(app) as client:
+            resources = [
+                _make_resource("vm", "asset", "123456789012", "aws"),
+                _make_resource("vm", "asset", "123456789012", "aws"),
+                _make_resource("vm", "asset", "123456789012", "aws"),
+            ]
+            client.app.state.scan_manager.set_resources(resources)
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert "÷ 3 =" in response.text
 
     def test_zero_count_suppresses_formula(self):
         """Zero IP count suppresses ÷ 13 = formula line."""
-        resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
-        client = _make_app_with_resources(resources)
-        response = client.get("/tab/summary")
-        assert response.status_code == 200
-        assert "÷ 25 =" in response.text  # DDI present
-        assert "÷ 13 =" not in response.text  # IP absent (zero count)
+        app = create_app()
+        with TestClient(app) as client:
+            resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
+            client.app.state.scan_manager.set_resources(resources)
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert "÷ 25 =" in response.text  # DDI present
+            assert "÷ 13 =" not in response.text  # IP absent (zero count)
 
     def test_provider_aware_label_aws(self):
         """AWS account rows show 'Account' label."""
-        resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
-        client = _make_app_with_resources(resources)
-        response = client.get("/tab/summary")
-        assert response.status_code == 200
-        assert "Account" in response.text
+        app = create_app()
+        with TestClient(app) as client:
+            resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
+            client.app.state.scan_manager.set_resources(resources)
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert "Account" in response.text
 
     def test_provider_aware_label_azure(self):
         """Azure account rows show 'Subscription' label."""
-        resources = [_make_resource("private-dns-zone", "ddi", "sub-abc-123", "azure")]
-        client = _make_app_with_resources(resources)
-        response = client.get("/tab/summary")
-        assert response.status_code == 200
-        assert "Subscription" in response.text
+        app = create_app()
+        with TestClient(app) as client:
+            resources = [_make_resource("private-dns-zone", "ddi", "sub-abc-123", "azure")]
+            client.app.state.scan_manager.set_resources(resources)
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert "Subscription" in response.text
 
     def test_provider_aware_label_gcp(self):
         """GCP account rows show 'Project' label."""
-        resources = [_make_resource("cloud-dns", "ddi", "my-gcp-project", "gcp")]
-        client = _make_app_with_resources(resources)
-        response = client.get("/tab/summary")
-        assert response.status_code == 200
-        assert "Project" in response.text
+        app = create_app()
+        with TestClient(app) as client:
+            resources = [_make_resource("cloud-dns", "ddi", "my-gcp-project", "gcp")]
+            client.app.state.scan_manager.set_resources(resources)
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert "Project" in response.text
 
     def test_resource_type_breakdown_collapsible(self):
         """Summary tab shows '▶ N resource types' collapsible trigger."""
-        resources = [
-            _make_resource("dns-zone", "ddi", "123456789012", "aws"),
-            _make_resource("vm", "asset", "123456789012", "aws"),
-        ]
-        client = _make_app_with_resources(resources)
-        response = client.get("/tab/summary")
-        assert response.status_code == 200
-        assert "resource types" in response.text
+        app = create_app()
+        with TestClient(app) as client:
+            resources = [
+                _make_resource("dns-zone", "ddi", "123456789012", "aws"),
+                _make_resource("vm", "asset", "123456789012", "aws"),
+            ]
+            client.app.state.scan_manager.set_resources(resources)
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert "resource types" in response.text
 
     def test_footer_non_summability_notes(self):
         """Summary tab footer contains non-summability notes."""
-        resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
-        client = _make_app_with_resources(resources)
-        response = client.get("/tab/summary")
-        assert response.status_code == 200
-        text_lower = response.text.lower()
-        assert "not summable" in text_lower or "not directly summable" in text_lower
+        app = create_app()
+        with TestClient(app) as client:
+            resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
+            client.app.state.scan_manager.set_resources(resources)
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            text_lower = response.text.lower()
+            assert "not summable" in text_lower or "not directly summable" in text_lower
 
     def test_footer_ddi_summable_note(self):
         """Summary tab footer states DDI column is summable."""
-        resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
-        client = _make_app_with_resources(resources)
-        response = client.get("/tab/summary")
-        assert response.status_code == 200
-        assert "summable" in response.text
+        app = create_app()
+        with TestClient(app) as client:
+            resources = [_make_resource("dns-zone", "ddi", "123456789012", "aws")]
+            client.app.state.scan_manager.set_resources(resources)
+            response = client.get("/tab/summary")
+            assert response.status_code == 200
+            assert "summable" in response.text
