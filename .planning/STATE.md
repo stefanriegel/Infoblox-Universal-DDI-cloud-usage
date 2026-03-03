@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Reference Parity
 status: executing
-stopped_at: Completed 25-02-PLAN.md
-last_updated: "2026-03-03T22:38:40.646Z"
-last_activity: "2026-03-03 — Completed 25-01: TDD scaffold for NIC-based IP counting (3 tasks, 5 files, 4 min)"
+stopped_at: Completed 25-03-PLAN.md
+last_updated: "2026-03-03T22:43:14.195Z"
+last_activity: "2026-03-03 — Completed 25-03: NIC count collector fields — nic_ip_count (EC2) + network_interface_count (GCP) (2 tasks, 3 files, 6 min)"
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
-  percent: 93
+  completed_plans: 3
+  percent: 95
 ---
 
 # Session State
@@ -26,23 +26,24 @@ See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
 ## Current Position
 
 Phase: 25 of 29 (IP Methodology Fix)
-Plan: 02 complete (25-02-PLAN.md)
-Status: In progress — plan 25-03 next
-Last activity: 2026-03-03 — Completed 25-02: DDI reclassification + fold_enis removal (2 tasks, 4 files, 3 min)
+Plan: 03 complete (25-03-PLAN.md)
+Status: In progress — plan 25-04 next
+Last activity: 2026-03-03 — Completed 25-03: NIC count collector fields — nic_ip_count (EC2) + network_interface_count (GCP) (2 tasks, 3 files, 6 min)
 
-Progress: [██████████] 95%
+Progress: [██████████] 98%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2 (this milestone)
-- Average duration: 3.5 min
-- Total execution time: 7 min
+- Total plans completed: 3 (this milestone)
+- Average duration: 4.3 min
+- Total execution time: 13 min
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 25 | 01 | 4 min | 3 | 5 |
 | 25 | 02 | 3 min | 2 | 4 |
+| 25 | 03 | 6 min | 2 | 3 |
 
 ## Accumulated Context
 
@@ -75,6 +76,8 @@ Progress: [██████████] 95%
 - TestFoldEnisIntoParents removed — ENIs become DDI in Phase 25, folding is no longer needed
 - ENI/EIP/NAT GW reclassified as DDI (not asset) — fold_enis_into_parents() removed entirely (plan 25-02)
 - ip_addresses fields left populated on reclassified resources for audit/Detail sheet display (plan 25-02)
+- nic_ip_count stored in details dict at collection time so ip_counter.py reads from CloudResource.details without re-iterating raw API data (plan 25-03)
+- GCP ifaces list pre-computed before IP extraction loop to avoid double iteration over network_interfaces (plan 25-03)
 
 ### Quick Tasks Completed
 
@@ -91,6 +94,6 @@ Progress: [██████████] 95%
 
 ## Session Continuity
 
-Last session: 2026-03-03T22:38:40.644Z
-Stopped at: Completed 25-02-PLAN.md
+Last session: 2026-03-03T22:43:14.193Z
+Stopped at: Completed 25-03-PLAN.md
 Resume file: None
