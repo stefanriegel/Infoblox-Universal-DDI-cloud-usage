@@ -1,6 +1,8 @@
 """
-Tests for ENI folding, tag-based managed service exclusion,
-and cross-account asset de-duplication.
+Tests for tag-based managed service exclusion and cross-account asset de-duplication.
+
+Note: fold_enis_into_parents() removed in Phase 25 — ENIs are DDI; no folding needed.
+The TestFoldEnisIntoParents class has been removed from this file accordingly.
 """
 
 from __future__ import annotations
@@ -12,7 +14,6 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from cloud_usage.schema.resource import CloudResource
 from cloud_usage.counting.asset_dedup import (
-    fold_enis_into_parents,
     exclude_managed_service_resources,
     deduplicate_assets,
 )
@@ -46,66 +47,6 @@ def _make_resource(
         counted=counted,
         category=category,
     )
-
-
-class TestFoldEnisIntoParents:
-    """Test ENI folding into parent resources."""
-
-    def test_eni_attached_to_ec2_not_counted(self):
-        """ENI referenced by parent EC2's network_interface_ids is folded."""
-        ec2 = _make_resource(
-            "ec2-instance",
-            ip_addresses=["10.0.1.5"],
-            details={"network_interface_ids": ["eni-111"]},
-        )
-        eni = _make_resource(
-            "eni",
-            resource_id="eni-111",
-            ip_addresses=["10.0.1.5"],
-        )
-        result = fold_enis_into_parents([ec2, eni])
-        ec2_r = [r for r in result if r.resource_type == "ec2-instance"][0]
-        eni_r = [r for r in result if r.resource_type == "eni"][0]
-        assert ec2_r.counted is True
-        assert eni_r.counted is False
-        assert "attached to parent" in eni_r.skip_reason.lower()
-
-    def test_unattached_eni_remains_counted(self):
-        """ENI not referenced by any parent remains counted."""
-        eni = _make_resource(
-            "eni",
-            resource_id="eni-222",
-            ip_addresses=["10.0.2.5"],
-        )
-        result = fold_enis_into_parents([eni])
-        assert result[0].counted is True
-
-    def test_multiple_enis_some_attached(self):
-        """Mix of attached and unattached ENIs."""
-        ec2 = _make_resource(
-            "ec2-instance",
-            ip_addresses=["10.0.1.5"],
-            details={"network_interface_ids": ["eni-aaa", "eni-bbb"]},
-        )
-        eni_a = _make_resource("eni", resource_id="eni-aaa", ip_addresses=["10.0.1.5"])
-        eni_b = _make_resource("eni", resource_id="eni-bbb", ip_addresses=["10.0.1.6"])
-        eni_c = _make_resource("eni", resource_id="eni-ccc", ip_addresses=["10.0.1.7"])
-
-        result = fold_enis_into_parents([ec2, eni_a, eni_b, eni_c])
-        folded = [r for r in result if r.counted is False and r.resource_type == "eni"]
-        unfolded = [r for r in result if r.counted is True and r.resource_type == "eni"]
-        assert len(folded) == 2  # eni-aaa and eni-bbb
-        assert len(unfolded) == 1  # eni-ccc
-
-    def test_no_enis_unchanged(self):
-        """Resources without ENIs pass through unchanged."""
-        ec2 = _make_resource("ec2-instance", ip_addresses=["10.0.1.5"])
-        result = fold_enis_into_parents([ec2])
-        assert len(result) == 1
-        assert result[0].counted is True
-
-    def test_empty_list(self):
-        assert fold_enis_into_parents([]) == []
 
 
 class TestExcludeManagedServiceResources:

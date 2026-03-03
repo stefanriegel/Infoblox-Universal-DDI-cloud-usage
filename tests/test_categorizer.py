@@ -200,6 +200,52 @@ class TestCategorizePreservesExistingFields:
         assert result.ip_addresses == ["10.0.1.5"]
 
 
+# --- Phase 25: Reclassified DDI types ---
+
+
+class TestCategorizeReclassifiedDDIResources:
+    """Phase 25: ENI/EIP/NAT GW/Azure NIC/Azure Public IP are reclassified as DDI.
+
+    These types were previously counted as assets. After Phase 25 they are DDI.
+    Tests are RED until plan 25-02 updates categorizer.DDI_TYPES.
+    """
+
+    def test_eni_is_ddi(self):
+        """eni resource type -> category='ddi', counted=True."""
+        r = _make_resource("eni", ip_addresses=["10.0.1.5"])
+        resources = categorize_resources([r])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+    def test_elastic_ip_is_ddi(self):
+        """elastic-ip resource type -> category='ddi', counted=True."""
+        r = _make_resource("elastic-ip", ip_addresses=["54.23.100.50"])
+        resources = categorize_resources([r])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+    def test_nat_gateway_is_ddi(self):
+        """nat-gateway resource type -> category='ddi', counted=True."""
+        r = _make_resource("nat-gateway", ip_addresses=["10.0.0.1"])
+        resources = categorize_resources([r])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+    def test_azure_nic_is_ddi(self):
+        """azure-nic resource type -> category='ddi', counted=True."""
+        r = _make_azure_resource("azure-nic", ip_addresses=["10.0.1.5"])
+        resources = categorize_resources([r])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+    def test_azure_public_ip_is_ddi(self):
+        """azure-public-ip resource type -> category='ddi', counted=True."""
+        r = _make_azure_resource("azure-public-ip", ip_addresses=["52.168.1.1"])
+        resources = categorize_resources([r])
+        assert resources[0].counted is True
+        assert resources[0].category == "ddi"
+
+
 # --- Azure DDI type tests ---
 
 
@@ -326,19 +372,21 @@ class TestCategorizeAzureTokenFreeResources:
 
 
 class TestCategorizeAzureAssetResources:
-    """Azure resources with IPs are categorized as managed assets."""
+    """Azure resources with IPs — post Phase 25 reclassification as DDI."""
 
-    def test_azure_nic_with_ips_is_asset(self):
+    def test_azure_nic_with_ips_is_ddi(self):
+        # Phase 25: azure-nic reclassified from asset to DDI
         r = _make_azure_resource("azure-nic", ip_addresses=["10.0.1.5"])
         resources = categorize_resources([r])
         assert resources[0].counted is True
-        assert resources[0].category == "asset"
+        assert resources[0].category == "ddi"
 
-    def test_azure_public_ip_with_ips_is_asset(self):
+    def test_azure_public_ip_with_ips_is_ddi(self):
+        # Phase 25: azure-public-ip reclassified from asset to DDI
         r = _make_azure_resource("azure-public-ip", ip_addresses=["52.168.1.1"])
         resources = categorize_resources([r])
         assert resources[0].counted is True
-        assert resources[0].category == "asset"
+        assert resources[0].category == "ddi"
 
 
 class TestCategorizeAzureMixedBatch:
@@ -358,7 +406,7 @@ class TestCategorizeAzureMixedBatch:
         assert result[1].category == "ddi"  # azure-vnet
         assert result[2].skip_reason == "token-free: EBS Volume"  # EBS
         assert result[3].skip_reason == "token-free: Azure VM Disk"  # azure-disk
-        assert result[4].category == "asset"  # azure-nic with IP
+        assert result[4].category == "ddi"  # azure-nic reclassified as DDI in Phase 25
 
 
 # --- GCP type tests ---
