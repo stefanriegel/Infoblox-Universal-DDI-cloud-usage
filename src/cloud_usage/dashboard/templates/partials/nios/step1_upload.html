@@ -41,15 +41,36 @@
     {% if filename %}
       <p><strong>Uploaded:</strong> {{ filename }}</p>
     {% endif %}
-    <p>{{ members|length }} member{{ 's' if members|length != 1 else '' }} found.
-       Members checked below will be assigned to <strong>NIOSX</strong> (migrated to Universal DDI).
-       Unchecked members remain in <strong>NIOS</strong>.</p>
+    <p>{{ members|length }} member{{ 's' if members|length != 1 else '' }} found.</p>
+
+    <article>
+      <p>
+        <strong>About NIOS and NIOSX groups:</strong>
+        Members you leave unchecked remain in <strong>NIOS</strong> — token estimate uses the NIOS Object formula (DDI&nbsp;÷&nbsp;50).
+        Members you check are assigned to <strong>NIOSX</strong> — they are treated as migrated to Universal DDI (DDI&nbsp;÷&nbsp;25).
+        Assigning more members to NIOSX increases the token estimate for those members.
+      </p>
+    </article>
 
     <form hx-post="/nios/run"
           hx-target="#nios-wizard"
           hx-swap="innerHTML">
 
-      <h3>Step 2: Assign Migration Groups &amp; Run</h3>
+      <h3>Step 2: Assign Members</h3>
+
+      <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+        <button type="button"
+                onclick="document.querySelectorAll('input[name=niosx_member]').forEach(function(cb){ cb.checked = true; cb.dispatchEvent(new Event('change', {bubbles: true})); })">
+          Select All
+        </button>
+        <button type="button"
+                onclick="document.querySelectorAll('input[name=niosx_member]').forEach(function(cb){ cb.checked = false; cb.dispatchEvent(new Event('change', {bubbles: true})); })">
+          Clear All
+        </button>
+        <span id="nios-group-counter" style="font-size: 0.9em; color: var(--pico-muted-color, #666);">
+          NIOS: {{ members|length }} member{{ 's' if members|length != 1 else '' }} | NIOSX: 0 members
+        </span>
+      </div>
 
       <figure>
         <table role="grid">
@@ -81,7 +102,21 @@
         </table>
       </figure>
 
-      <p><small>All members default to NIOS. Check to assign to NIOSX (migrated to Universal DDI).</small></p>
+      <script>
+      (function() {
+        var counter = document.getElementById('nios-group-counter');
+        var total = {{ members|length }};
+        function updateCounter() {
+          var niosx = document.querySelectorAll('input[name=niosx_member]:checked').length;
+          var nios = total - niosx;
+          counter.textContent = 'NIOS: ' + nios + ' member' + (nios !== 1 ? 's' : '') + ' | NIOSX: ' + niosx + ' member' + (niosx !== 1 ? 's' : '');
+        }
+        document.querySelectorAll('input[name=niosx_member]').forEach(function(cb) {
+          cb.addEventListener('change', updateCounter);
+        });
+      })();
+      </script>
+
       <button type="submit">Run Analysis</button>
     </form>
   </div>
