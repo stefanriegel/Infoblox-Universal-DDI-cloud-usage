@@ -51,9 +51,13 @@ def collect_gcp_vms(
         region = zone_name.rsplit("-", 1)[0] if "-" in zone_name else "global"
 
         for instance in scoped_list.instances:
+            # NIC count for reference algorithm (stored in details for counter)
+            ifaces = list(instance.network_interfaces or [])
+            iface_count = len(ifaces)
+
             # IP extraction per Pitfall 6: use network_i_p (not network_ip)
             ip_addresses: list[str] = []
-            for iface in (instance.network_interfaces or []):
+            for iface in ifaces:
                 if iface.network_i_p:
                     ip_addresses.append(iface.network_i_p)
                 for ac in (iface.access_configs or []):
@@ -74,6 +78,7 @@ def collect_gcp_vms(
                         "zone": zone_name,
                         "machine_type": (instance.machine_type or "").split("/")[-1],
                         "status": instance.status,
+                        "network_interface_count": iface_count,
                     },
                 )
             )

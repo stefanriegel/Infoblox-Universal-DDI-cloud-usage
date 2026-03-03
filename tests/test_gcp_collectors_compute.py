@@ -8,8 +8,12 @@ mapping, and empty scoped list handling.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from types import ModuleType
 from unittest.mock import MagicMock, patch
+
+# Add src to path for imports (mirrors test_collectors_compute.py pattern)
+sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 import pytest
 
