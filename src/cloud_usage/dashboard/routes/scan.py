@@ -17,7 +17,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 
 from cloud_usage.dashboard.services.scan_manager import (
     DashboardProgressTracker,
@@ -991,17 +991,22 @@ async def wizard_review(request: Request) -> HTMLResponse:
 
 
 @router.post("/api/scan/start")
-async def scan_start(request: Request) -> JSONResponse:
+async def scan_start(request: Request) -> Response:
     """Start a scan with the given configuration.
 
     Validates scan_manager.can_start() and returns 409 if already running.
     Kicks off scan pipeline in a background thread.
 
+    On success, returns a 200 response with the ``HX-Redirect`` header set
+    to ``/tab/progress`` so that HTMX navigates the browser to the progress
+    tab instead of rendering a raw response body.
+
     Args:
         request: The incoming HTTP request.
 
     Returns:
-        JSON response with status and redirect hint.
+        Empty 200 response with HX-Redirect header on success, or JSON 409
+        if a scan is already running.
     """
     scan_manager = request.app.state.scan_manager
     event_bridge = request.app.state.event_bridge
@@ -1045,7 +1050,13 @@ async def scan_start(request: Request) -> JSONResponse:
     loop = asyncio.get_running_loop()
     loop.run_in_executor(None, _run_scan_pipeline, scan_manager, config, event_bridge)
 
-    return JSONResponse({"status": "started", "redirect": "/tab/progress"})
+    # Return HX-Redirect so HTMX navigates to the progress tab instead of
+    # rendering a raw response body in-place.
+    return Response(
+        content="",
+        status_code=200,
+        headers={"HX-Redirect": "/tab/progress"},
+    )
 
 
 @router.post("/api/scan/cancel")

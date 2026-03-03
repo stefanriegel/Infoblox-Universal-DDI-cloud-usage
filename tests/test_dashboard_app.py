@@ -36,7 +36,7 @@ class TestAppFactory:
     def test_create_app_returns_fastapi_instance(self) -> None:
         """create_app() returns a FastAPI instance with correct title."""
         app = create_app()
-        assert app.title == "UDDI Cloud Usage Estimator"
+        assert app.title == "UDDI Estimator"
 
     def test_index_returns_200_with_title(self) -> None:
         """GET / returns 200 with HTML containing the tool name."""
@@ -46,7 +46,7 @@ class TestAppFactory:
         with TestClient(app) as client:
             response = client.get("/")
             assert response.status_code == 200
-            assert "UDDI Cloud Usage Estimator" in response.text
+            assert "UDDI Estimator" in response.text
             assert "text/html" in response.headers["content-type"]
 
     def test_static_app_css_served(self) -> None:

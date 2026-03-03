@@ -604,8 +604,13 @@ class TestWizardProviders:
 class TestScanLifecycle:
     """Tests for scan start and cancel endpoints."""
 
-    def test_scan_start_when_idle_returns_200(self, client) -> None:
-        """POST /api/scan/start when idle returns 200."""
+    def test_scan_start_when_idle_returns_hx_redirect(self, client) -> None:
+        """POST /api/scan/start when idle returns 200 with HX-Redirect header.
+
+        The response must carry the ``HX-Redirect`` header pointing to
+        ``/tab/progress`` so that HTMX navigates the browser instead of
+        rendering a raw response body (regression: raw JSON was returned).
+        """
         # Mock the scan pipeline to avoid real cloud calls
         with patch("cloud_usage.dashboard.routes.scan._run_scan_pipeline"):
             response = client.post(
@@ -613,8 +618,10 @@ class TestScanLifecycle:
                 data={"providers": "aws"},
             )
             assert response.status_code == 200
-            data = response.json()
-            assert data["status"] == "started"
+            assert response.headers.get("hx-redirect") == "/tab/progress", (
+                "scan_start must return HX-Redirect header so HTMX navigates "
+                "to /tab/progress instead of rendering raw JSON"
+            )
 
     def test_scan_start_when_running_returns_409(self, client) -> None:
         """POST /api/scan/start when already running returns 409."""

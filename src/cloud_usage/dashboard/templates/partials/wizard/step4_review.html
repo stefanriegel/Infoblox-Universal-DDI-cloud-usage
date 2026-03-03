@@ -41,8 +41,7 @@
     <p><small>All enabled regions will be scanned. Discovery is read-only.</small></p>
   </article>
 
-  <form hx-post="/api/scan/start" hx-target="#main-content" hx-swap="innerHTML"
-        hx-on::after-request="if(event.detail.successful) { htmx.ajax('GET', '/tab/progress', {target:'#tab-container'}) }">
+  <form hx-post="/api/scan/start">
     {# Pass config as hidden fields #}
     {% for p in selected_providers %}
     <input type="hidden" name="providers" value="{{ p }}">
