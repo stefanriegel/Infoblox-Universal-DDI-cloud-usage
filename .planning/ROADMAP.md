@@ -96,7 +96,7 @@ Archive: `.planning/milestones/v1.5-ROADMAP.md`
 
 **Milestone Goal:** Match the reference CLI implementation — align cloud IP counting methodology with NIC/config object counting (not unique IP dedup), add missing DDI resource types across AWS/Azure/GCP, and add Microsoft AD as a full provider via WinRM/PowerShell.
 
-- [ ] **Phase 25: IP Methodology Fix** — Align AWS, Azure, GCP IP counting with reference (NIC objects, not unique IP dedup; exclude standalone ENIs/EIPs/NAT GW IPs from AWS)
+- [x] **Phase 25: IP Methodology Fix** — Align AWS, Azure, GCP IP counting with reference (NIC objects, not unique IP dedup; exclude standalone ENIs/EIPs/NAT GW IPs from AWS) (completed 2026-03-03)
 - [ ] **Phase 26: AWS DDI Gaps** — Add Route53 Resolver, IPAM, gateways, route tables, Direct Connect, and Route53 health/traffic types to AWS collector
 - [ ] **Phase 27: Azure DDI Gaps** — Add Virtual Network Gateways, Private Link Services, Virtual WANs, Route Tables, and Tenants to Azure collector
 - [ ] **Phase 28: GCP DDI Gaps** — Add Compute Addresses, GKE CIDR Ranges, Router NAT Mapping Infos, and Target VPN Gateways to GCP collector
@@ -197,7 +197,7 @@ Plans:
 | 22. NIOS Object Family Breakdown | v1.4 | 2/2 | Complete | 2026-03-03 |
 | 23. Results Navigation | v1.5 | 2/2 | Complete | 2026-03-03 |
 | 24. Wizard Navigation Fix | v1.6 | 1/1 | Complete | 2026-03-03 |
-| 25. IP Methodology Fix | 3/4 | In Progress|  | - |
+| 25. IP Methodology Fix | 4/4 | Complete   | 2026-03-03 | - |
 | 26. AWS DDI Gaps | v1.7 | 0/TBD | Not started | - |
 | 27. Azure DDI Gaps | v1.7 | 0/TBD | Not started | - |
 | 28. GCP DDI Gaps | v1.7 | 0/TBD | Not started | - |

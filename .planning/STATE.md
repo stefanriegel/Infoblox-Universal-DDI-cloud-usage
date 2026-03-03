@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Reference Parity
 status: executing
-stopped_at: Completed 25-03-PLAN.md
-last_updated: "2026-03-03T22:43:14.195Z"
-last_activity: "2026-03-03 — Completed 25-03: NIC count collector fields — nic_ip_count (EC2) + network_interface_count (GCP) (2 tasks, 3 files, 6 min)"
+stopped_at: Completed 25-04-PLAN.md
+last_updated: "2026-03-03T22:53:10.800Z"
+last_activity: "2026-03-03 — Completed 25-04: count_nics_per_account integration + Address Records labels (2 tasks, 7 files, 8 min) — Phase 25 COMPLETE"
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 95
+  completed_plans: 4
+  percent: 98
 ---
 
 # Session State
@@ -21,29 +21,30 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
 
 **Core value:** Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Phase 25 — IP Methodology Fix
+**Current focus:** Phase 26 — AWS DDI Gaps (Phase 25 complete)
 
 ## Current Position
 
-Phase: 25 of 29 (IP Methodology Fix)
-Plan: 03 complete (25-03-PLAN.md)
-Status: In progress — plan 25-04 next
-Last activity: 2026-03-03 — Completed 25-03: NIC count collector fields — nic_ip_count (EC2) + network_interface_count (GCP) (2 tasks, 3 files, 6 min)
+Phase: 25 of 29 (IP Methodology Fix) — COMPLETE
+Plan: 04 complete (25-04-PLAN.md) — Phase 25 all 4 plans done
+Status: Phase 25 complete — Phase 26 (AWS DDI Gaps) next
+Last activity: 2026-03-03 — Completed 25-04: count_nics_per_account integration + Address Records labels (2 tasks, 7 files, 8 min)
 
-Progress: [██████████] 98%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 3 (this milestone)
-- Average duration: 4.3 min
-- Total execution time: 13 min
+- Total plans completed: 4 (this milestone)
+- Average duration: 5.3 min
+- Total execution time: 21 min
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 25 | 01 | 4 min | 3 | 5 |
 | 25 | 02 | 3 min | 2 | 4 |
 | 25 | 03 | 6 min | 2 | 3 |
+| 25 | 04 | 8 min | 2 | 7 |
 
 ## Accumulated Context
 
@@ -78,6 +79,9 @@ Progress: [██████████] 98%
 - ip_addresses fields left populated on reclassified resources for audit/Detail sheet display (plan 25-02)
 - nic_ip_count stored in details dict at collection time so ip_counter.py reads from CloudResource.details without re-iterating raw API data (plan 25-03)
 - GCP ifaces list pre-computed before IP extraction loop to avoid double iteration over network_interfaces (plan 25-03)
+- deduplicate_ips_per_vpc() retained as deprecated in ip_counter.py — not deleted, marked for reference (plan 25-04)
+- azure-nic branch in _get_nic_count() kept for defensive completeness even though azure-nic is DDI and filtered before reaching it (plan 25-04)
+- data-col="ips" JS sort attributes preserved in summary.html when label updated to "Address Records" (plan 25-04)
 
 ### Quick Tasks Completed
 
@@ -87,6 +91,7 @@ Progress: [██████████] 98%
 
 ## Session Log
 
+- 2026-03-03: Phase 25 (IP Methodology Fix) complete — all 4 plans done, METH-01 through METH-04 fulfilled
 - 2026-03-03: v1.7 roadmap created — 5 phases (25–29), 28/28 requirements mapped, files written
 - 2026-03-03: Milestone v1.7 Reference Parity started — defining requirements
 - 2026-03-03: Phase 24 (v1.6 Wizard Navigation Fix) complete
@@ -94,6 +99,6 @@ Progress: [██████████] 98%
 
 ## Session Continuity
 
-Last session: 2026-03-03T22:43:14.193Z
-Stopped at: Completed 25-03-PLAN.md
+Last session: 2026-03-03T22:53:10.798Z
+Stopped at: Completed 25-04-PLAN.md
 Resume file: None
