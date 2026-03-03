@@ -8,7 +8,8 @@
 - ✅ **v1.3 Enhanced WebUI Experience** — Phases 18–20 (shipped 2026-03-03)
 - ✅ **v1.4 Audit Depth** — Phases 21–22 (shipped 2026-03-03)
 - ✅ **v1.5 Results Navigation** — Phase 23 (shipped 2026-03-03)
-- 🚧 **v1.6 Wizard Navigation Fix** — Phase 24 (in progress)
+- ✅ **v1.6 Wizard Navigation Fix** — Phase 24 (shipped 2026-03-03)
+- 🚧 **v1.7 Reference Parity** — Phases 25–29 (in progress)
 
 ## Phases
 
@@ -84,33 +85,88 @@ Archive: `.planning/milestones/v1.5-ROADMAP.md`
 
 </details>
 
-### 🚧 v1.6 Wizard Navigation Fix (In Progress)
+<details>
+<summary>✅ v1.6 Wizard Navigation Fix (Phase 24) — SHIPPED 2026-03-03</summary>
 
-**Milestone Goal:** Replace brittle JS-based wizard navigation with server-driven HX-Redirect so scan start reliably lands on the progress tab regardless of browser JS event handling quirks.
+- [x] Phase 24: Wizard Navigation Fix (1/1 plan) — completed 2026-03-03
 
-#### Phase 24: Wizard Navigation Fix
+</details>
 
-- [x] **Phase 24: Wizard Navigation Fix** - Replace JS-driven scan-start navigation with server-driven HX-Redirect header (completed 2026-03-03)
+### 🚧 v1.7 Reference Parity (In Progress)
 
-**Plans:** 1/1 plans complete
+**Milestone Goal:** Match the reference CLI implementation — align cloud IP counting methodology with NIC/config object counting (not unique IP dedup), add missing DDI resource types across AWS/Azure/GCP, and add Microsoft AD as a full provider via WinRM/PowerShell.
 
-Plans:
-- [ ] 24-01-PLAN.md — Verify HX-Redirect implementation and commit NAV-01/02/03
+- [ ] **Phase 25: IP Methodology Fix** — Align AWS, Azure, GCP IP counting with reference (NIC objects, not unique IP dedup; exclude standalone ENIs/EIPs/NAT GW IPs from AWS)
+- [ ] **Phase 26: AWS DDI Gaps** — Add Route53 Resolver, IPAM, gateways, route tables, Direct Connect, and Route53 health/traffic types to AWS collector
+- [ ] **Phase 27: Azure DDI Gaps** — Add Virtual Network Gateways, Private Link Services, Virtual WANs, Route Tables, and Tenants to Azure collector
+- [ ] **Phase 28: GCP DDI Gaps** — Add Compute Addresses, GKE CIDR Ranges, Router NAT Mapping Infos, and Target VPN Gateways to GCP collector
+- [ ] **Phase 29: Microsoft AD Core** — Full WinRM/PowerShell provider: DNS, DHCP, Users, Kerberos/NTLM auth, DC autodiscovery, XLS output
 
 ## Phase Details
 
-### Phase 24: Wizard Navigation Fix
-**Goal**: Wizard scan-start navigation is server-driven and reliable — HTMX follows HX-Redirect without any JS event handlers
-**Depends on**: Phase 23
-**Requirements**: NAV-01, NAV-02, NAV-03
+### Phase 25: IP Methodology Fix
+**Goal**: Cloud IP counting matches the reference implementation — all three providers count NIC/network interface config objects instead of deduplicating unique IP address strings, and AWS excludes standalone ENIs, EIPs, and NAT Gateway IPs
+**Depends on**: Phase 24
+**Requirements**: METH-01, METH-02, METH-03, METH-04
 **Success Criteria** (what must be TRUE):
-  1. After clicking "Start Scan" in the wizard Step 4 form, the browser navigates to the progress tab with no JS event handler involvement — navigation is driven entirely by HTMX following the HX-Redirect header
-  2. The Step 4 review form HTML contains only `hx-post` — no `hx-target`, `hx-swap`, or `hx-on` attributes are present on the form element
-  3. A test verifies that a successful call to the scan-start endpoint returns HTTP 200 with an `HX-Redirect` header pointing to `/tab/progress` and an empty response body
-**Plans**: 1 plan
+  1. AWS IP count in the XLS report reflects the number of EC2 network interface objects attached to instances, not the count of unique IP address strings extracted from those interfaces
+  2. Azure IP count in the XLS report reflects the number of NIC (network interface card) objects, not unique IP addresses extracted from NIC configurations
+  3. GCP IP count in the XLS report reflects the number of network interface config objects on compute instances, not unique IP address strings
+  4. Running an AWS scan against an account with standalone ENIs, Elastic IPs, or NAT Gateway IPs produces an IP count that excludes those resources — only EC2 instance NICs are counted
+**Plans**: 4 plans
 
 Plans:
-- [ ] 24-01-PLAN.md — Verify HX-Redirect implementation and commit NAV-01/02/03
+- [ ] 25-01-PLAN.md — Test scaffolding: rewrite test_ip_counter.py, update test_categorizer.py/test_asset_dedup.py, add collector assertions
+- [ ] 25-02-PLAN.md — Categorizer DDI reclassification (eni/elastic-ip/nat-gateway/azure-nic/azure-public-ip) + remove fold_enis_into_parents
+- [ ] 25-03-PLAN.md — Collector changes: EC2 stores nic_ip_count, GCP VM stores network_interface_count
+- [ ] 25-04-PLAN.md — Implement count_nics_per_account(), wire into 3 call sites, update "Address Records" labels
+
+### Phase 26: AWS DDI Gaps
+**Goal**: The AWS collector counts all DDI object types from the reference implementation — Route53 Resolver endpoints/rules/associations, IPAM pools/scopes/allocations, Internet and Customer Gateways, Route Tables, Direct Connect Gateways, and Route53 Health Checks and Traffic Policies
+**Depends on**: Phase 25
+**Requirements**: AWSG-01, AWSG-02, AWSG-03, AWSG-04, AWSG-05, AWSG-06, AWSG-07
+**Success Criteria** (what must be TRUE):
+  1. Running an AWS scan against an account with Route53 Resolver endpoints and rules produces DDI counts that include those endpoints, rules, and rule associations as separate DDI objects
+  2. Running an AWS scan against an account with IPAM configured produces DDI counts that include IPAM pools, scopes, and allocations
+  3. Running an AWS scan against an account with networking resources produces DDI counts that include Internet Gateways, Customer Gateways, Route Tables, and Direct Connect Gateways
+  4. Running an AWS scan against an account with Route53 health checks or traffic policies produces DDI counts that include those resources
+  5. The AWS XLS report resource-type breakdown shows each new DDI type as a distinct row with its object count
+**Plans**: TBD
+
+### Phase 27: Azure DDI Gaps
+**Goal**: The Azure collector counts all DDI object types from the reference implementation — Virtual Network Gateways (VPN and ExpressRoute), Private Link Services, Virtual WANs, Route Tables, and Azure Tenants
+**Depends on**: Phase 25
+**Requirements**: AZUG-01, AZUG-02, AZUG-03, AZUG-04, AZUG-05
+**Success Criteria** (what must be TRUE):
+  1. Running an Azure scan against a subscription with Virtual Network Gateways produces DDI counts that include both VPN Gateway and ExpressRoute Gateway objects
+  2. Running an Azure scan against a subscription with Private Link Services produces DDI counts that include those services as DDI objects
+  3. Running an Azure scan against a subscription with Virtual WANs, Route Tables, or Tenant-level resources produces DDI counts that include those objects
+  4. The Azure XLS report resource-type breakdown shows each new DDI type as a distinct row with its object count
+**Plans**: TBD
+
+### Phase 28: GCP DDI Gaps
+**Goal**: The GCP collector counts all DDI object types from the reference implementation — Compute Addresses (reserved static IPs), GKE CIDR Ranges (control plane, pod, service), Router NAT Mapping Infos, and Target VPN Gateways (legacy)
+**Depends on**: Phase 25
+**Requirements**: GCPG-01, GCPG-02, GCPG-03, GCPG-04
+**Success Criteria** (what must be TRUE):
+  1. Running a GCP scan against a project with reserved static Compute Addresses produces DDI counts that include those addresses as DDI objects
+  2. Running a GCP scan against a project with GKE clusters produces DDI counts that include control plane, pod, and service CIDR ranges as separate DDI objects
+  3. Running a GCP scan against a project with Cloud Routers configured for NAT or Target VPN Gateways produces DDI counts that include Router NAT Mapping Infos and Target VPN Gateway objects
+  4. The GCP XLS report resource-type breakdown shows each new DDI type as a distinct row with its object count
+**Plans**: TBD
+
+### Phase 29: Microsoft AD Core
+**Goal**: Users can scan a Microsoft Active Directory environment via WinRM/PowerShell and receive a complete UDDI token estimate for DNS objects, DHCP objects, and AD Users — with Kerberos or NTLM auth, optional DC autodiscovery, and an XLS report using the same token formula as cloud providers
+**Depends on**: Phase 25
+**Requirements**: AD-01, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08
+**Success Criteria** (what must be TRUE):
+  1. Running `--ad-servers dc1.corp.example.com` initiates a WinRM/PowerShell connection and produces a UDDI token estimate from that domain controller
+  2. The AD scan collects DNS zones and resource records via `Get-DnsServerZone`/`Get-DnsServerResourceRecord` and produces DDI counts (zones + records) and IP counts (A/AAAA records extracted)
+  3. The AD scan collects DHCP scopes, leases, and reservations via `Get-DhcpServerv4Scope/Lease/Reservation` and produces DDI counts (scopes) and IP counts (leases + reservations)
+  4. The AD scan collects AD Users via `Get-ADUser -Filter *` and produces Asset counts using SID as the primary key
+  5. Running `--ad-autodiscover --ad-discovery-server dc1.corp.example.com` discovers all domain controllers in the forest via `Get-ADForest`/`Get-ADDomainController` and scans each one
+  6. An XLS report is produced for the AD scan with the same UDDI native token formula (DDI÷25, IPs÷13, Assets÷3) and the same report structure as cloud provider reports
+**Plans**: TBD
 
 ## Progress
 
@@ -140,4 +196,9 @@ Plans:
 | 21. Cloud Per-Account Attribution Table | v1.4 | 2/2 | Complete | 2026-03-03 |
 | 22. NIOS Object Family Breakdown | v1.4 | 2/2 | Complete | 2026-03-03 |
 | 23. Results Navigation | v1.5 | 2/2 | Complete | 2026-03-03 |
-| 24. Wizard Navigation Fix | 1/1 | Complete    | 2026-03-03 | - |
+| 24. Wizard Navigation Fix | v1.6 | 1/1 | Complete | 2026-03-03 |
+| 25. IP Methodology Fix | v1.7 | 0/4 | Not started | - |
+| 26. AWS DDI Gaps | v1.7 | 0/TBD | Not started | - |
+| 27. Azure DDI Gaps | v1.7 | 0/TBD | Not started | - |
+| 28. GCP DDI Gaps | v1.7 | 0/TBD | Not started | - |
+| 29. Microsoft AD Core | v1.7 | 0/TBD | Not started | - |
