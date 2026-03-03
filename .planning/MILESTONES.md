@@ -1,5 +1,25 @@
 # Milestones
 
+## v1.5 Results Navigation (Shipped: 2026-03-03)
+
+**Phases:** 23 (1 phase, 2 plans)
+**Files changed:** 3 files (+294 / -16 lines)
+**Timeline:** 2026-03-03 (same day, ~38 min total execution)
+**Git range:** test(23-01) c813b1e → feat(23-02) 7306de0
+**Requirements:** 3/3 complete (CLOUD-06, CLOUD-07, ANA-07)
+
+**Delivered:**
+Added per-provider formula summary cards on the cloud Results tab and made the per-account attribution table client-side sortable (Tokens descending default) with collapsible resource-type breakdown rows — enabling pre-sales engineers to navigate large scan results without visual overload.
+
+**Key accomplishments:**
+1. Per-provider formula cards in `summary_cards.html` — DDI ÷ 25 / IPs ÷ 13 / Assets ÷ 3 inline derivations per provider, replacing the sparse token-only card list; zero-count formula lines suppressed (CLOUD-06)
+2. Client-side sortable per-account attribution table — Tokens-descending default via IIFE on page load; column header click toggles direction; detail rows stay adjacent after DOM reorder via `nextElementSibling` re-append (CLOUD-07)
+3. Sort state is fully client-side — no server round-trips; `data-col`/`data-value` HTML attributes carry raw integers for reliable `parseFloat` sort without stripping formula text
+4. Native `<details>/<summary>` collapsible resource-type breakdown rows — verified working independently per account; expanding one account leaves all other rows unaffected (ANA-07)
+5. 10 new tests across `TestFormulaCards`, `TestANA07`, and `TestSortableTable` verifying all three requirements in `test_dashboard_results_navigation.py`
+
+---
+
 ## v1.3 Enhanced WebUI Experience (Shipped: 2026-03-03)
 
 **Phases:** 18–20 (3 phases, 6 plans)
