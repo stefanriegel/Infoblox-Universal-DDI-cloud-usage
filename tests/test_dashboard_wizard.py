@@ -356,6 +356,231 @@ class TestWizardSetupCredentials:
         assert "Back to Auth Check" in response.text
         assert "/wizard/auth-check" in response.text
 
+    def test_setup_post_aws_profile_saves_profile_marker(self, client, tmp_path) -> None:
+        """POST with aws_auth_method=profile writes the profile marker file and sets AWS_PROFILE.
+
+        Patches os.environ to prevent the AWS_PROFILE env var from leaking into
+        other tests that create real boto3 sessions.
+        """
+        clean_env = {k: v for k, v in os.environ.items() if k != "AWS_PROFILE"}
+        with patch("pathlib.Path.home", return_value=tmp_path), \
+             patch.dict(os.environ, clean_env, clear=True):
+            response = client.post(
+                "/wizard/setup-credentials",
+                data={
+                    "clouds": "aws",
+                    "aws_auth_method": "profile",
+                    "aws_profile_name": "my-sso-profile",
+                },
+            )
+        assert response.status_code == 200
+        assert "Saved" in response.text
+        assert "AWS" in response.text
+        # Verify the profile marker file was written
+        marker = tmp_path / ".cloud-usage-aws-profile"
+        assert marker.exists()
+        assert marker.read_text().strip() == "my-sso-profile"
+
+    def test_setup_post_aws_profile_empty_name_saves_nothing(self, client, tmp_path) -> None:
+        """POST with aws_auth_method=profile and empty profile_name saves nothing."""
+        clean_env = {k: v for k, v in os.environ.items() if k != "AWS_PROFILE"}
+        with patch("pathlib.Path.home", return_value=tmp_path), \
+             patch.dict(os.environ, clean_env, clear=True):
+            response = client.post(
+                "/wizard/setup-credentials",
+                data={
+                    "clouds": "aws",
+                    "aws_auth_method": "profile",
+                    "aws_profile_name": "",
+                },
+            )
+        assert response.status_code == 200
+        # No Saved banner — nothing was written
+        assert "Saved:" not in response.text
+
+
+# -- Per-cloud wizard scoping tests --
+
+
+class TestPerCloudWizardScoping:
+    """Tests for per-cloud scoping of the credential setup wizard."""
+
+    @patch("cloud_usage.dashboard.routes.scan._run_auth_check")
+    def test_failing_provider_has_per_cloud_connect_button(
+        self, mock_check, client
+    ) -> None:
+        """Each failing provider row has its own Connect button scoped to that cloud.
+
+        The button must carry hx-get="/wizard/setup-credentials?cloud=<provider>"
+        so the wizard opens pre-scoped to the specific provider.
+        """
+        mock_check.return_value = [
+            {
+                "provider": "aws",
+                "success": False,
+                "identity": "",
+                "account_count": 0,
+                "error_message": "No credentials",
+                "suggestion": None,
+            },
+            {
+                "provider": "azure",
+                "success": True,
+                "identity": "Tenant: abc",
+                "account_count": 2,
+                "error_message": None,
+                "suggestion": None,
+            },
+            {
+                "provider": "gcp",
+                "success": False,
+                "identity": "",
+                "account_count": 0,
+                "error_message": "No credentials",
+                "suggestion": None,
+            },
+        ]
+        response = client.post("/wizard/auth-check")
+        assert response.status_code == 200
+        # AWS Connect button must appear scoped to aws
+        assert 'hx-get="/wizard/setup-credentials?cloud=aws"' in response.text
+        # GCP Connect button must appear scoped to gcp
+        assert 'hx-get="/wizard/setup-credentials?cloud=gcp"' in response.text
+        # Azure passed — no Connect button for azure
+        assert 'cloud=azure' not in response.text
+
+    @patch("cloud_usage.dashboard.routes.scan._run_auth_check")
+    def test_all_passing_no_per_cloud_connect_buttons(
+        self, mock_check, client
+    ) -> None:
+        """When all providers pass, no per-cloud Connect buttons are rendered."""
+        mock_check.return_value = [
+            {"provider": "aws", "success": True, "identity": "arn:...", "account_count": 1,
+             "error_message": None, "suggestion": None},
+            {"provider": "azure", "success": True, "identity": "Tenant: x", "account_count": 1,
+             "error_message": None, "suggestion": None},
+            {"provider": "gcp", "success": True, "identity": "proj", "account_count": 1,
+             "error_message": None, "suggestion": None},
+        ]
+        response = client.post("/wizard/auth-check")
+        assert response.status_code == 200
+        assert "setup-credentials?cloud=" not in response.text
+
+    def test_setup_get_with_cloud_aws_shows_aws_scoped_heading(self, client) -> None:
+        """GET /wizard/setup-credentials?cloud=aws shows AWS-scoped heading, not generic."""
+        response = client.get("/wizard/setup-credentials?cloud=aws")
+        assert response.status_code == 200
+        assert "Connect Amazon Web Services (AWS)" in response.text
+        # Generic multi-cloud heading must NOT appear when scoped
+        assert "Connect Your Cloud Providers" not in response.text
+        # Only AWS checkbox should be present as a hidden field (no visible checkbox selector)
+        assert 'name="clouds" value="azure"' not in response.text
+        assert 'name="clouds" value="gcp"' not in response.text
+
+    def test_setup_get_with_cloud_azure_shows_azure_scoped_heading(self, client) -> None:
+        """GET /wizard/setup-credentials?cloud=azure shows Azure-scoped heading."""
+        response = client.get("/wizard/setup-credentials?cloud=azure")
+        assert response.status_code == 200
+        assert "Connect Microsoft Azure" in response.text
+        assert "Connect Your Cloud Providers" not in response.text
+        # Azure details section must be open (open attribute present)
+        assert '<details open>' in response.text or 'open>' in response.text
+
+    def test_setup_get_with_cloud_gcp_shows_gcp_scoped_heading(self, client) -> None:
+        """GET /wizard/setup-credentials?cloud=gcp shows GCP-scoped heading."""
+        response = client.get("/wizard/setup-credentials?cloud=gcp")
+        assert response.status_code == 200
+        assert "Connect Google Cloud (GCP)" in response.text
+        assert "Connect Your Cloud Providers" not in response.text
+
+    def test_setup_get_no_cloud_param_shows_generic_form(self, client) -> None:
+        """GET /wizard/setup-credentials (no cloud param) shows the generic multi-cloud form."""
+        response = client.get("/wizard/setup-credentials")
+        assert response.status_code == 200
+        assert "Connect Your Cloud Providers" in response.text
+        # All three checkboxes present in generic mode
+        assert 'value="aws"' in response.text
+        assert 'value="azure"' in response.text
+        assert 'value="gcp"' in response.text
+
+    def test_setup_get_invalid_cloud_param_falls_back_to_generic(self, client) -> None:
+        """GET with an invalid cloud param is sanitised and renders the generic form."""
+        response = client.get("/wizard/setup-credentials?cloud=unknown_cloud")
+        assert response.status_code == 200
+        assert "Connect Your Cloud Providers" in response.text
+
+
+# -- AWS profile selector tests --
+
+
+class TestAWSProfileSelector:
+    """Tests for the AWS named-profile auth method in the setup wizard."""
+
+    def test_setup_get_shows_profile_method_radio(self, client) -> None:
+        """Setup page always shows the 'Use existing AWS profile' radio option for AWS."""
+        response = client.get("/wizard/setup-credentials")
+        assert response.status_code == 200
+        assert "Use existing AWS profile" in response.text
+        assert 'value="profile"' in response.text
+
+    def test_setup_get_shows_profiles_when_config_exists(
+        self, client, tmp_path
+    ) -> None:
+        """When ~/.aws/config has named profiles, a <select> is shown with their names."""
+        config_dir = tmp_path / ".aws"
+        config_dir.mkdir()
+        (config_dir / "config").write_text(
+            "[default]\nregion = us-east-1\n\n"
+            "[profile prod-sso]\nregion = eu-west-1\n\n"
+            "[profile dev-keys]\nregion = us-west-2\n",
+            encoding="utf-8",
+        )
+        with patch("pathlib.Path.home", return_value=tmp_path):
+            response = client.get("/wizard/setup-credentials")
+        assert response.status_code == 200
+        assert "prod-sso" in response.text
+        assert "dev-keys" in response.text
+        # The select element must be present
+        assert '<select name="aws_profile_name">' in response.text
+
+    def test_setup_get_shows_no_profiles_message_when_config_absent(
+        self, client, tmp_path
+    ) -> None:
+        """When no ~/.aws/config exists, the 'no profiles' message is shown."""
+        with patch("pathlib.Path.home", return_value=tmp_path):
+            response = client.get("/wizard/setup-credentials")
+        assert response.status_code == 200
+        assert "No named profiles found" in response.text
+
+    def test_list_aws_profiles_returns_sorted_names(self, tmp_path) -> None:
+        """_list_aws_profiles() returns sorted named profile names from ~/.aws/config."""
+        from cloud_usage.dashboard.routes.scan import _list_aws_profiles
+
+        config_dir = tmp_path / ".aws"
+        config_dir.mkdir()
+        (config_dir / "config").write_text(
+            "[default]\nregion = us-east-1\n\n"
+            "[profile zebra-profile]\nregion = eu-west-1\n\n"
+            "[profile alpha-profile]\nregion = us-west-2\n\n"
+            "[profile mid-profile]\nsso_start_url = https://example.com\n",
+            encoding="utf-8",
+        )
+        with patch("pathlib.Path.home", return_value=tmp_path):
+            profiles = _list_aws_profiles()
+
+        assert profiles == ["alpha-profile", "mid-profile", "zebra-profile"]
+        # [default] must NOT appear
+        assert "default" not in profiles
+
+    def test_list_aws_profiles_returns_empty_when_no_config(self, tmp_path) -> None:
+        """_list_aws_profiles() returns [] when ~/.aws/config does not exist."""
+        from cloud_usage.dashboard.routes.scan import _list_aws_profiles
+
+        with patch("pathlib.Path.home", return_value=tmp_path):
+            profiles = _list_aws_profiles()
+
+        assert profiles == []
+
 
 # -- Wizard provider selection tests --
 

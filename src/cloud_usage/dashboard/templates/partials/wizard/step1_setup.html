@@ -1,0 +1,244 @@
+{# Wizard Step 1 — Credential Setup Assistant
+   Shown when a cloud provider is not connected. Opens scoped to a specific
+   cloud when accessed via ?cloud=<provider>, or shows all three when accessed
+   generically (e.g. from the all-fail CTA).
+
+   Variables:
+     steps (list), current_step (int)
+     selected_cloud (str): cloud the user clicked Connect for, or "" for generic
+     selected_clouds (list[str]): clouds the user has selected (post-submit)
+     aws_profiles (list[str]): named profiles from ~/.aws/config
+     error (str | None): error message from a failed save attempt
+     saved (list[str]): clouds successfully saved this session
+#}
+<div id="wizard-content">
+  <h2>New Scan Wizard</h2>
+
+  {# Step indicator #}
+  <ul class="wizard-steps">
+    {% for s in steps %}
+    <li class="{{ s.state }}">
+      <span class="step-number">{{ s.number }}</span>
+      {{ s.label }}
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% if selected_cloud %}
+    {% set cloud_display = {"aws": "Amazon Web Services (AWS)", "azure": "Microsoft Azure", "gcp": "Google Cloud (GCP)"} %}
+    <h3>Connect {{ cloud_display.get(selected_cloud, selected_cloud) }}</h3>
+    <p>Enter your credentials below. They are stored locally on this machine only.
+       When done, click <strong>Back to Auth Check</strong> to verify the connection.</p>
+  {% else %}
+    <h3>Connect Your Cloud Providers</h3>
+    <p>Select the cloud providers you want to scan and enter your credentials below.
+       Your credentials are stored locally on this machine only.</p>
+  {% endif %}
+
+  {% if error %}
+  <article style="border-left: 4px solid #e74c3c; padding: 0.75rem; margin-bottom: 1rem;">
+    <strong>Could not save credentials:</strong> {{ error }}
+  </article>
+  {% endif %}
+
+  {% if saved %}
+  <article style="border-left: 4px solid #2ecc40; padding: 0.75rem; margin-bottom: 1rem;">
+    <strong>Saved:</strong>
+    {% for cloud in saved %}{{ {"aws": "AWS", "azure": "Azure", "gcp": "GCP"}.get(cloud, cloud) }}{% if not loop.last %}, {% endif %}{% endfor %}
+    credentials stored. Click <strong>Back to Auth Check</strong> below to verify and continue.
+  </article>
+  {% endif %}
+
+  <form hx-post="/wizard/setup-credentials" hx-target="#wizard-content">
+
+    {# Pass the scoped cloud context back on submit so the template re-renders correctly #}
+    <input type="hidden" name="selected_cloud" value="{{ selected_cloud }}">
+
+    {# ── Cloud selector (hidden when scoped to a single cloud) ── #}
+    {% if not selected_cloud %}
+    <fieldset>
+      <legend>Which clouds do you want to connect?</legend>
+      <label>
+        <input type="checkbox" name="clouds" value="aws"
+               {% if not selected_clouds or "aws" in selected_clouds %}checked{% endif %}>
+        Amazon Web Services (AWS)
+      </label>
+      <label>
+        <input type="checkbox" name="clouds" value="azure"
+               {% if selected_clouds and "azure" in selected_clouds %}checked{% endif %}>
+        Microsoft Azure
+      </label>
+      <label>
+        <input type="checkbox" name="clouds" value="gcp"
+               {% if selected_clouds and "gcp" in selected_clouds %}checked{% endif %}>
+        Google Cloud (GCP)
+      </label>
+    </fieldset>
+    {% else %}
+    {# Scoped mode: pre-select only the requested cloud as a hidden field #}
+    <input type="hidden" name="clouds" value="{{ selected_cloud }}">
+    {% endif %}
+
+    {# ─────────────────────────────────────────────────────────────────────── #}
+    {# AWS Section                                                             #}
+    {# Auth methods implemented in codebase:                                  #}
+    {#   1. Access Key + Secret → ~/.aws/credentials [default]                #}
+    {#   2. Named Profile → AWS_PROFILE env var + ~/.cloud-usage-aws-profile  #}
+    {# ─────────────────────────────────────────────────────────────────────── #}
+    {% set aws_open = (not selected_cloud) or (selected_cloud == "aws") %}
+    <details {% if aws_open %}open{% endif %}>
+      <summary><strong>AWS</strong> — Choose authentication method</summary>
+
+      {# Method selector (radio tabs) #}
+      <fieldset style="margin-top: 0.75rem;">
+        <legend style="font-size: 0.9rem;">Authentication method</legend>
+        <label>
+          <input type="radio" name="aws_auth_method" value="access_key"
+                 {% if not (selected_clouds and "aws" in selected_clouds and (form is defined and form.get('aws_auth_method') == 'profile')) %}checked{% endif %}
+                 onclick="document.getElementById('aws-access-key-fields').style.display='';document.getElementById('aws-profile-fields').style.display='none';">
+          Access Key &amp; Secret
+        </label>
+        <label>
+          <input type="radio" name="aws_auth_method" value="profile"
+                 onclick="document.getElementById('aws-access-key-fields').style.display='none';document.getElementById('aws-profile-fields').style.display='';">
+          Use existing AWS profile
+        </label>
+      </fieldset>
+
+      {# Method A: Access Key fields #}
+      <div id="aws-access-key-fields" style="margin-top: 0.5rem;">
+        <p style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #555;">
+          Enter an IAM user Access Key with read-only permissions across your accounts.
+          The credentials will be written to <code>~/.aws/credentials</code> under the
+          <code>[default]</code> profile.
+        </p>
+        <label>
+          Access Key ID
+          <input type="text" name="aws_access_key_id"
+                 placeholder="AKIAIOSFODNN7EXAMPLE"
+                 autocomplete="off">
+        </label>
+        <label>
+          Secret Access Key
+          <input type="password" name="aws_secret_access_key"
+                 placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+                 autocomplete="new-password">
+        </label>
+        <label>
+          Region (optional)
+          <input type="text" name="aws_region"
+                 placeholder="us-east-1">
+        </label>
+        <p><small>Need help?
+          <a href="https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html"
+             target="_blank" rel="noopener">Create an IAM access key</a>.
+          Attach the <strong>ReadOnlyAccess</strong> managed policy.
+        </small></p>
+      </div>
+
+      {# Method B: Profile selector #}
+      <div id="aws-profile-fields" style="margin-top: 0.5rem; display: none;">
+        <p style="margin: 0 0 0.5rem 0; font-size: 0.9rem; color: #555;">
+          Select a named profile from your <code>~/.aws/config</code> file.
+          The profile will be activated for this scan (sets <code>AWS_PROFILE</code>).
+        </p>
+        {% if aws_profiles %}
+        <label>
+          AWS Profile
+          <select name="aws_profile_name">
+            <option value="">-- select a profile --</option>
+            {% for profile in aws_profiles %}
+            <option value="{{ profile }}">{{ profile }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        {% else %}
+        <p style="color: #888; font-size: 0.9rem;">
+          No named profiles found in <code>~/.aws/config</code>.
+          To use this method, set up a named profile in your AWS configuration file,
+          or use <strong>Access Key &amp; Secret</strong> above.
+        </p>
+        <input type="hidden" name="aws_profile_name" value="">
+        {% endif %}
+      </div>
+    </details>
+
+    {# ─────────────────────────────────────────────────────────────────────── #}
+    {# Azure Section                                                           #}
+    {# Auth methods implemented in codebase:                                  #}
+    {#   1. Service Principal (client_id, client_secret, tenant_id)           #}
+    {#      → AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_CLIENT_SECRET env vars#}
+    {#      → picked up by DefaultAzureCredential automatically               #}
+    {# ─────────────────────────────────────────────────────────────────────── #}
+    {% set azure_open = (selected_cloud == "azure") %}
+    <details {% if azure_open %}open{% endif %}>
+      <summary><strong>Azure</strong> — Service Principal credentials</summary>
+      <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #555;">
+        Enter a Service Principal with Reader role on the subscriptions you want to scan.
+        Credentials are saved for this session and stored in <code>~/.cloud-usage-azure.env</code>.
+        They are picked up automatically by <code>DefaultAzureCredential</code>.
+      </p>
+      <label>
+        Client ID (Application ID)
+        <input type="text" name="azure_client_id"
+               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+               autocomplete="off">
+      </label>
+      <label>
+        Client Secret
+        <input type="password" name="azure_client_secret"
+               placeholder="Your client secret value"
+               autocomplete="new-password">
+      </label>
+      <label>
+        Tenant ID (Directory ID)
+        <input type="text" name="azure_tenant_id"
+               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+               autocomplete="off">
+      </label>
+      <p><small>Need help?
+        <a href="https://learn.microsoft.com/en-us/azure/active-directory/develop/howto-create-service-principal-portal"
+           target="_blank" rel="noopener">Create a Service Principal</a>.
+        Assign the <strong>Reader</strong> role at the subscription scope.
+      </small></p>
+    </details>
+
+    {# ─────────────────────────────────────────────────────────────────────── #}
+    {# GCP Section                                                             #}
+    {# Auth methods implemented in codebase:                                  #}
+    {#   1. Service Account JSON key → written to ADC path                    #}
+    {#      (~/.config/gcloud/application_default_credentials.json)           #}
+    {#      → picked up by google.auth.default() / GOOGLE_APPLICATION_CREDENTIALS #}
+    {# ─────────────────────────────────────────────────────────────────────── #}
+    {% set gcp_open = (selected_cloud == "gcp") %}
+    <details {% if gcp_open %}open{% endif %}>
+      <summary><strong>GCP</strong> — Service Account key (Application Default Credentials)</summary>
+      <p style="margin-top: 0.5rem; font-size: 0.9rem; color: #555;">
+        Paste your Service Account JSON key below. It will be written to
+        <code>~/.config/gcloud/application_default_credentials.json</code>
+        and picked up automatically by <code>google.auth.default()</code>.
+      </p>
+      <label>
+        Service Account JSON key
+        <textarea name="gcp_service_account_json" rows="8"
+                  placeholder='{"type": "service_account", "project_id": "...", ...}'
+                  style="font-family: monospace; font-size: 0.85rem;"></textarea>
+      </label>
+      <p><small>Need help?
+        <a href="https://cloud.google.com/iam/docs/keys-create-delete"
+           target="_blank" rel="noopener">Create a Service Account key</a>.
+        Grant the <strong>Viewer</strong> role at the project or organisation level.
+      </small></p>
+    </details>
+
+    <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem;">
+      <button type="button" class="secondary outline"
+              hx-post="/wizard/auth-check" hx-target="#wizard-content">
+        Back to Auth Check
+      </button>
+      <button type="submit">
+        Save Credentials
+      </button>
+    </div>
+  </form>
+</div>

@@ -47,6 +47,14 @@
                 <div>
                   <strong>{{ provider_display.get(r.provider, r.provider) }}</strong>: Not connected
                 </div>
+                <div style="margin-left: auto;">
+                  <button type="button" class="secondary outline"
+                          hx-get="/wizard/setup-credentials?cloud={{ r.provider }}"
+                          hx-target="#wizard-content"
+                          style="font-size: 0.85rem; padding: 0.3rem 0.75rem;">
+                    Connect
+                  </button>
+                </div>
               {% endif %}
             </div>
           </article>

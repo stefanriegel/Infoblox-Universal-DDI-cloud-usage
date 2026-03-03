@@ -544,6 +544,278 @@ async def wizard_auth_check(request: Request) -> HTMLResponse:
     )
 
 
+def _list_aws_profiles() -> list[str]:
+    """Return named profiles found in ~/.aws/config (excluding [default]).
+
+    Reads the AWS config file using configparser.  Only returns profile names
+    that appear as ``[profile <name>]`` sections -- not ``[default]``.
+
+    Returns:
+        Sorted list of profile name strings.  Empty list if the file does not
+        exist or cannot be read.
+    """
+    import configparser
+    import pathlib
+
+    config_path = pathlib.Path.home() / ".aws" / "config"
+    if not config_path.exists():
+        return []
+
+    parser = configparser.ConfigParser()
+    try:
+        parser.read(config_path)
+    except Exception:
+        return []
+
+    profiles: list[str] = []
+    for section in parser.sections():
+        # AWS config file sections look like "profile my-profile" for named profiles
+        if section.startswith("profile "):
+            name = section[len("profile "):]
+            if name:
+                profiles.append(name)
+
+    return sorted(profiles)
+
+
+@router.get("/wizard/setup-credentials", response_class=HTMLResponse)
+async def wizard_setup_credentials_get(request: Request) -> HTMLResponse:
+    """Show the credential setup assistant (step 1 sub-page).
+
+    Displayed when no cloud providers are authenticated and the user clicks
+    "Connect a cloud provider" or a per-provider "Connect" button in step 1.
+    Renders a form with per-provider credential fields and all auth methods
+    supported by the codebase (no CLI knowledge required).
+
+    Query params:
+        cloud: Optional provider to pre-select (``aws``, ``azure``, ``gcp``).
+               When provided, the wizard opens scoped to that cloud with its
+               section expanded and only that provider's checkbox pre-ticked.
+
+    Args:
+        request: The incoming HTTP request.
+
+    Returns:
+        Rendered step1_setup.html with cloud context and available auth methods.
+    """
+    cloud = request.query_params.get("cloud", "")
+    # Validate to prevent injection; accept only known provider names
+    if cloud not in ("aws", "azure", "gcp", ""):
+        cloud = ""
+
+    # Pre-select the scoped cloud (or all three if no cloud specified)
+    if cloud:
+        selected_clouds = [cloud]
+    else:
+        selected_clouds = []
+
+    # Enumerate available AWS profiles for the profile-selector method
+    aws_profiles = await asyncio.to_thread(_list_aws_profiles)
+
+    templates = request.app.state.templates
+    step_ctx = _get_wizard_step_context(1)
+    return templates.TemplateResponse(
+        request,
+        "partials/wizard/step1_setup.html",
+        {
+            "request": request,
+            **step_ctx,
+            "selected_cloud": cloud,
+            "selected_clouds": selected_clouds,
+            "aws_profiles": aws_profiles,
+            "error": None,
+            "saved": [],
+        },
+    )
+
+
+def _save_credentials(form_data: dict) -> tuple[list[str], str | None]:
+    """Write provider credentials to standard local config locations.
+
+    Writes only for providers included in ``form_data["clouds"]``.  Each
+    provider's section is written independently so a partial failure leaves
+    the successfully-written providers usable.
+
+    Credential storage locations:
+    - AWS: ``~/.aws/credentials`` ([default] section, access key + secret)
+    - Azure: ``~/.cloud-usage-azure.env`` (shell-sourced env file) +
+             sets ``AZURE_CLIENT_ID`` / ``AZURE_CLIENT_SECRET`` /
+             ``AZURE_TENANT_ID`` in the running process environment so
+             the subsequent auth-check call picks them up immediately.
+    - GCP: ``~/.config/gcloud/application_default_credentials.json``
+           (Application Default Credentials) + sets
+           ``GOOGLE_APPLICATION_CREDENTIALS`` in the running process.
+
+    Args:
+        form_data: Dict derived from the POST form.  Must include a
+            ``"clouds"`` key whose value is a list of selected provider
+            names (``"aws"``, ``"azure"``, ``"gcp"``).
+
+    Returns:
+        Tuple of ``(saved, error_message)``.
+        ``saved`` is the list of provider names whose credentials were
+        written successfully.  ``error_message`` is a human-readable
+        description of the first failure encountered, or ``None`` if all
+        selected providers were saved without errors.
+    """
+    import configparser
+    import json
+    import pathlib
+
+    clouds: list[str] = form_data.get("clouds", [])
+    if isinstance(clouds, str):
+        clouds = [clouds]
+
+    saved: list[str] = []
+    error: str | None = None
+
+    # -- AWS --
+    if "aws" in clouds:
+        auth_method = (form_data.get("aws_auth_method") or "access_key").strip()
+
+        if auth_method == "profile":
+            # Profile-based auth: write AWS_PROFILE env var so the running process
+            # and subsequent boto3 calls pick up the named profile immediately.
+            profile_name = (form_data.get("aws_profile_name") or "").strip()
+            if profile_name:
+                try:
+                    os.environ["AWS_PROFILE"] = profile_name
+                    # Persist the choice to a small marker file so it survives
+                    # process restarts (read by preflight on next startup).
+                    profile_marker = pathlib.Path.home() / ".cloud-usage-aws-profile"
+                    profile_marker.write_text(profile_name, encoding="utf-8")
+                    saved.append("aws")
+                except Exception as exc:
+                    error = f"AWS: {exc}"
+            # If no profile name provided, skip silently
+
+        else:
+            # Access key auth (default)
+            access_key = (form_data.get("aws_access_key_id") or "").strip()
+            secret_key = (form_data.get("aws_secret_access_key") or "").strip()
+            region = (form_data.get("aws_region") or "").strip()
+            if access_key and secret_key:
+                try:
+                    creds_path = pathlib.Path.home() / ".aws" / "credentials"
+                    creds_path.parent.mkdir(parents=True, exist_ok=True)
+                    parser = configparser.ConfigParser()
+                    if creds_path.exists():
+                        parser.read(creds_path)
+                    if not parser.has_section("default"):
+                        parser.add_section("default")
+                    parser.set("default", "aws_access_key_id", access_key)
+                    parser.set("default", "aws_secret_access_key", secret_key)
+                    if region:
+                        parser.set("default", "region", region)
+                    with creds_path.open("w") as fh:
+                        parser.write(fh)
+                    saved.append("aws")
+                except Exception as exc:
+                    error = f"AWS: {exc}"
+            # If fields are empty, skip silently (user left AWS unchecked or blank)
+
+    # -- Azure --
+    if "azure" in clouds:
+        client_id = (form_data.get("azure_client_id") or "").strip()
+        client_secret = (form_data.get("azure_client_secret") or "").strip()
+        tenant_id = (form_data.get("azure_tenant_id") or "").strip()
+        if client_id and client_secret and tenant_id:
+            try:
+                env_path = pathlib.Path.home() / ".cloud-usage-azure.env"
+                env_path.write_text(
+                    f"AZURE_CLIENT_ID={client_id}\n"
+                    f"AZURE_TENANT_ID={tenant_id}\n"
+                    f"AZURE_CLIENT_SECRET={client_secret}\n",
+                    encoding="utf-8",
+                )
+                # Apply to running process so next auth-check call works immediately
+                os.environ["AZURE_CLIENT_ID"] = client_id
+                os.environ["AZURE_TENANT_ID"] = tenant_id
+                os.environ["AZURE_CLIENT_SECRET"] = client_secret
+                saved.append("azure")
+            except Exception as exc:
+                if error is None:
+                    error = f"Azure: {exc}"
+
+    # -- GCP --
+    if "gcp" in clouds:
+        json_text = (form_data.get("gcp_service_account_json") or "").strip()
+        if json_text:
+            try:
+                # Validate JSON before writing
+                json.loads(json_text)
+                adc_path = (
+                    pathlib.Path.home()
+                    / ".config"
+                    / "gcloud"
+                    / "application_default_credentials.json"
+                )
+                adc_path.parent.mkdir(parents=True, exist_ok=True)
+                adc_path.write_text(json_text, encoding="utf-8")
+                # Also point GOOGLE_APPLICATION_CREDENTIALS so the validator
+                # finds the file without relying on gcloud SDK paths
+                os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(adc_path)
+                saved.append("gcp")
+            except json.JSONDecodeError as exc:
+                if error is None:
+                    error = f"GCP: Invalid JSON — {exc}"
+            except Exception as exc:
+                if error is None:
+                    error = f"GCP: {exc}"
+
+    return saved, error
+
+
+@router.post("/wizard/setup-credentials", response_class=HTMLResponse)
+async def wizard_setup_credentials_post(request: Request) -> HTMLResponse:
+    """Accept and save cloud credentials entered via the setup assistant.
+
+    Writes credentials to standard local config locations so the subsequent
+    auth-check call can pick them up without any CLI commands.
+
+    On success, renders the setup page with a success banner directing the
+    user to click "Back to Auth Check".  On failure, renders the page again
+    with an error message and the previously-selected cloud checkboxes
+    pre-ticked.
+
+    Args:
+        request: The incoming HTTP request with form data.
+
+    Returns:
+        Rendered step1_setup.html with save outcome feedback.
+    """
+    form = await request.form()
+    form_data: dict = dict(form)
+    # Multi-value "clouds" field
+    form_data["clouds"] = form.getlist("clouds")
+
+    # Preserve the scoped cloud context so the template re-renders correctly
+    selected_cloud = (form_data.get("selected_cloud") or "").strip()
+    if selected_cloud not in ("aws", "azure", "gcp", ""):
+        selected_cloud = ""
+
+    saved, error = await asyncio.to_thread(_save_credentials, form_data)
+
+    # Re-enumerate AWS profiles in case the user just set up a profile
+    aws_profiles = await asyncio.to_thread(_list_aws_profiles)
+
+    templates = request.app.state.templates
+    step_ctx = _get_wizard_step_context(1)
+    return templates.TemplateResponse(
+        request,
+        "partials/wizard/step1_setup.html",
+        {
+            "request": request,
+            **step_ctx,
+            "selected_cloud": selected_cloud,
+            "selected_clouds": form_data["clouds"],
+            "aws_profiles": aws_profiles,
+            "error": error,
+            "saved": saved,
+        },
+    )
+
+
 @router.post("/wizard/providers", response_class=HTMLResponse)
 async def wizard_providers(request: Request) -> HTMLResponse:
     """Accept auth results and show provider selection (step 2).
