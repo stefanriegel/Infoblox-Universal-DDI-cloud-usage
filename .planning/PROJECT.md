@@ -2,7 +2,7 @@
 
 ## What This Is
 
-A pre-sales licensing estimation tool that calculates Infoblox Universal DDI management tokens from two sources: (1) cloud discovery across AWS, Azure, and GCP, and (2) NIOS Grid backup analysis for customers migrating from NIOS to UDDI. Produces per-provider and per-scenario XLS reports with full traceability — what was counted, what was skipped, and exactly how every token total was derived. Built for enterprise environments: 100+ cloud accounts, multi-thousand-member NIOS Grids, and hybrid UDDI deployments where NIOS objects are licensed alongside NIOSX-native objects.
+A pre-sales licensing estimation tool that calculates Infoblox Universal DDI management tokens from two sources: (1) cloud discovery across AWS, Azure, and GCP, and (2) NIOS Grid backup analysis for customers migrating from NIOS to UDDI. Produces per-provider and per-scenario XLS reports with full traceability — what was counted, what was skipped, and exactly how every token total was derived. A polished HTMX web dashboard surfaces real-time progress, formula derivation, and per-member attribution so customers and pre-sales engineers can audit the numbers interactively. Built for enterprise environments: 100+ cloud accounts, multi-thousand-member NIOS Grids, and hybrid UDDI deployments where NIOS objects are licensed alongside NIOSX-native objects.
 
 ## Core Value
 
@@ -25,19 +25,14 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 - ✓ 5-sheet NIOS XLS report with per-scenario comparison and member attribution — v1.1 (Phase 13)
 - ✓ CLI `--nios` and `--nios-config` flags — v1.1 (Phase 14)
 - ✓ Dashboard NIOS Analysis tab with file upload wizard and migration split toggles — v1.1 (Phase 15)
-
-## Current Milestone: v1.2 DTC/LBDN DDI Support (COMPLETE)
-
-**Goal:** Add all DTC (DNS Traffic Control) object types to the NIOS DDI counter so customers with DTC-enabled Grids receive correct token estimates.
-
-**Delivered:**
-- Recognize all DTC object families in the NIOS backup parser (LBDN, Pool, Server, Monitors, Topology)
-- Count all DTC objects as +1 DDI using the existing NIOS Object formula (DDI/50 NIOS, DDI/25 NIOSX in hybrid)
-- DTC counts flow through all three scenarios and XLS report unchanged
+- ✓ Step-by-step progress feedback during NIOS analysis pipeline (named steps, step counter, elapsed time) — v1.3 (Phase 18)
+- ✓ Token breakdown with formula derivation per scenario in WebUI (DDI÷N = X.X tokens inline) — v1.3 (Phase 19)
+- ✓ Per-member attribution table with NIOS/NIOSX group labels in WebUI — v1.3 (Phase 19)
+- ✓ Migration wizard with explanatory text, Select All/Clear All, live group counter, numbered step labels — v1.3 (Phase 20)
 
 ### Active
 
-- [x] DTC/LBDN DDI support — all DTC object types recognized and counted toward DDI (v1.2, Phases 16–17)
+(None — planning next milestone)
 
 ### Out of Scope
 
@@ -48,15 +43,24 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 - Multi-cloud aggregation in single report — one report per provider/source by design
 - Mobile support — desktop/laptop browsers only
 - NIOS live API discovery — tool is standalone, offline, backup-based; no live NIOS connections
-- Multi-backup delta analysis — point-in-time only (deferred to v1.2+ as NIOS-ADV-04)
+- Multi-backup delta analysis — point-in-time only
+- Live token impact preview while assigning members — requires re-running full pipeline on every toggle; too expensive for large grids
+- Charts / visualizations — text tables sufficient for enterprise audit context
+- Per-object-family DDI breakdown in WebUI — deferred to future (ANA-01)
+- Cloud Summary formula derivation in WebUI — deferred to future (CLOUD-01/02)
 
 ## Context
 
-### Current State (after v1.1)
+### Current State (after v1.3)
 
+- **v1.3 shipped 2026-03-03** — Enhanced WebUI Experience: progress steps, formula derivation, member attribution table, wizard UX improvements
+- **v1.2 shipped 2026-03-02** — DTC/LBDN DDI support; 26 NIOS object families now recognized
 - **v1.1 shipped 2026-03-02** — NIOS Grid backup analysis fully integrated
-- NIOS package: `src/cloud_usage/nios/` — 2,417 lines of Python, 181 tests passing
+- **v1.0 shipped 2026-02-26** — Cloud Discovery MVP (AWS, Azure, GCP)
+- NIOS package: `src/cloud_usage/nios/` — ~2,500 lines of Python, 188+ tests passing
+- Dashboard: `src/cloud_usage/dashboard/` — FastAPI routes + HTMX templates, SSE progress, NIOS wizard
 - Full stack: FastAPI + HTMX dashboard, CLI, 3 cloud providers, NIOS analysis
+- Total codebase: ~17,601 LOC (16,418 Python + 1,183 HTML templates)
 - Validated reference backup: ZF Friedrichshafen — 2.5M objects, 304,730 unique Active IPs (4-source dedup confirmed)
 - Tech stack: Python 3.9+ (guarded), FastAPI, lxml, xlsxwriter, pyyaml, moto (tests)
 - Platform validated: macOS (primary dev), CI matrix for Windows 11/WSL
@@ -78,10 +82,11 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 
 ### Known Technical Debt / Open Items
 
-- REF-01: GCP 87-project production validation deferred — no live GCP environment available (v1.0 carry-over, not a v1.2 blocker)
+- REF-01: GCP 87-project production validation deferred — no live GCP environment available (v1.0 carry-over)
 - Python 3.9 venv causes 8 pre-existing test failures on CLI `main()` version guard — known, non-blocking
 - NIOS DHCP Range/Exclusion Range objects: included in DDI count as per UDDI spec; no customer validation yet
-- DTC/LBDN objects in NIOS backups: present in ZF backup but excluded; need UDDI spec confirmation before adding
+- DTC-V01/V02: DTC XML `__type` strings are spec-derived, unverified — empirical confirmation against a real DTC-containing customer backup still pending
+- NIOS running-state on page-load path shows static indeterminate bar (design-bounded edge case — primary HTMX wizard path satisfies PROG-01/02/03)
 
 ## Constraints
 
@@ -108,6 +113,11 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 | FilterConfig default lease_states = ('active',) | Static binding_state is a manually-configured DHCP static assignment, not a dynamic lease per UDDI spec | ✓ Good — confirmed by ZF reference run; static leases were excluded |
 | HOST_ADDRESS raw_attrs key = 'address' (not 'ip_address') | Empirically confirmed from ZF Friedrichshafen backup — wrong key caused COUNT-02 mismatch | ✓ Good — GAP-01 resolved; 304,730 confirmed |
 | CLI auth only (no service accounts) | Enterprise customers use SSO/CLI auth; storing credentials adds security risk | ✓ Good — no credential storage ever added |
+| `NiosScanManager.set_progress()` + GET endpoint for progress HTML | Avoids SSE payload size limits and keeps rendering in Python/Jinja2; clean separation of event trigger vs render | ✓ Good — HTMX hx-get on sse:nios_progress trigger works cleanly |
+| Determinate `<progress value="N" max="6">` (not indeterminate spinner) | Concrete 6-step count warrants determinate bar; users see real forward progress, not just "working" | ✓ Good — more informative during 30s+ runs |
+| Formula divisors hardcoded in template (not passed from backend) | Values are UDDI spec constants, immutable — passing them adds complexity without benefit | ✓ Good — Jinja2 template is self-documenting, no backend coupling |
+| Member attribution subtitle warns IPs are not summable | Per-member IP counts are lease-only (not globally deduped per member); summing would exceed scenario totals and confuse customers | ✓ Good — prevents customer support questions about number discrepancy |
+| Select All / Clear All use `type='button'` with bubbling `change` events | Prevents accidental form submission; dispatching change events keeps IIFE counter in sync with batch ops | ✓ Good — clean pattern; no jQuery or external JS needed |
 
 ---
-*Last updated: 2026-03-02 after v1.2 milestone complete*
+*Last updated: 2026-03-03 after v1.3 milestone*
