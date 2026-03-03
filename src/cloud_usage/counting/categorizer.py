@@ -17,6 +17,10 @@ DDI_TYPES: set[str] = {
     "route53-zone",
     "route53-record",
     "dhcp-option-set",
+    # AWS networking objects — reclassified Phase 25 (METH-04)
+    "eni",
+    "elastic-ip",
+    "nat-gateway",
     # Azure DDI types
     "azure-vnet",
     "azure-subnet",
@@ -25,6 +29,9 @@ DDI_TYPES: set[str] = {
     "azure-dns-record",
     "azure-private-dns-record",
     "azure-dhcp-config",
+    # Azure networking objects — reclassified Phase 25 (METH-02)
+    "azure-nic",
+    "azure-public-ip",
     # GCP DDI types
     "gcp-vpc",
     "gcp-subnet",
