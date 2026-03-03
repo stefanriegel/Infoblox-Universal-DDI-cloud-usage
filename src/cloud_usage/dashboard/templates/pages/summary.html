@@ -42,30 +42,75 @@
     {% if per_account_details %}
     <h3>Per-Account Breakdown</h3>
     <figure>
-    <table role="grid">
+    <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--ib-gray-200); border-radius: 6px;">
+    <table style="margin: 0; font-size: 0.85rem;">
       <thead>
         <tr>
-          <th>Account ID</th>
+          <th>Account / Sub / Project</th>
           <th>Provider</th>
-          <th>DDI</th>
-          <th>IPs</th>
-          <th>Assets</th>
-          <th>Tokens</th>
+          <th style="text-align: right;">DDI Objects</th>
+          <th style="text-align: right;">Active IPs</th>
+          <th style="text-align: right;">Managed Assets</th>
+          <th style="text-align: right;">Tokens</th>
         </tr>
       </thead>
       <tbody>
         {% for acct in per_account_details %}
         <tr>
-          <td><small>{{ acct.account_id }}</small></td>
-          <td>{{ acct.provider }}</td>
-          <td>{{ acct.ddi_count }}</td>
-          <td>{{ acct.ip_count }}</td>
-          <td>{{ acct.asset_count }}</td>
-          <td><strong>{{ acct.total_tokens }}</strong></td>
+          <td>
+            {% if acct.provider == "aws" %}Account
+            {% elif acct.provider == "azure" %}Subscription
+            {% else %}Project{% endif %}
+            <small style="display: block; font-family: monospace; color: var(--ib-gray-600);">{{ acct.account_id }}</small>
+          </td>
+          <td>{{ acct.provider | upper }}</td>
+          <td style="text-align: right;">
+            {{ acct.ddi_count }}
+            {% if acct.ddi_count > 0 %}
+            <small style="display: block; color: var(--ib-gray-600);">÷ 25 = {{ "%.1f" | format(acct.ddi_count / 25) }}</small>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            {{ acct.ip_count }}
+            {% if acct.ip_count > 0 %}
+            <small style="display: block; color: var(--ib-gray-600);">÷ 13 = {{ "%.1f" | format(acct.ip_count / 13) }}</small>
+            {% endif %}
+          </td>
+          <td style="text-align: right;">
+            {{ acct.asset_count }}
+            {% if acct.asset_count > 0 %}
+            <small style="display: block; color: var(--ib-gray-600);">÷ 3 = {{ "%.1f" | format(acct.asset_count / 3) }}</small>
+            {% endif %}
+          </td>
+          <td style="text-align: right;"><strong>{{ acct.total_tokens }}</strong></td>
         </tr>
+        {% if acct.resource_type_breakdown %}
+        <tr>
+          <td colspan="6" style="padding: 0 0.5rem 0.5rem 1rem; background: var(--ib-gray-100, #f8f8f8);">
+            <details>
+              <summary style="cursor: pointer; font-size: 0.8rem; color: var(--ib-gray-600);">▶ {{ acct.resource_type_breakdown | length }} resource types</summary>
+              <div style="padding: 0.25rem 0; font-size: 0.8rem; line-height: 1.6;">
+                {% for rt, info in acct.resource_type_breakdown.items() | sort %}
+                <div>{{ rt }}: {{ info.count }} <small style="color: var(--ib-gray-600);">({{ info.category | upper }})</small></div>
+                {% endfor %}
+              </div>
+            </details>
+          </td>
+        </tr>
+        {% endif %}
         {% endfor %}
       </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="6" style="font-size: 0.75rem; color: var(--ib-gray-600); padding: 0.5rem;">
+            <strong>DDI:</strong> Column total is summable — DDI objects are account-scoped with no deduplication.
+            <strong>IPs:</strong> Per-account IP counts are not summable — cross-account IP deduplication means the sum exceeds the globally deduplicated total.
+            <strong>Tokens:</strong> Per-account token totals are not directly summable — ceiling-division rounding means the sum of account ceilings ≥ the overall ceiling.
+          </td>
+        </tr>
+      </tfoot>
     </table>
+    </div>
     </figure>
     {% endif %}
 
