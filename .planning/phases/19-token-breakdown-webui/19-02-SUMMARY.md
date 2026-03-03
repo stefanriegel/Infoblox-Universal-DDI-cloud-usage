@@ -3,6 +3,9 @@ phase: 19-token-breakdown-webui
 plan: "02"
 status: complete
 completed: 2026-03-03
+requirements-completed:
+  - BRKDN-03
+  - BRKDN-04
 ---
 
 # Plan 19-02 Summary: Member Attribution Table

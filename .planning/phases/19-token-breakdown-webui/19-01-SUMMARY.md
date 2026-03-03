@@ -3,6 +3,9 @@ phase: 19-token-breakdown-webui
 plan: "01"
 status: complete
 completed: 2026-03-03
+requirements-completed:
+  - BRKDN-01
+  - BRKDN-02
 ---
 
 # Plan 19-01 Summary: Scenario Formula Breakdown

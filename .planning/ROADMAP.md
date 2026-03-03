@@ -57,7 +57,7 @@ Archive: `.planning/milestones/v1.2-ROADMAP.md`
 
 - [x] **Phase 18: NIOS Pipeline Progress Events** — Emit step-level SSE events from the NIOS analysis pipeline and surface named steps, step counters, and elapsed time in the dashboard UI (completed 2026-03-02)
 - [x] **Phase 19: Token Breakdown WebUI** — Enrich the NIOS results screen with per-scenario formula derivation and a per-member attribution table with NIOS/NIOSX group labels (completed 2026-03-03)
-- [ ] **Phase 20: Migration Wizard UX** — Improve the NIOS member assignment step with explanatory text, select-all control, live group counts, and clearly numbered step labels
+- [x] **Phase 20: Migration Wizard UX** — Improve the NIOS member assignment step with explanatory text, select-all control, live group counts, and clearly numbered step labels (completed 2026-03-03)
 
 ## Phase Details
 
@@ -92,7 +92,11 @@ Archive: `.planning/milestones/v1.2-ROADMAP.md`
   2. A "Select All" / "Deselect All" control lets the user assign or clear all member assignments in the current group with a single click
   3. As the user toggles member assignments, a live counter updates to show the current count of NIOS-assigned members and NIOSX-assigned members
   4. The wizard step progression is labeled with clear step numbers and titles — e.g., "Step 1: Upload Backup", "Step 2: Assign Members", "Step 3: Run Analysis" — visible throughout the wizard
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [x] 20-01-PLAN.md — Add explanatory article, Select All/Clear All, live counter, Step 2 heading (WIZ-01, 02, 03, 04 partial)
+- [x] 20-02-PLAN.md — Update Step 3 running-state headers in both rendering paths + visual checkpoint (WIZ-04 complete)
 
 ## Progress
 
@@ -100,4 +104,4 @@ Archive: `.planning/milestones/v1.2-ROADMAP.md`
 |-------|----------------|--------|-----------|
 | 18. NIOS Pipeline Progress Events | 2/2 | Complete    | 2026-03-02 |
 | 19. Token Breakdown WebUI | 0/TBD | Complete    | 2026-03-03 |
-| 20. Migration Wizard UX | 0/TBD | Not started | - |
+| 20. Migration Wizard UX | 2/2 | Complete    | 2026-03-03 |

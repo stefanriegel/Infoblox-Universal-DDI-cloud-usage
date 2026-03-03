@@ -9,23 +9,23 @@ Requirements for the Enhanced WebUI Experience milestone. Phases 18–20.
 
 ### Progress Feedback
 
-- [ ] **PROG-01**: User sees named step labels during NIOS analysis (e.g., "Inspecting backup", "Counting objects", "Writing report")
-- [ ] **PROG-02**: User sees current step number out of total steps during NIOS analysis (e.g., "Step 3 of 6")
-- [ ] **PROG-03**: User sees elapsed time while NIOS analysis is running
+- [x] **PROG-01**: User sees named step labels during NIOS analysis (e.g., "Inspecting backup", "Counting objects", "Writing report")
+- [x] **PROG-02**: User sees current step number out of total steps during NIOS analysis (e.g., "Step 3 of 6")
+- [x] **PROG-03**: User sees elapsed time while NIOS analysis is running
 
 ### Token Breakdown
 
-- [ ] **BRKDN-01**: User can view DDI object count, Active IP count, and Asset count per scenario in the WebUI after NIOS analysis
-- [ ] **BRKDN-02**: User can see formula derivation per scenario inline (e.g., "1,234 DDI ÷ 50 = 24.7 tokens") in the WebUI
-- [ ] **BRKDN-03**: User can view a per-member breakdown table showing each member's DDI/IP/Asset counts and token contribution in the WebUI
-- [ ] **BRKDN-04**: User can see NIOS vs NIOSX group label on each row in the member breakdown table
+- [x] **BRKDN-01**: User can view DDI object count, Active IP count, and Asset count per scenario in the WebUI after NIOS analysis
+- [x] **BRKDN-02**: User can see formula derivation per scenario inline (e.g., "1,234 DDI ÷ 50 = 24.7 tokens") in the WebUI
+- [x] **BRKDN-03**: User can view a per-member breakdown table showing each member's DDI/IP/Asset counts and token contribution in the WebUI
+- [x] **BRKDN-04**: User can see NIOS vs NIOSX group label on each row in the member breakdown table
 
 ### Migration Wizard
 
-- [ ] **WIZ-01**: User sees explanatory text describing what NIOS and NIOSX group assignments mean for token calculation before assigning members
-- [ ] **WIZ-02**: User can select all or deselect all members with a single click in the migration assignment step
-- [ ] **WIZ-03**: User sees a live count of NIOS vs NIOSX assigned members as they toggle assignments
-- [ ] **WIZ-04**: The wizard steps are clearly numbered and labeled (Step 1: Upload Backup, Step 2: Assign Members, Step 3: Run Analysis)
+- [x] **WIZ-01**: User sees explanatory text describing what NIOS and NIOSX group assignments mean for token calculation before assigning members
+- [x] **WIZ-02**: User can select all or deselect all members with a single click in the migration assignment step
+- [x] **WIZ-03**: User sees a live count of NIOS vs NIOSX assigned members as they toggle assignments
+- [x] **WIZ-04**: The wizard steps are clearly numbered and labeled (Step 1: Upload Backup, Step 2: Assign Members, Step 3: Run Analysis)
 
 ## Future Requirements
 
@@ -55,17 +55,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PROG-01 | Phase 18 | Pending |
-| PROG-02 | Phase 18 | Pending |
-| PROG-03 | Phase 18 | Pending |
-| BRKDN-01 | Phase 19 | Pending |
-| BRKDN-02 | Phase 19 | Pending |
-| BRKDN-03 | Phase 19 | Pending |
-| BRKDN-04 | Phase 19 | Pending |
-| WIZ-01 | Phase 20 | Pending |
-| WIZ-02 | Phase 20 | Pending |
-| WIZ-03 | Phase 20 | Pending |
-| WIZ-04 | Phase 20 | Pending |
+| PROG-01 | Phase 18 | Complete |
+| PROG-02 | Phase 18 | Complete |
+| PROG-03 | Phase 18 | Complete |
+| BRKDN-01 | Phase 19 | Complete |
+| BRKDN-02 | Phase 19 | Complete |
+| BRKDN-03 | Phase 19 | Complete |
+| BRKDN-04 | Phase 19 | Complete |
+| WIZ-01 | Phase 20 | Complete |
+| WIZ-02 | Phase 20 | Complete |
+| WIZ-03 | Phase 20 | Complete |
+| WIZ-04 | Phase 20 | Complete |
 
 **Coverage:**
 - v1.3 requirements: 11 total

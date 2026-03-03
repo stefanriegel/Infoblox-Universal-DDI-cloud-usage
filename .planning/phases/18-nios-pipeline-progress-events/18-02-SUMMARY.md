@@ -3,6 +3,10 @@ plan: 18-02
 phase: 18
 status: complete
 completed: "2026-03-03"
+requirements-completed:
+  - PROG-01
+  - PROG-02
+  - PROG-03
 ---
 
 # Plan 18-02 Summary: Frontend — Display Named Progress Steps
