@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.6
-milestone_name: Wizard Navigation Fix
+milestone: v1.7
+milestone_name: Reference Parity
 status: planning
-stopped_at: Completed 24-wizard-navigation-fix 24-01-PLAN.md
-last_updated: "2026-03-03T20:50:15.740Z"
-last_activity: 2026-03-03 — Roadmap created for v1.6; Phase 24 defined with 3 requirements (NAV-01, NAV-02, NAV-03)
+stopped_at: Completed 25-01-PLAN.md
+last_updated: "2026-03-03T22:34:08.158Z"
+last_activity: 2026-03-03 — v1.7 roadmap created; 28 requirements mapped across 5 phases (25–29)
 progress:
-  total_phases: 1
-  completed_phases: 1
-  total_plans: 1
+  total_phases: 5
+  completed_phases: 0
+  total_plans: 4
   completed_plans: 1
   percent: 0
 ---
@@ -18,35 +18,30 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-03 after v1.6 milestone started)
+See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
 
 **Core value:** Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Phase 24 — Wizard Navigation Fix
+**Current focus:** Phase 25 — IP Methodology Fix
 
 ## Current Position
 
-Phase: 24 of 24 (Wizard Navigation Fix)
-Plan: — of — (not yet planned)
-Status: Ready to plan
-Last activity: 2026-03-03 — Roadmap created for v1.6; Phase 24 defined with 3 requirements (NAV-01, NAV-02, NAV-03)
+Phase: 25 of 29 (IP Methodology Fix)
+Plan: 01 complete (25-01-PLAN.md)
+Status: In progress — plan 25-02 next
+Last activity: 2026-03-03 — Completed 25-01: TDD scaffold for NIC-based IP counting (3 tasks, 5 files, 4 min)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [█████████░] 93%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 0 (this milestone)
-- Average duration: — min
-- Total execution time: —
+- Total plans completed: 1 (this milestone)
+- Average duration: 4 min
+- Total execution time: 4 min
 
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 24 (planned) | 0/TBD | — | — |
-
-*Updated after each plan completion*
-| Phase 24-wizard-navigation-fix P01 | 1 | 2 tasks | 4 files |
+| Phase | Plan | Duration | Tasks | Files |
+|-------|------|----------|-------|-------|
+| 25 | 01 | 4 min | 3 | 5 |
 
 ## Accumulated Context
 
@@ -59,12 +54,24 @@ Progress: [░░░░░░░░░░] 0%
 - Template-only features: check what `_compute_summary()` already computes before adding backend work
 - HX-Redirect pattern: return `Response(content="", status_code=200, headers={"HX-Redirect": "/tab/progress"})` — HTMX follows as full-page navigate, no hx-on JS needed
 
+### Key v1.7 Decisions
+
+- IP counting methodology: align with reference — count NIC/config objects (not unique IP addresses); remove standalone ENI/EIP/NAT GW IP counting from AWS
+- Microsoft AD: full implementation matching reference `microsoft_ad.py` — DNS + DHCP + Users + Autodiscovery; CLI-only for v1.7 (dashboard tab deferred)
+- Phase ordering: METH fix first (Phase 25) as it is foundational to correct IP counts in all providers; cloud DDI gap phases (26-28) can run in any order after 25; AD (Phase 29) is independent but placed last as it is a full new provider
+
 ### Known Technical Debt (carry forward)
 
 - DTC-V01/V02: DTC XML `__type` strings spec-derived, unverified against real DTC backup (v1.2 carry-over)
 - REF-01: GCP 87-project production validation deferred — no live GCP environment available (v1.0 carry-over)
 - Python 3.9 venv causes 8 pre-existing test failures on CLI `main()` version guard — known, non-blocking
-- gsd-tools accomplishment extraction broken — tool expects `one_liner:` but SUMMARY.md uses `provides:`
+
+### Key Phase 25 Decisions
+
+- count_nics_per_account returns same dict shape as deduplicate_ips_per_vpc for drop-in compatibility
+- DDI-category resources always contribute 0 regardless of ip_addresses or NIC count
+- Azure unattached NICs (vm_id=None) contribute 0 — only VM-attached NICs count
+- TestFoldEnisIntoParents removed — ENIs become DDI in Phase 25, folding is no longer needed
 
 ### Quick Tasks Completed
 
@@ -74,14 +81,13 @@ Progress: [░░░░░░░░░░] 0%
 
 ## Session Log
 
-- 2026-03-03: Phase 24 roadmap created — NAV-01/02/03 all mapped to Phase 24; ready to plan
-- 2026-03-03: Milestone v1.6 Wizard Navigation Fix started — NAV requirements defined
-- 2026-03-03: v1.5 milestone archived — ROADMAP.md reorganized, PROJECT.md evolved, RETROSPECTIVE.md updated, git tag v1.5 created
-- 2026-03-03: Phase 23 Plan 02 complete — client-side sortable per-account attribution table, CLOUD-07 + ANA-07 delivered
-- 2026-03-03: Phase 23 Plan 01 complete — per-provider formula cards (÷ 25/÷ 13/÷ 3 derivations) in summary_cards.html, CLOUD-06 delivered
+- 2026-03-03: v1.7 roadmap created — 5 phases (25–29), 28/28 requirements mapped, files written
+- 2026-03-03: Milestone v1.7 Reference Parity started — defining requirements
+- 2026-03-03: Phase 24 (v1.6 Wizard Navigation Fix) complete
+- 2026-03-03: v1.5 milestone archived
 
 ## Session Continuity
 
-Last session: 2026-03-03T20:47:22.864Z
-Stopped at: Completed 24-wizard-navigation-fix 24-01-PLAN.md
+Last session: 2026-03-03T22:34:08.155Z
+Stopped at: Completed 25-01-PLAN.md
 Resume file: None
