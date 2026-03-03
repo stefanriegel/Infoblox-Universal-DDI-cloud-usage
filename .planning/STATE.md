@@ -1,32 +1,52 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.5
-milestone_name: Results Navigation
-status: archived
-last_updated: "2026-03-03"
-last_activity: 2026-03-03 — v1.5 milestone archived (CLOUD-06, CLOUD-07, ANA-07 delivered)
+milestone: v1.6
+milestone_name: Wizard Navigation Fix
+status: planning
+stopped_at: Completed 24-wizard-navigation-fix 24-01-PLAN.md
+last_updated: "2026-03-03T20:47:22.867Z"
+last_activity: 2026-03-03 — Roadmap created for v1.6; Phase 24 defined with 3 requirements (NAV-01, NAV-02, NAV-03)
 progress:
   total_phases: 1
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
-  percent: 100
+  total_plans: 1
+  completed_plans: 1
+  percent: 0
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-03 after v1.5 milestone)
+See: .planning/PROJECT.md (updated 2026-03-03 after v1.6 milestone started)
 
 **Core value:** Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Planning next milestone — run `/gsd:new-milestone`
+**Current focus:** Phase 24 — Wizard Navigation Fix
 
 ## Current Position
 
-v1.5 Results Navigation — SHIPPED and ARCHIVED 2026-03-03
-All 3 requirements delivered (CLOUD-06, CLOUD-07, ANA-07) — Phase 23 complete
-REQUIREMENTS.md deleted — fresh requirements needed for v1.6
+Phase: 24 of 24 (Wizard Navigation Fix)
+Plan: — of — (not yet planned)
+Status: Ready to plan
+Last activity: 2026-03-03 — Roadmap created for v1.6; Phase 24 defined with 3 requirements (NAV-01, NAV-02, NAV-03)
+
+Progress: [░░░░░░░░░░] 0%
+
+## Performance Metrics
+
+**Velocity:**
+- Total plans completed: 0 (this milestone)
+- Average duration: — min
+- Total execution time: —
+
+**By Phase:**
+
+| Phase | Plans | Total | Avg/Plan |
+|-------|-------|-------|----------|
+| 24 (planned) | 0/TBD | — | — |
+
+*Updated after each plan completion*
+| Phase 24-wizard-navigation-fix P01 | 1 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -37,6 +57,7 @@ REQUIREMENTS.md deleted — fresh requirements needed for v1.6
 - Sort IIFE pattern: `querySelectorAll('tr.acct-row')` + `nextElementSibling` for detail row adjacency
 - Section-scoped test assertions: slice relevant section from `response.text` before counting formula strings
 - Template-only features: check what `_compute_summary()` already computes before adding backend work
+- HX-Redirect pattern: return `Response(content="", status_code=200, headers={"HX-Redirect": "/tab/progress"})` — HTMX follows as full-page navigate, no hx-on JS needed
 
 ### Known Technical Debt (carry forward)
 
@@ -53,7 +74,14 @@ REQUIREMENTS.md deleted — fresh requirements needed for v1.6
 
 ## Session Log
 
+- 2026-03-03: Phase 24 roadmap created — NAV-01/02/03 all mapped to Phase 24; ready to plan
+- 2026-03-03: Milestone v1.6 Wizard Navigation Fix started — NAV requirements defined
 - 2026-03-03: v1.5 milestone archived — ROADMAP.md reorganized, PROJECT.md evolved, RETROSPECTIVE.md updated, git tag v1.5 created
 - 2026-03-03: Phase 23 Plan 02 complete — client-side sortable per-account attribution table, CLOUD-07 + ANA-07 delivered
 - 2026-03-03: Phase 23 Plan 01 complete — per-provider formula cards (÷ 25/÷ 13/÷ 3 derivations) in summary_cards.html, CLOUD-06 delivered
-- 2026-03-03: v1.4 milestone (Phases 21–22) retroactively archived during v1.5 completion
+
+## Session Continuity
+
+Last session: 2026-03-03T20:47:22.864Z
+Stopped at: Completed 24-wizard-navigation-fix 24-01-PLAN.md
+Resume file: None

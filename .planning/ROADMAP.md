@@ -90,9 +90,9 @@ Archive: `.planning/milestones/v1.5-ROADMAP.md`
 
 #### Phase 24: Wizard Navigation Fix
 
-- [ ] **Phase 24: Wizard Navigation Fix** - Replace JS-driven scan-start navigation with server-driven HX-Redirect header
+- [x] **Phase 24: Wizard Navigation Fix** - Replace JS-driven scan-start navigation with server-driven HX-Redirect header (completed 2026-03-03)
 
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 24-01-PLAN.md — Verify HX-Redirect implementation and commit NAV-01/02/03
@@ -140,4 +140,4 @@ Plans:
 | 21. Cloud Per-Account Attribution Table | v1.4 | 2/2 | Complete | 2026-03-03 |
 | 22. NIOS Object Family Breakdown | v1.4 | 2/2 | Complete | 2026-03-03 |
 | 23. Results Navigation | v1.5 | 2/2 | Complete | 2026-03-03 |
-| 24. Wizard Navigation Fix | v1.6 | 0/1 | Not started | - |
+| 24. Wizard Navigation Fix | 1/1 | Complete   | 2026-03-03 | - |
