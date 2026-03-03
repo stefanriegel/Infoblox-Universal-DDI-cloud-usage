@@ -13,7 +13,7 @@ from collections import defaultdict
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from cloud_usage.counting.ip_counter import deduplicate_ips_per_vpc
+from cloud_usage.counting.ip_counter import count_nics_per_account
 from cloud_usage.counting.token_calculator import (
     calculate_account_tokens,
     calculate_tokens,
@@ -101,8 +101,8 @@ def _compute_summary(resources: list) -> dict:
         by_account[r.account_id].append(r)
         account_provider[r.account_id] = r.provider
 
-    # Deduplicate IPs globally
-    ip_dedup = deduplicate_ips_per_vpc(resources)
+    # NIC-based IP counting (Phase 25 methodology)
+    ip_dedup = count_nics_per_account(resources)
     per_account_ips = ip_dedup.get("per_account", {})
 
     # Calculate per-account tokens

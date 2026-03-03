@@ -216,7 +216,7 @@ def _run_scan_pipeline(
         exclude_managed_service_resources,
     )
     from cloud_usage.counting.categorizer import categorize_resources
-    from cloud_usage.counting.ip_counter import deduplicate_ips_per_vpc
+    from cloud_usage.counting.ip_counter import count_nics_per_account
     from cloud_usage.counting.token_calculator import (
         calculate_account_tokens,
         calculate_provider_tokens,
@@ -303,7 +303,7 @@ def _run_scan_pipeline(
         exclude_managed_service_resources(resources)
         deduplicate_assets(resources)
         categorize_resources(resources)
-        ip_counts = deduplicate_ips_per_vpc(resources)
+        ip_counts = count_nics_per_account(resources)
 
         # Per-account token calculation
         account_summaries: dict[str, dict] = {}

@@ -130,7 +130,7 @@ def _write_detail_sheet(
     if include_rg:
         headers.append("Resource Group")
     headers.extend([
-        "IP Addresses", "IP Count", "Counted", "Category",
+        "IP Addresses", "Address Records", "Counted", "Category",
         "Skip Reason", "Tags",
     ])
 
@@ -203,7 +203,7 @@ def _write_summary_sheet(
     sheet.freeze_panes(1, 0)
 
     headers = [
-        "Account ID", "DDI Objects", "DDI Tokens", "Active IPs",
+        "Account ID", "DDI Objects", "DDI Tokens", "Address Records",
         "IP Tokens", "Managed Assets", "Asset Tokens", "Total Tokens",
     ]
 

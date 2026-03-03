@@ -22,7 +22,7 @@ from cloud_usage.counting.asset_dedup import (
     exclude_managed_service_resources,
 )
 from cloud_usage.counting.categorizer import categorize_resources
-from cloud_usage.counting.ip_counter import deduplicate_ips_per_vpc
+from cloud_usage.counting.ip_counter import count_nics_per_account
 from cloud_usage.counting.token_calculator import (
     calculate_account_tokens,
     calculate_provider_tokens,
@@ -441,8 +441,8 @@ def main(argv: list[str] | None = None) -> int:
     # Step 3: Categorize resources as DDI/IP/Asset/excluded
     categorize_resources(resources)
 
-    # Step 4: Per-VPC IP deduplication
-    ip_counts = deduplicate_ips_per_vpc(resources)
+    # Step 4: NIC-based IP counting (Phase 25 methodology)
+    ip_counts = count_nics_per_account(resources)
 
     # Step 6: Build per-account token summaries
     account_summaries: dict[str, dict] = {}
@@ -518,7 +518,7 @@ def main(argv: list[str] | None = None) -> int:
     asset_count = sum(1 for r in resources if r.counted and r.category == "asset")
     skipped_count = sum(1 for r in resources if not r.counted)
     sys.stderr.write(f"  DDI objects:    {ddi_count}\n")
-    sys.stderr.write(f"  Active IPs:     {ip_counts.get('total_unique_ips', 0)}\n")
+    sys.stderr.write(f"  Address Records:{ip_counts.get('total_unique_ips', 0)}\n")
     sys.stderr.write(f"  Managed assets: {asset_count}\n")
     sys.stderr.write(f"  Skipped:        {skipped_count}\n")
 
