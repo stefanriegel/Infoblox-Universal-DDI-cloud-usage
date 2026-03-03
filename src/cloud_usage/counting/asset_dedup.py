@@ -1,11 +1,9 @@
 """
-ENI folding, tag-based managed service exclusion, and cross-account
-asset de-duplication.
+Tag-based managed service exclusion and cross-account asset de-duplication.
 
-Provides three pipeline stages that run before token calculation:
-1. fold_enis_into_parents: Mark attached ENIs as not counted
-2. exclude_managed_service_resources: Tag-based EKS/managed exclusion
-3. deduplicate_assets: Cross-account RAM-shared resource dedup
+Provides two pipeline stages that run before token calculation:
+1. exclude_managed_service_resources: Tag-based EKS/managed exclusion
+2. deduplicate_assets: Cross-account RAM-shared resource dedup
 """
 
 from __future__ import annotations
@@ -45,40 +43,6 @@ def _is_aws_managed(tags: dict[str, str]) -> bool:
             if key.startswith(prefix):
                 return True
     return False
-
-
-def fold_enis_into_parents(
-    resources: list[CloudResource],
-) -> list[CloudResource]:
-    """Mark ENIs attached to parent resources as not counted.
-
-    Builds a set of all ENI IDs referenced by parent resources through
-    their details["network_interface_ids"] field, then marks matching
-    ENIs as counted=False with an appropriate skip_reason.
-
-    Unattached ENIs (not referenced by any parent) remain counted.
-
-    Args:
-        resources: List of CloudResource instances.
-
-    Returns:
-        The same list with attached ENIs marked as not counted.
-    """
-    # Build set of attached ENI IDs from parent resources
-    attached_eni_ids: set[str] = set()
-    for resource in resources:
-        eni_ids = resource.details.get("network_interface_ids")
-        if eni_ids:
-            attached_eni_ids.update(eni_ids)
-
-    # Mark attached ENIs as not counted
-    for resource in resources:
-        if resource.resource_type == "eni" and resource.resource_id in attached_eni_ids:
-            resource.counted = False
-            resource.category = None
-            resource.skip_reason = "ENI attached to parent resource"
-
-    return resources
 
 
 def exclude_managed_service_resources(

@@ -214,7 +214,6 @@ def _run_scan_pipeline(
     from cloud_usage.counting.asset_dedup import (
         deduplicate_assets,
         exclude_managed_service_resources,
-        fold_enis_into_parents,
     )
     from cloud_usage.counting.categorizer import categorize_resources
     from cloud_usage.counting.ip_counter import deduplicate_ips_per_vpc
@@ -301,7 +300,6 @@ def _run_scan_pipeline(
             return
 
         # === Counting Pipeline ===
-        fold_enis_into_parents(resources)
         exclude_managed_service_resources(resources)
         deduplicate_assets(resources)
         categorize_resources(resources)

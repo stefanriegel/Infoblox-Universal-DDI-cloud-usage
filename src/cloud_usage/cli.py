@@ -20,7 +20,6 @@ from cloud_usage.preflight import check_platform, print_preflight_warnings
 from cloud_usage.counting.asset_dedup import (
     deduplicate_assets,
     exclude_managed_service_resources,
-    fold_enis_into_parents,
 )
 from cloud_usage.counting.categorizer import categorize_resources
 from cloud_usage.counting.ip_counter import deduplicate_ips_per_vpc
@@ -433,19 +432,16 @@ def main(argv: list[str] | None = None) -> int:
     resources, errors = orchestrator.run(resumed_checkpoint=resumed_checkpoint)
 
     # === Counting Pipeline ===
-    # Step 1: ENI folding -- mark attached ENIs before categorization
-    fold_enis_into_parents(resources)
-
-    # Step 2: Tag-based exclusion of EKS-managed nodes etc.
+    # Step 1: Tag-based exclusion of EKS-managed nodes etc.
     exclude_managed_service_resources(resources)
 
-    # Step 3: Cross-account dedup of RAM-shared resources
+    # Step 2: Cross-account dedup of RAM-shared resources
     deduplicate_assets(resources)
 
-    # Step 4: Categorize resources as DDI/IP/Asset/excluded
+    # Step 3: Categorize resources as DDI/IP/Asset/excluded
     categorize_resources(resources)
 
-    # Step 5: Per-VPC IP deduplication
+    # Step 4: Per-VPC IP deduplication
     ip_counts = deduplicate_ips_per_vpc(resources)
 
     # Step 6: Build per-account token summaries
