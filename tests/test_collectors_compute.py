@@ -219,6 +219,138 @@ class TestCollectEC2Instances:
         assert len(ips) == len(set(ips))
 
 
+# -- EC2 NIC IP Count Tests --
+
+
+class TestEC2CollectorNicIpCount:
+    """Tests that EC2 collector sets details['nic_ip_count'] on instances.
+
+    Tests are RED until plan 25-03 implements nic_ip_count in the collector.
+    """
+
+    @mock_aws
+    def test_ec2_two_nics_one_private_each_nic_ip_count_is_2(self) -> None:
+        """EC2 with 2 NICs each with 1 private IP -> nic_ip_count == 2."""
+        ec2 = boto3.client("ec2", region_name=REGION)
+        vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+        vpc_id = vpc["Vpc"]["VpcId"]
+        subnet = ec2.create_subnet(VpcId=vpc_id, CidrBlock="10.0.1.0/24")
+        subnet_id = subnet["Subnet"]["SubnetId"]
+
+        result = ec2.run_instances(
+            ImageId="ami-12345678",
+            MinCount=1,
+            MaxCount=1,
+            InstanceType="t2.micro",
+            SubnetId=subnet_id,
+        )
+        instance_id = result["Instances"][0]["InstanceId"]
+
+        # Attach a second ENI (second NIC)
+        eni = ec2.create_network_interface(SubnetId=subnet_id)
+        eni_id = eni["NetworkInterface"]["NetworkInterfaceId"]
+        ec2.attach_network_interface(
+            NetworkInterfaceId=eni_id,
+            InstanceId=instance_id,
+            DeviceIndex=1,
+        )
+
+        resources = collect_ec2_instances(ec2, ACCOUNT_ID, REGION)
+
+        assert len(resources) == 1
+        assert resources[0].details["nic_ip_count"] == 2
+
+    @mock_aws
+    def test_ec2_one_nic_two_private_ips_nic_ip_count_is_2(self) -> None:
+        """EC2 with 1 NIC with 2 private IPs -> nic_ip_count == 2."""
+        ec2 = boto3.client("ec2", region_name=REGION)
+        vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+        vpc_id = vpc["Vpc"]["VpcId"]
+        subnet = ec2.create_subnet(VpcId=vpc_id, CidrBlock="10.0.1.0/24")
+        subnet_id = subnet["Subnet"]["SubnetId"]
+
+        # Run instance with a NIC that gets assigned a secondary private IP
+        result = ec2.run_instances(
+            ImageId="ami-12345678",
+            MinCount=1,
+            MaxCount=1,
+            InstanceType="t2.micro",
+            SubnetId=subnet_id,
+        )
+        instance_id = result["Instances"][0]["InstanceId"]
+
+        # Assign a secondary private IP to the primary NIC
+        primary_eni_id = ec2.describe_instances(InstanceIds=[instance_id])[
+            "Reservations"
+        ][0]["Instances"][0]["NetworkInterfaces"][0]["NetworkInterfaceId"]
+        ec2.assign_private_ip_addresses(
+            NetworkInterfaceId=primary_eni_id,
+            SecondaryPrivateIpAddressCount=1,
+        )
+
+        resources = collect_ec2_instances(ec2, ACCOUNT_ID, REGION)
+
+        assert len(resources) == 1
+        # 1 NIC with 2 private IPs (primary + secondary) = nic_ip_count 2
+        assert resources[0].details["nic_ip_count"] == 2
+
+    @mock_aws
+    def test_ec2_fallback_no_network_interfaces_private_only_nic_ip_count_is_1(self) -> None:
+        """EC2 with no NetworkInterfaces in response + only PrivateIpAddress -> nic_ip_count=1.
+
+        This tests the fallback path where NetworkInterfaces is absent/empty.
+        The collector uses PrivateIpAddress + PublicIpAddress from the top-level
+        instance dict to compute nic_ip_count when NetworkInterfaces is empty.
+        """
+        ec2_mock = MagicMock()
+        paginator = MagicMock()
+
+        instance = {
+            "InstanceId": "i-fallback001",
+            "InstanceType": "t2.micro",
+            "State": {"Name": "running"},
+            "PrivateIpAddress": "10.0.1.5",
+            # No PublicIpAddress, no NetworkInterfaces key
+            "Tags": [],
+        }
+
+        paginator.paginate.return_value = [
+            {"Reservations": [{"Instances": [instance]}]}
+        ]
+        ec2_mock.get_paginator.return_value = paginator
+
+        resources = collect_ec2_instances(ec2_mock, ACCOUNT_ID, REGION)
+
+        assert len(resources) == 1
+        assert resources[0].details["nic_ip_count"] == 1
+
+    @mock_aws
+    def test_ec2_fallback_no_network_interfaces_private_and_public_nic_ip_count_is_2(self) -> None:
+        """EC2 with no NetworkInterfaces + PrivateIpAddress + PublicIpAddress -> nic_ip_count=2."""
+        ec2_mock = MagicMock()
+        paginator = MagicMock()
+
+        instance = {
+            "InstanceId": "i-fallback002",
+            "InstanceType": "t2.micro",
+            "State": {"Name": "running"},
+            "PrivateIpAddress": "10.0.1.5",
+            "PublicIpAddress": "54.23.100.50",
+            # No NetworkInterfaces key
+            "Tags": [],
+        }
+
+        paginator.paginate.return_value = [
+            {"Reservations": [{"Instances": [instance]}]}
+        ]
+        ec2_mock.get_paginator.return_value = paginator
+
+        resources = collect_ec2_instances(ec2_mock, ACCOUNT_ID, REGION)
+
+        assert len(resources) == 1
+        assert resources[0].details["nic_ip_count"] == 2
+
+
 # -- ECS Task Tests --
 
 

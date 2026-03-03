@@ -342,6 +342,96 @@ class TestCollectGcpVms:
         assert result[0].ip_addresses == ["10.0.0.1"]
 
 
+# --- GCP VM Network Interface Count Tests ---
+
+
+class TestGCPVMCollectorNetworkInterfaceCount:
+    """Tests that GCP VM collector sets details['network_interface_count'].
+
+    Tests are RED until plan 25-03 implements network_interface_count in the collector.
+    Existing ip_addresses extraction tests remain GREEN (collector still populates ip_addresses for audit).
+    """
+
+    @pytest.fixture(autouse=True)
+    def _patch_modules(self):
+        with patch.dict(sys.modules, _gcp_modules):
+            yield
+
+    def test_gcp_vm_three_interfaces_network_interface_count_is_3(self):
+        """GCP VM with 3 network_interfaces -> details['network_interface_count'] == 3."""
+        from cloud_usage.providers.gcp.collectors.compute import collect_gcp_vms
+
+        client = MagicMock()
+        iface1 = _make_network_interface(private_ip="10.0.0.1")
+        iface2 = _make_network_interface(private_ip="10.1.0.1")
+        iface3 = _make_network_interface(private_ip="10.2.0.1")
+        inst = _make_instance(
+            name="vm-3-ifaces",
+            network_interfaces=[iface1, iface2, iface3],
+        )
+        scoped = _make_scoped_list(instances=[inst])
+        client.aggregated_list.return_value = iter([("zones/us-central1-a", scoped)])
+
+        result = collect_gcp_vms(client, "proj")
+
+        assert len(result) == 1
+        assert result[0].details["network_interface_count"] == 3
+
+    def test_gcp_vm_one_interface_network_interface_count_is_1(self):
+        """GCP VM with 1 network_interface -> details['network_interface_count'] == 1."""
+        from cloud_usage.providers.gcp.collectors.compute import collect_gcp_vms
+
+        client = MagicMock()
+        iface = _make_network_interface(private_ip="10.0.0.5")
+        inst = _make_instance(
+            name="vm-1-iface",
+            network_interfaces=[iface],
+        )
+        scoped = _make_scoped_list(instances=[inst])
+        client.aggregated_list.return_value = iter([("zones/us-central1-a", scoped)])
+
+        result = collect_gcp_vms(client, "proj")
+
+        assert len(result) == 1
+        assert result[0].details["network_interface_count"] == 1
+
+    def test_gcp_vm_no_interfaces_network_interface_count_is_0(self):
+        """GCP VM with empty network_interfaces -> details['network_interface_count'] == 0."""
+        from cloud_usage.providers.gcp.collectors.compute import collect_gcp_vms
+
+        client = MagicMock()
+        inst = _make_instance(name="vm-no-ifaces", network_interfaces=None)
+        scoped = _make_scoped_list(instances=[inst])
+        client.aggregated_list.return_value = iter([("zones/us-central1-a", scoped)])
+
+        result = collect_gcp_vms(client, "proj")
+
+        assert len(result) == 1
+        assert result[0].details["network_interface_count"] == 0
+
+    def test_gcp_vm_ip_addresses_still_populated_alongside_count(self):
+        """ip_addresses is still populated for audit (existing behavior preserved)."""
+        from cloud_usage.providers.gcp.collectors.compute import collect_gcp_vms
+
+        client = MagicMock()
+        iface = _make_network_interface(
+            private_ip="10.0.0.1",
+            access_configs=[_make_access_config(nat_ip="35.200.1.1")],
+        )
+        inst = _make_instance(name="vm-with-ips", network_interfaces=[iface])
+        scoped = _make_scoped_list(instances=[inst])
+        client.aggregated_list.return_value = iter([("zones/us-central1-a", scoped)])
+
+        result = collect_gcp_vms(client, "proj")
+
+        assert len(result) == 1
+        # network_interface_count is set
+        assert result[0].details["network_interface_count"] == 1
+        # ip_addresses still populated for audit
+        assert "10.0.0.1" in result[0].ip_addresses
+        assert "35.200.1.1" in result[0].ip_addresses
+
+
 # --- Forwarding Rule Tests ---
 
 
