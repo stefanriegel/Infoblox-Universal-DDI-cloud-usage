@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Reference Parity
-status: planning
-stopped_at: Completed 25-01-PLAN.md
-last_updated: "2026-03-03T22:34:08.158Z"
-last_activity: 2026-03-03 — v1.7 roadmap created; 28 requirements mapped across 5 phases (25–29)
+status: executing
+stopped_at: Completed 25-02-PLAN.md
+last_updated: "2026-03-03T22:38:40.646Z"
+last_activity: "2026-03-03 — Completed 25-01: TDD scaffold for NIC-based IP counting (3 tasks, 5 files, 4 min)"
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
-  percent: 0
+  completed_plans: 2
+  percent: 93
 ---
 
 # Session State
@@ -26,22 +26,23 @@ See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
 ## Current Position
 
 Phase: 25 of 29 (IP Methodology Fix)
-Plan: 01 complete (25-01-PLAN.md)
-Status: In progress — plan 25-02 next
-Last activity: 2026-03-03 — Completed 25-01: TDD scaffold for NIC-based IP counting (3 tasks, 5 files, 4 min)
+Plan: 02 complete (25-02-PLAN.md)
+Status: In progress — plan 25-03 next
+Last activity: 2026-03-03 — Completed 25-02: DDI reclassification + fold_enis removal (2 tasks, 4 files, 3 min)
 
-Progress: [█████████░] 93%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1 (this milestone)
-- Average duration: 4 min
-- Total execution time: 4 min
+- Total plans completed: 2 (this milestone)
+- Average duration: 3.5 min
+- Total execution time: 7 min
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 25 | 01 | 4 min | 3 | 5 |
+| 25 | 02 | 3 min | 2 | 4 |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Progress: [█████████░] 93%
 - DDI-category resources always contribute 0 regardless of ip_addresses or NIC count
 - Azure unattached NICs (vm_id=None) contribute 0 — only VM-attached NICs count
 - TestFoldEnisIntoParents removed — ENIs become DDI in Phase 25, folding is no longer needed
+- ENI/EIP/NAT GW reclassified as DDI (not asset) — fold_enis_into_parents() removed entirely (plan 25-02)
+- ip_addresses fields left populated on reclassified resources for audit/Detail sheet display (plan 25-02)
 
 ### Quick Tasks Completed
 
@@ -88,6 +91,6 @@ Progress: [█████████░] 93%
 
 ## Session Continuity
 
-Last session: 2026-03-03T22:34:08.155Z
-Stopped at: Completed 25-01-PLAN.md
+Last session: 2026-03-03T22:38:40.644Z
+Stopped at: Completed 25-02-PLAN.md
 Resume file: None
