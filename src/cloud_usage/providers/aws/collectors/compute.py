@@ -91,6 +91,30 @@ def collect_ec2_instances(
                         if ip and ip not in ips:
                             ips.append(ip)
 
+                # 3. NIC IP count per reference algorithm (stored in details for counter)
+                nic_ip_count = 0
+                interfaces = instance.get("NetworkInterfaces", [])
+                if not interfaces:
+                    # Fallback: instance-level IPs only
+                    if instance.get("PrivateIpAddress"):
+                        nic_ip_count += 1
+                    if instance.get("PublicIpAddress"):
+                        nic_ip_count += 1
+                else:
+                    for eni in interfaces:
+                        private_ip_items = eni.get("PrivateIpAddresses", [])
+                        if private_ip_items:
+                            nic_ip_count += len(private_ip_items)
+                            for ip_item in private_ip_items:
+                                if ip_item.get("Association", {}).get("PublicIp"):
+                                    nic_ip_count += 1
+                        else:
+                            # Fallback: PrivateIpAddresses list is empty
+                            if eni.get("PrivateIpAddress"):
+                                nic_ip_count += 1
+                            if eni.get("Association", {}).get("PublicIp"):
+                                nic_ip_count += 1
+
                 tags = instance.get("Tags", [])
                 resources.append(
                     CloudResource(
@@ -108,6 +132,7 @@ def collect_ec2_instances(
                             "vpc_id": instance.get("VpcId"),
                             "subnet_id": instance.get("SubnetId"),
                             "network_interface_ids": eni_ids,
+                            "nic_ip_count": nic_ip_count,
                         },
                     )
                 )
