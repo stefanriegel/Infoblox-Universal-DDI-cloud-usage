@@ -8,6 +8,7 @@
 - ✅ **v1.3 Enhanced WebUI Experience** — Phases 18–20 (shipped 2026-03-03)
 - ✅ **v1.4 Audit Depth** — Phases 21–22 (shipped 2026-03-03)
 - ✅ **v1.5 Results Navigation** — Phase 23 (shipped 2026-03-03)
+- 🚧 **v1.6 Wizard Navigation Fix** — Phase 24 (in progress)
 
 ## Phases
 
@@ -83,6 +84,34 @@ Archive: `.planning/milestones/v1.5-ROADMAP.md`
 
 </details>
 
+### 🚧 v1.6 Wizard Navigation Fix (In Progress)
+
+**Milestone Goal:** Replace brittle JS-based wizard navigation with server-driven HX-Redirect so scan start reliably lands on the progress tab regardless of browser JS event handling quirks.
+
+#### Phase 24: Wizard Navigation Fix
+
+- [ ] **Phase 24: Wizard Navigation Fix** - Replace JS-driven scan-start navigation with server-driven HX-Redirect header
+
+**Plans:** 1 plan
+
+Plans:
+- [ ] 24-01-PLAN.md — Verify HX-Redirect implementation and commit NAV-01/02/03
+
+## Phase Details
+
+### Phase 24: Wizard Navigation Fix
+**Goal**: Wizard scan-start navigation is server-driven and reliable — HTMX follows HX-Redirect without any JS event handlers
+**Depends on**: Phase 23
+**Requirements**: NAV-01, NAV-02, NAV-03
+**Success Criteria** (what must be TRUE):
+  1. After clicking "Start Scan" in the wizard Step 4 form, the browser navigates to the progress tab with no JS event handler involvement — navigation is driven entirely by HTMX following the HX-Redirect header
+  2. The Step 4 review form HTML contains only `hx-post` — no `hx-target`, `hx-swap`, or `hx-on` attributes are present on the form element
+  3. A test verifies that a successful call to the scan-start endpoint returns HTTP 200 with an `HX-Redirect` header pointing to `/tab/progress` and an empty response body
+**Plans**: 1 plan
+
+Plans:
+- [ ] 24-01-PLAN.md — Verify HX-Redirect implementation and commit NAV-01/02/03
+
 ## Progress
 
 | Phase | Milestone | Plans Complete | Status | Completed |
@@ -111,3 +140,4 @@ Archive: `.planning/milestones/v1.5-ROADMAP.md`
 | 21. Cloud Per-Account Attribution Table | v1.4 | 2/2 | Complete | 2026-03-03 |
 | 22. NIOS Object Family Breakdown | v1.4 | 2/2 | Complete | 2026-03-03 |
 | 23. Results Navigation | v1.5 | 2/2 | Complete | 2026-03-03 |
+| 24. Wizard Navigation Fix | v1.6 | 0/1 | Not started | - |
