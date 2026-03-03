@@ -29,16 +29,11 @@
     {# Auth results #}
     <form hx-post="/wizard/providers" hx-target="#wizard-content">
       {% if auth_results %}
-        {% set auth_instructions = {
-          "aws": "Run <code>aws sso login --profile &lt;profile&gt;</code> in terminal",
-          "azure": "Run <code>az login</code> in terminal",
-          "gcp": "Run <code>gcloud auth application-default login</code> in terminal"
-        } %}
         {% set provider_display = {"aws": "AWS", "azure": "Azure", "gcp": "GCP"} %}
 
         <div class="auth-results">
           {% for r in auth_results %}
-          <article class="auth-result-row" style="border-left: 4px solid {{ '#2ecc40' if r.success else '#ff4136' }}; margin-bottom: 0.75rem;">
+          <article class="auth-result-row" style="border-left: 4px solid {{ '#2ecc40' if r.success else '#636363' }}; margin-bottom: 0.75rem;">
             <div style="display: flex; align-items: center; gap: 0.75rem;">
               {% if r.success %}
                 <span style="color: #2ecc40; font-size: 1.5rem;">&#10003;</span>
@@ -48,17 +43,29 @@
                 </div>
                 <input type="hidden" name="auth_{{ r.provider }}" value="true">
               {% else %}
-                <span style="color: #ff4136; font-size: 1.5rem;">&#10007;</span>
+                <span style="color: #636363; font-size: 1.5rem;">&#10007;</span>
                 <div>
-                  <strong>{{ provider_display.get(r.provider, r.provider) }}</strong>: Not authenticated
-                  {% if r.error_message %}<br><small style="color: #ff4136;">{{ r.error_message }}</small>{% endif %}
-                  {% if auth_instructions.get(r.provider) %}<br><small>Fix: {{ auth_instructions[r.provider]|safe }}</small>{% endif %}
+                  <strong>{{ provider_display.get(r.provider, r.provider) }}</strong>: Not connected
                 </div>
               {% endif %}
             </div>
           </article>
           {% endfor %}
         </div>
+      {% endif %}
+
+      {# Zero-credentials friendly block — shown when no provider authenticated #}
+      {% if auth_results and not has_passing %}
+      <article style="border-left: 4px solid #0074d9; margin-top: 1rem; padding: 1rem;">
+        <header><strong>No cloud providers connected yet</strong></header>
+        <p>
+          Connect at least one cloud provider to start a scan.
+          Use the setup assistant to enter your credentials — no command line needed.
+        </p>
+        <button type="button" hx-get="/wizard/setup-credentials" hx-target="#wizard-content">
+          Connect a cloud provider
+        </button>
+      </article>
       {% endif %}
 
       <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">

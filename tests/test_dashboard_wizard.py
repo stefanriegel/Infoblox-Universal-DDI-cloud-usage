@@ -81,11 +81,13 @@ class TestWizardAuthCheck:
         assert response.status_code == 200
         assert "AWS" in response.text
         assert "Authenticated" in response.text
-        assert "Not authenticated" in response.text
+        # Failed providers show "Not connected" without CLI commands
+        assert "Not connected" in response.text
+        assert "az login" not in response.text
 
     @patch("cloud_usage.dashboard.routes.scan._run_auth_check")
-    def test_auth_check_shows_cli_instructions(self, mock_check, client) -> None:
-        """Auth check shows CLI instructions for failed providers."""
+    def test_auth_check_failed_provider_no_cli_commands(self, mock_check, client) -> None:
+        """Failed auth providers show 'Not connected' — no CLI commands are rendered."""
         mock_check.return_value = [
             {
                 "provider": "aws",
@@ -98,7 +100,261 @@ class TestWizardAuthCheck:
         ]
         response = client.post("/wizard/auth-check")
         assert response.status_code == 200
-        assert "aws sso login" in response.text
+        assert "Not connected" in response.text
+        # CLI commands must NOT appear — user is directed to the setup wizard instead
+        assert "aws sso login" not in response.text
+
+    @patch("cloud_usage.dashboard.routes.scan._run_auth_check")
+    def test_auth_check_all_fail_shows_setup_cta(
+        self, mock_check, client
+    ) -> None:
+        """When all providers fail, a friendly setup CTA is shown (no CLI commands).
+
+        The block must NOT contain CLI commands and must show a link to the
+        credential setup assistant.  The Next button must be disabled.
+        """
+        mock_check.return_value = [
+            {
+                "provider": "aws",
+                "success": False,
+                "identity": "",
+                "account_count": 0,
+                "error_message": "Unable to locate credentials",
+                "suggestion": None,
+            },
+            {
+                "provider": "azure",
+                "success": False,
+                "identity": "",
+                "account_count": 0,
+                "error_message": "No subscription found",
+                "suggestion": None,
+            },
+            {
+                "provider": "gcp",
+                "success": False,
+                "identity": "",
+                "account_count": 0,
+                "error_message": "Could not load credentials",
+                "suggestion": None,
+            },
+        ]
+        response = client.post("/wizard/auth-check")
+        assert response.status_code == 200
+        # Friendly setup CTA must appear
+        assert "No cloud providers connected yet" in response.text
+        assert "Connect a cloud provider" in response.text
+        assert "/wizard/setup-credentials" in response.text
+        # Must NOT show CLI commands
+        assert "aws configure" not in response.text
+        assert "gcloud auth application-default login" not in response.text
+        # Next button must be disabled
+        assert 'type="submit" disabled' in response.text
+
+    @patch("cloud_usage.dashboard.routes.scan._run_auth_check")
+    def test_setup_cta_uses_hx_get_button_not_href_anchor(
+        self, mock_check, client
+    ) -> None:
+        """The 'Connect a cloud provider' CTA must be a button with hx-get, not an anchor with href="#".
+
+        An <a href="#"> inside a <form> suppresses HTMX navigation in some browsers.
+        The correct pattern is <button type="button" hx-get="/wizard/setup-credentials">.
+        """
+        mock_check.return_value = [
+            {
+                "provider": "aws",
+                "success": False,
+                "identity": "",
+                "account_count": 0,
+                "error_message": "No credentials",
+                "suggestion": None,
+            },
+            {
+                "provider": "azure",
+                "success": False,
+                "identity": "",
+                "account_count": 0,
+                "error_message": "No credentials",
+                "suggestion": None,
+            },
+            {
+                "provider": "gcp",
+                "success": False,
+                "identity": "",
+                "account_count": 0,
+                "error_message": "No credentials",
+                "suggestion": None,
+            },
+        ]
+        response = client.post("/wizard/auth-check")
+        assert response.status_code == 200
+        # Must be rendered as an HTMX button — href="#" anchor must NOT appear
+        assert 'hx-get="/wizard/setup-credentials"' in response.text
+        assert 'href="#"' not in response.text
+
+    @patch("cloud_usage.dashboard.routes.scan._run_auth_check")
+    def test_auth_check_partial_success_no_setup_cta(
+        self, mock_check, client
+    ) -> None:
+        """When at least one provider passes, the setup CTA is NOT shown."""
+        mock_check.return_value = [
+            {
+                "provider": "aws",
+                "success": True,
+                "identity": "test-user",
+                "account_count": 1,
+                "error_message": None,
+                "suggestion": None,
+            },
+            {
+                "provider": "azure",
+                "success": False,
+                "identity": "",
+                "account_count": 0,
+                "error_message": "Not authenticated",
+                "suggestion": None,
+            },
+        ]
+        response = client.post("/wizard/auth-check")
+        assert response.status_code == 200
+        # Setup CTA must NOT appear when at least one provider passes
+        assert "No cloud providers connected yet" not in response.text
+        assert "Connect a cloud provider" not in response.text
+        # Next button must NOT be disabled
+        assert 'type="submit" disabled' not in response.text
+
+
+# -- Credential setup assistant tests --
+
+
+class TestWizardSetupCredentials:
+    """Tests for the credential setup assistant (/wizard/setup-credentials)."""
+
+    def test_setup_get_returns_200(self, client) -> None:
+        """GET /wizard/setup-credentials returns 200 with the setup form."""
+        response = client.get("/wizard/setup-credentials")
+        assert response.status_code == 200
+        assert "Connect Your Cloud Providers" in response.text
+        # All three provider sections must be present
+        assert "AWS" in response.text
+        assert "Azure" in response.text
+        assert "GCP" in response.text
+        # Must NOT contain CLI commands
+        assert "aws configure" not in response.text
+        assert "az login" not in response.text
+        assert "gcloud auth" not in response.text
+
+    def test_setup_post_aws_writes_credentials_file(self, client, tmp_path) -> None:
+        """POST with AWS fields writes ~/.aws/credentials."""
+        fake_home = tmp_path
+        with patch("pathlib.Path.home", return_value=fake_home):
+            response = client.post(
+                "/wizard/setup-credentials",
+                data={
+                    "clouds": "aws",
+                    "aws_access_key_id": "AKIAIOSFODNN7EXAMPLE",
+                    "aws_secret_access_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+                    "aws_region": "us-east-1",
+                },
+            )
+        assert response.status_code == 200
+        assert "Saved" in response.text
+        assert "AWS" in response.text
+        # Verify the credentials file was created
+        creds_file = fake_home / ".aws" / "credentials"
+        assert creds_file.exists()
+        content = creds_file.read_text()
+        assert "AKIAIOSFODNN7EXAMPLE" in content
+
+    def test_setup_post_azure_sets_env_vars(self, client, tmp_path) -> None:
+        """POST with Azure fields writes the env file and shows a Saved banner."""
+        with patch("pathlib.Path.home", return_value=tmp_path):
+            response = client.post(
+                "/wizard/setup-credentials",
+                data={
+                    "clouds": "azure",
+                    "azure_client_id": "test-client-id",
+                    "azure_client_secret": "test-secret",
+                    "azure_tenant_id": "test-tenant-id",
+                },
+            )
+        assert response.status_code == 200
+        assert "Saved" in response.text
+        assert "Azure" in response.text
+        # Verify the env file was written
+        env_file = tmp_path / ".cloud-usage-azure.env"
+        assert env_file.exists()
+        content = env_file.read_text()
+        assert "test-client-id" in content
+        assert "test-tenant-id" in content
+
+    def test_setup_post_gcp_invalid_json_shows_error(self, client) -> None:
+        """POST with invalid GCP JSON shows an error message."""
+        response = client.post(
+            "/wizard/setup-credentials",
+            data={
+                "clouds": "gcp",
+                "gcp_service_account_json": "not valid json {{{",
+            },
+        )
+        assert response.status_code == 200
+        assert "Could not save credentials" in response.text
+        assert "GCP" in response.text
+
+    def test_setup_post_gcp_valid_json_writes_adc(self, client, tmp_path) -> None:
+        """POST with valid GCP service account JSON writes the ADC file."""
+        import json
+
+        fake_sa = json.dumps(
+            {
+                "type": "service_account",
+                "project_id": "my-project",
+                "private_key_id": "key-id",
+                "private_key": "-----BEGIN RSA PRIVATE KEY-----\nfake\n-----END RSA PRIVATE KEY-----\n",
+                "client_email": "sa@my-project.iam.gserviceaccount.com",
+                "client_id": "123456789",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+            }
+        )
+        fake_home = tmp_path
+        with patch("pathlib.Path.home", return_value=fake_home):
+            response = client.post(
+                "/wizard/setup-credentials",
+                data={
+                    "clouds": "gcp",
+                    "gcp_service_account_json": fake_sa,
+                },
+            )
+        assert response.status_code == 200
+        assert "Saved" in response.text
+        adc_path = fake_home / ".config" / "gcloud" / "application_default_credentials.json"
+        assert adc_path.exists()
+
+    def test_setup_post_empty_fields_saves_nothing(self, client) -> None:
+        """POST with clouds selected but all fields empty saves nothing."""
+        response = client.post(
+            "/wizard/setup-credentials",
+            data={
+                "clouds": ["aws", "azure", "gcp"],
+                "aws_access_key_id": "",
+                "aws_secret_access_key": "",
+                "azure_client_id": "",
+                "azure_client_secret": "",
+                "azure_tenant_id": "",
+                "gcp_service_account_json": "",
+            },
+        )
+        assert response.status_code == 200
+        # No "Saved" banner when nothing was saved
+        assert "Saved:" not in response.text
+
+    def test_setup_page_has_back_to_auth_check_button(self, client) -> None:
+        """Setup page has a 'Back to Auth Check' button that links to /wizard/auth-check."""
+        response = client.get("/wizard/setup-credentials")
+        assert response.status_code == 200
+        assert "Back to Auth Check" in response.text
+        assert "/wizard/auth-check" in response.text
 
 
 # -- Wizard provider selection tests --
