@@ -127,3 +127,264 @@ def collect_route53_records(
             )
 
     return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_resolver_endpoints(
+    resolver_client,
+    account_id: str,
+    region: str,
+) -> list[CloudResource]:
+    """Discover Route53 Resolver Endpoints in a region (AWSG-01).
+
+    Uses the route53resolver client (distinct from route53 — see Pitfall 1).
+    Resolver is per-region; this function is called inside the per-region loop
+    in discover_account() with a region-specific route53resolver client.
+
+    Args:
+        resolver_client: boto3 route53resolver client for the target region.
+        account_id: AWS account ID owning these resources.
+        region: AWS region being scanned.
+
+    Returns:
+        List of CloudResource with resource_type="aws-resolver-endpoint".
+    """
+    resources: list[CloudResource] = []
+    paginator = resolver_client.get_paginator("list_resolver_endpoints")
+
+    for page in paginator.paginate():
+        for ep in page.get("ResolverEndpoints", []):
+            resources.append(
+                CloudResource(
+                    resource_id=ep["Id"],
+                    resource_type="aws-resolver-endpoint",
+                    provider="aws",
+                    account_id=account_id,
+                    region=region,
+                    name=ep.get("Name", ""),
+                    ip_addresses=[],
+                    tags={},
+                    details={
+                        "direction": ep.get("Direction", ""),
+                        "status": ep.get("Status", ""),
+                        "ip_address_count": ep.get("IpAddressCount", 0),
+                        "vpc_id": ep.get("HostVpcId", ""),
+                    },
+                )
+            )
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_resolver_rules(
+    resolver_client,
+    account_id: str,
+    region: str,
+) -> list[CloudResource]:
+    """Discover Route53 Resolver Rules in a region (AWSG-02).
+
+    No filtering — count all rules including system-managed rules, matching
+    reference implementation behavior.
+
+    Args:
+        resolver_client: boto3 route53resolver client for the target region.
+        account_id: AWS account ID owning these resources.
+        region: AWS region being scanned.
+
+    Returns:
+        List of CloudResource with resource_type="aws-resolver-rule".
+    """
+    resources: list[CloudResource] = []
+    paginator = resolver_client.get_paginator("list_resolver_rules")
+
+    for page in paginator.paginate():
+        for rule in page.get("ResolverRules", []):
+            resources.append(
+                CloudResource(
+                    resource_id=rule["Id"],
+                    resource_type="aws-resolver-rule",
+                    provider="aws",
+                    account_id=account_id,
+                    region=region,
+                    name=rule.get("Name", ""),
+                    ip_addresses=[],
+                    tags={},
+                    details={
+                        "rule_type": rule.get("RuleType", ""),
+                        "domain_name": rule.get("DomainName", "").rstrip("."),
+                        "status": rule.get("Status", ""),
+                    },
+                )
+            )
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_resolver_rule_associations(
+    resolver_client,
+    account_id: str,
+    region: str,
+) -> list[CloudResource]:
+    """Discover Route53 Resolver Rule Associations in a region (AWSG-02).
+
+    Each association links a resolver rule to a VPC. Counted as a separate
+    DDI object per the reference implementation.
+
+    Args:
+        resolver_client: boto3 route53resolver client for the target region.
+        account_id: AWS account ID owning these resources.
+        region: AWS region being scanned.
+
+    Returns:
+        List of CloudResource with resource_type="aws-resolver-rule-association".
+    """
+    resources: list[CloudResource] = []
+    paginator = resolver_client.get_paginator("list_resolver_rule_associations")
+
+    for page in paginator.paginate():
+        for assoc in page.get("ResolverRuleAssociations", []):
+            resources.append(
+                CloudResource(
+                    resource_id=assoc["Id"],
+                    resource_type="aws-resolver-rule-association",
+                    provider="aws",
+                    account_id=account_id,
+                    region=region,
+                    name=assoc.get("Name", ""),
+                    ip_addresses=[],
+                    tags={},
+                    details={
+                        "resolver_rule_id": assoc.get("ResolverRuleId", ""),
+                        "vpc_id": assoc.get("VPCId", ""),
+                        "status": assoc.get("Status", ""),
+                    },
+                )
+            )
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_health_checks(
+    route53_client,
+    account_id: str,
+) -> list[CloudResource]:
+    """Discover Route53 Health Checks in an account (AWSG-07).
+
+    Global resource — uses the same route53 client as collect_route53_zones.
+    Called once per account in the global section of discover_account().
+
+    Args:
+        route53_client: boto3 Route53 client (global, us-east-1).
+        account_id: AWS account ID owning these resources.
+
+    Returns:
+        List of CloudResource with resource_type="aws-route53-health-check".
+    """
+    resources: list[CloudResource] = []
+    paginator = route53_client.get_paginator("list_health_checks")
+
+    for page in paginator.paginate():
+        for hc in page.get("HealthChecks", []):
+            hc_config = hc.get("HealthCheckConfig", {})
+            resources.append(
+                CloudResource(
+                    resource_id=hc["Id"],
+                    resource_type="aws-route53-health-check",
+                    provider="aws",
+                    account_id=account_id,
+                    region="global",
+                    name=hc.get("Id", ""),
+                    ip_addresses=[],
+                    tags={},
+                    details={
+                        "type": hc_config.get("Type", ""),
+                        "fqdn": hc_config.get("FullyQualifiedDomainName", ""),
+                        "ip_address": hc_config.get("IPAddress", ""),
+                    },
+                )
+            )
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_traffic_policies(
+    route53_client,
+    account_id: str,
+) -> list[CloudResource]:
+    """Discover Route53 Traffic Policies in an account (AWSG-07).
+
+    IMPORTANT: list_traffic_policies returns "TrafficPolicySummaries" (not
+    "TrafficPolicies") — this is a known API quirk (see Pitfall 6 in RESEARCH.md).
+
+    Args:
+        route53_client: boto3 Route53 client (global, us-east-1).
+        account_id: AWS account ID owning these resources.
+
+    Returns:
+        List of CloudResource with resource_type="aws-route53-traffic-policy".
+    """
+    resources: list[CloudResource] = []
+    paginator = route53_client.get_paginator("list_traffic_policies")
+
+    for page in paginator.paginate():
+        for policy in page.get("TrafficPolicySummaries", []):
+            resources.append(
+                CloudResource(
+                    resource_id=policy["Id"],
+                    resource_type="aws-route53-traffic-policy",
+                    provider="aws",
+                    account_id=account_id,
+                    region="global",
+                    name=policy.get("Name", ""),
+                    ip_addresses=[],
+                    tags={},
+                    details={
+                        "type": policy.get("Type", ""),
+                        "latest_version": policy.get("LatestVersion", 0),
+                        "traffic_policy_count": policy.get("TrafficPolicyCount", 0),
+                    },
+                )
+            )
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_traffic_policy_instances(
+    route53_client,
+    account_id: str,
+) -> list[CloudResource]:
+    """Discover Route53 Traffic Policy Instances in an account (AWSG-07).
+
+    Traffic policy instances are separate DDI objects from traffic policies
+    themselves — each instance is a DNS name with a traffic policy applied.
+
+    Args:
+        route53_client: boto3 Route53 client (global, us-east-1).
+        account_id: AWS account ID owning these resources.
+
+    Returns:
+        List of CloudResource with resource_type="aws-route53-traffic-policy-instance".
+    """
+    resources: list[CloudResource] = []
+    paginator = route53_client.get_paginator("list_traffic_policy_instances")
+
+    for page in paginator.paginate():
+        for instance in page.get("TrafficPolicyInstances", []):
+            resources.append(
+                CloudResource(
+                    resource_id=instance["Id"],
+                    resource_type="aws-route53-traffic-policy-instance",
+                    provider="aws",
+                    account_id=account_id,
+                    region="global",
+                    name=instance.get("Name", "").rstrip("."),
+                    ip_addresses=[],
+                    tags={},
+                    details={
+                        "traffic_policy_id": instance.get("TrafficPolicyId", ""),
+                        "traffic_policy_version": instance.get("TrafficPolicyVersion", 0),
+                        "hosted_zone_id": instance.get("HostedZoneId", ""),
+                    },
+                )
+            )
+    return resources

@@ -1139,7 +1139,7 @@ def test_collect_traffic_policies_discovers_policies():
     mock_paginator = MagicMock()
     mock_paginator.paginate.return_value = [
         {
-            "TrafficPolicies": [
+            "TrafficPolicySummaries": [
                 {
                     "Id": "tp-test-id-1",
                     "Name": "test-traffic-policy",
