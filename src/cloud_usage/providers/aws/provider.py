@@ -28,18 +28,37 @@ from cloud_usage.providers.aws.collectors.database import (
     collect_redshift_clusters,
 )
 from cloud_usage.providers.aws.collectors.dhcp import collect_dhcp_option_sets
+from cloud_usage.providers.aws.collectors.direct_connect import (
+    collect_direct_connect_gateways,         # Phase 26 AWSG-06
+)
 from cloud_usage.providers.aws.collectors.ec2 import (
+    collect_customer_gateways,               # Phase 26 AWSG-04
     collect_eips,
     collect_enis,
+    collect_internet_gateways,               # Phase 26 AWSG-04
     collect_nat_gateways,
+    collect_route_tables,                    # Phase 26 AWSG-05
     collect_subnets,
     collect_transit_gateways,
     collect_vpcs,
     collect_vpn_gateways,
 )
+from cloud_usage.providers.aws.collectors.ipam import (
+    collect_ipam_pools,                                    # Phase 26 AWSG-03
+    collect_ipam_resource_discoveries,                     # Phase 26 AWSG-03
+    collect_ipam_resource_discovery_associations,          # Phase 26 AWSG-03
+    collect_ipam_scopes,                                   # Phase 26 AWSG-03
+    collect_ipams,                                         # Phase 26 AWSG-03
+)
 from cloud_usage.providers.aws.collectors.route53 import (
+    collect_health_checks,                  # Phase 26 AWSG-07
+    collect_resolver_endpoints,             # Phase 26 AWSG-01
+    collect_resolver_rule_associations,     # Phase 26 AWSG-02
+    collect_resolver_rules,                 # Phase 26 AWSG-02
     collect_route53_records,
     collect_route53_zones,
+    collect_traffic_policies,               # Phase 26 AWSG-07
+    collect_traffic_policy_instances,       # Phase 26 AWSG-07
 )
 from cloud_usage.providers.aws.collectors.token_free import (
     collect_ebs_volumes,
@@ -200,6 +219,53 @@ class AWSDiscoveryProvider(DiscoveryProvider):
         )
         all_resources.extend(s3_buckets)
 
+        # -- IPAM: global service, call ONCE per account (Phase 26 AWSG-03) --
+        # Use a global EC2 client (region_name="us-east-1") — NOT the per-region
+        # ec2_client — to get account-global IPAM resources (see Pitfall 4).
+        ec2_global = account_session.client("ec2", region_name="us-east-1")
+        all_resources.extend(self._safe_collect(
+            "aws-ipams", account_id, "global",
+            collect_ipams, ec2_global, account_id,
+        ))
+        all_resources.extend(self._safe_collect(
+            "aws-ipam-scopes", account_id, "global",
+            collect_ipam_scopes, ec2_global, account_id,
+        ))
+        all_resources.extend(self._safe_collect(
+            "aws-ipam-pools", account_id, "global",
+            collect_ipam_pools, ec2_global, account_id,
+        ))
+        all_resources.extend(self._safe_collect(
+            "aws-ipam-resource-discoveries", account_id, "global",
+            collect_ipam_resource_discoveries, ec2_global, account_id,
+        ))
+        all_resources.extend(self._safe_collect(
+            "aws-ipam-resource-discovery-associations", account_id, "global",
+            collect_ipam_resource_discovery_associations, ec2_global, account_id,
+        ))
+
+        # -- Direct Connect: global service, call ONCE per account (Phase 26 AWSG-06) --
+        dx_client = account_session.client("directconnect", region_name="us-east-1")
+        all_resources.extend(self._safe_collect(
+            "aws-direct-connect-gateways", account_id, "global",
+            collect_direct_connect_gateways, dx_client, account_id,
+        ))
+
+        # -- Route53 Health Checks and Traffic Policies: global (Phase 26 AWSG-07) --
+        # Reuse route53_client already created above for zones/records
+        all_resources.extend(self._safe_collect(
+            "aws-route53-health-checks", account_id, "global",
+            collect_health_checks, route53_client, account_id,
+        ))
+        all_resources.extend(self._safe_collect(
+            "aws-route53-traffic-policies", account_id, "global",
+            collect_traffic_policies, route53_client, account_id,
+        ))
+        all_resources.extend(self._safe_collect(
+            "aws-route53-traffic-policy-instances", account_id, "global",
+            collect_traffic_policy_instances, route53_client, account_id,
+        ))
+
         # -- Per-region collectors --
         for region in regions:
             # Create service clients for this region
@@ -257,6 +323,39 @@ class AWSDiscoveryProvider(DiscoveryProvider):
                 collect_transit_gateways, ec2_client, account_id, region,
             )
             all_resources.extend(transit_gws)
+
+            # Route53 Resolver: per-region (Phase 26 AWSG-01, AWSG-02)
+            # IMPORTANT: requires route53resolver client — NOT the global route53 client
+            resolver_client = account_session.client(
+                "route53resolver", region_name=region
+            )
+            all_resources.extend(self._safe_collect(
+                "aws-resolver-endpoints", account_id, region,
+                collect_resolver_endpoints, resolver_client, account_id, region,
+            ))
+            all_resources.extend(self._safe_collect(
+                "aws-resolver-rules", account_id, region,
+                collect_resolver_rules, resolver_client, account_id, region,
+            ))
+            all_resources.extend(self._safe_collect(
+                "aws-resolver-rule-associations", account_id, region,
+                collect_resolver_rule_associations, resolver_client, account_id, region,
+            ))
+
+            # Internet Gateways, Customer Gateways, Route Tables (Phase 26 AWSG-04, AWSG-05)
+            # Use existing ec2_client for this region
+            all_resources.extend(self._safe_collect(
+                "aws-internet-gateways", account_id, region,
+                collect_internet_gateways, ec2_client, account_id, region,
+            ))
+            all_resources.extend(self._safe_collect(
+                "aws-customer-gateways", account_id, region,
+                collect_customer_gateways, ec2_client, account_id, region,
+            ))
+            all_resources.extend(self._safe_collect(
+                "aws-route-tables", account_id, region,
+                collect_route_tables, ec2_client, account_id, region,
+            ))
 
             # DHCP option sets: need VPC DhcpOptionsId set (Pitfall 4)
             vpc_dhcp_ids = {
