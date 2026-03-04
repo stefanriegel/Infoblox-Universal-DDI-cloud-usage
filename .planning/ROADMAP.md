@@ -97,7 +97,7 @@ Archive: `.planning/milestones/v1.5-ROADMAP.md`
 **Milestone Goal:** Match the reference CLI implementation — align cloud IP counting methodology with NIC/config object counting (not unique IP dedup), add missing DDI resource types across AWS/Azure/GCP, and add Microsoft AD as a full provider via WinRM/PowerShell.
 
 - [x] **Phase 25: IP Methodology Fix** — Align AWS, Azure, GCP IP counting with reference (NIC objects, not unique IP dedup; exclude standalone ENIs/EIPs/NAT GW IPs from AWS) (completed 2026-03-03)
-- [ ] **Phase 26: AWS DDI Gaps** — Add Route53 Resolver, IPAM, gateways, route tables, Direct Connect, and Route53 health/traffic types to AWS collector
+- [x] **Phase 26: AWS DDI Gaps** — Add Route53 Resolver, IPAM, gateways, route tables, Direct Connect, and Route53 health/traffic types to AWS collector (completed 2026-03-04)
 - [ ] **Phase 27: Azure DDI Gaps** — Add Virtual Network Gateways, Private Link Services, Virtual WANs, Route Tables, and Tenants to Azure collector
 - [ ] **Phase 28: GCP DDI Gaps** — Add Compute Addresses, GKE CIDR Ranges, Router NAT Mapping Infos, and Target VPN Gateways to GCP collector
 - [ ] **Phase 29: Microsoft AD Core** — Full WinRM/PowerShell provider: DNS, DHCP, Users, Kerberos/NTLM auth, DC autodiscovery, XLS output
@@ -205,7 +205,7 @@ Plans:
 | 23. Results Navigation | v1.5 | 2/2 | Complete | 2026-03-03 |
 | 24. Wizard Navigation Fix | v1.6 | 1/1 | Complete | 2026-03-03 |
 | 25. IP Methodology Fix | v1.7 | 4/4 | Complete | 2026-03-03 |
-| 26. AWS DDI Gaps | 4/5 | In Progress|  | - |
+| 26. AWS DDI Gaps | 5/5 | Complete   | 2026-03-04 | - |
 | 27. Azure DDI Gaps | v1.7 | 0/TBD | Not started | - |
 | 28. GCP DDI Gaps | v1.7 | 0/TBD | Not started | - |
 | 29. Microsoft AD Core | v1.7 | 0/TBD | Not started | - |

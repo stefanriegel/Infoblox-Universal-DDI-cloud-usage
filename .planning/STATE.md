@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Reference Parity
 status: completed
-stopped_at: Completed 26-04-PLAN.md (IPAM and Direct Connect collectors)
-last_updated: "2026-03-04T05:30:22.497Z"
-last_activity: "2026-03-04 — Completed 26-03: Route53 Resolver and health check/traffic policy collectors (2 tasks, 2 files, 4 min)"
+stopped_at: Completed 26-05-PLAN.md (provider wiring and categorizer integration)
+last_updated: "2026-03-04T05:45:47.150Z"
+last_activity: "2026-03-04 — Completed 26-04: IPAM and Direct Connect collectors (2 tasks, 3 files, 2 min)"
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 9
-  completed_plans: 8
+  completed_plans: 9
   percent: 96
 ---
 
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
 
 **Core value:** Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Phase 26 — AWS DDI Gaps (Phase 25 complete)
+**Current focus:** Phase 27 — Azure DDI Gaps (Phase 26 complete)
 
 ## Current Position
 
-Phase: 26 of 29 (AWS DDI Gaps) — IN PROGRESS
-Plan: 04 complete (26-04-PLAN.md) — IPAM and Direct Connect collectors; plan 05 remaining
-Status: Phase 26 plan 04 complete — proceed to 26-05 (provider wiring)
-Last activity: 2026-03-04 — Completed 26-04: IPAM and Direct Connect collectors (2 tasks, 3 files, 2 min)
+Phase: 26 of 29 (AWS DDI Gaps) — COMPLETE (all 5 plans done, AWSG-01 through AWSG-07 fulfilled)
+Plan: 05 complete (26-05-PLAN.md) — provider wiring and categorizer integration
+Status: Phase 26 complete — proceed to 27-azure-ddi-gaps
+Last activity: 2026-03-04 — Completed 26-05: provider wiring (categorizer + provider.py), 15 DDI types, 13 new collectors (2 tasks, 2 files, 12 min)
 
-Progress: [██████████] 96%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -49,6 +49,7 @@ Progress: [██████████] 96%
 | Phase 26 P02 | 5 | 2 tasks | 1 files |
 | Phase 26 P03 | 4 min | 2 tasks | 2 files |
 | Phase 26 P04 | 2min | 2 tasks | 3 files |
+| Phase 26 P05 | 12min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,8 @@ Progress: [██████████] 96%
 - collect_traffic_policies uses page.get('TrafficPolicySummaries') — real AWS API key, not 'TrafficPolicies' (plan 26-03)
 - IPAM tests rewritten from @mock_aws/create_ipam to MagicMock — moto 5.1.21 does not implement create_ipam (plan 26-04)
 - Direct Connect API uses camelCase response keys (directConnectGateways, directConnectGatewayId) — distinct from EC2 PascalCase (plan 26-04)
+- Global collectors (IPAM, Direct Connect, Route53 Health Checks/Traffic Policies) placed ONCE per account before per-region loop (plan 26-05)
+- IPAM uses ec2_global client (us-east-1), Route53 Resolver uses route53resolver client per-region, Direct Connect uses dx_client at us-east-1 (plan 26-05)
 
 ### Known Technical Debt (carry forward)
 
@@ -105,6 +108,8 @@ Progress: [██████████] 96%
 
 ## Session Log
 
+- 2026-03-04: Phase 26 plan 05 complete — provider wiring: 15 DDI types in categorizer, 13 new _safe_collect() calls in provider; all AWSG-01..07 GREEN
+- 2026-03-04: Phase 26 (AWS DDI Gaps) COMPLETE — all 5 plans done
 - 2026-03-04: Phase 26 plan 04 complete — IPAM (5 collectors) and Direct Connect Gateway collector; AWSG-03/06 GREEN
 - 2026-03-04: Phase 26 plan 03 complete — Route53 Resolver + health check/traffic policy collectors; AWSG-01/02/07 GREEN
 - 2026-03-04: Phase 26 plan 02 complete — EC2 DDI collectors: collect_internet_gateways, collect_customer_gateways, collect_route_tables; AWSG-04/05 GREEN
@@ -117,6 +122,6 @@ Progress: [██████████] 96%
 
 ## Session Continuity
 
-Last session: 2026-03-04T05:30:22.495Z
-Stopped at: Completed 26-04-PLAN.md (IPAM and Direct Connect collectors)
+Last session: 2026-03-04T05:45:47.149Z
+Stopped at: Completed 26-05-PLAN.md (provider wiring and categorizer integration)
 Resume file: None
