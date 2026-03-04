@@ -27,13 +27,13 @@ Requirements for the Reference Parity milestone. Each maps to roadmap phases.
 
 ### AWS DDI Gaps
 
-- [ ] **AWSG-01**: Route53 Resolver endpoints counted as DDI objects
-- [ ] **AWSG-02**: Route53 Resolver rules and rule associations counted as DDI objects
-- [ ] **AWSG-03**: AWS IPAM pools, scopes, and allocations counted as DDI objects
-- [ ] **AWSG-04**: Internet Gateways and Customer Gateways counted as DDI objects
-- [ ] **AWSG-05**: Route Tables counted as DDI objects
-- [ ] **AWSG-06**: Direct Connect Gateways counted as DDI objects
-- [ ] **AWSG-07**: Route53 Health Checks and Traffic Policies counted as DDI objects
+- [x] **AWSG-01**: Route53 Resolver endpoints counted as DDI objects
+- [x] **AWSG-02**: Route53 Resolver rules and rule associations counted as DDI objects
+- [x] **AWSG-03**: AWS IPAM pools, scopes, and allocations counted as DDI objects
+- [x] **AWSG-04**: Internet Gateways and Customer Gateways counted as DDI objects
+- [x] **AWSG-05**: Route Tables counted as DDI objects
+- [x] **AWSG-06**: Direct Connect Gateways counted as DDI objects
+- [x] **AWSG-07**: Route53 Health Checks and Traffic Policies counted as DDI objects
 
 ### Azure DDI Gaps
 
@@ -90,13 +90,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | METH-02 | Phase 25 | Complete |
 | METH-03 | Phase 25 | Complete |
 | METH-04 | Phase 25 | Complete |
-| AWSG-01 | Phase 26 | Pending |
-| AWSG-02 | Phase 26 | Pending |
-| AWSG-03 | Phase 26 | Pending |
-| AWSG-04 | Phase 26 | Pending |
-| AWSG-05 | Phase 26 | Pending |
-| AWSG-06 | Phase 26 | Pending |
-| AWSG-07 | Phase 26 | Pending |
+| AWSG-01 | Phase 26 | Complete |
+| AWSG-02 | Phase 26 | Complete |
+| AWSG-03 | Phase 26 | Complete |
+| AWSG-04 | Phase 26 | Complete |
+| AWSG-05 | Phase 26 | Complete |
+| AWSG-06 | Phase 26 | Complete |
+| AWSG-07 | Phase 26 | Complete |
 | AZUG-01 | Phase 27 | Pending |
 | AZUG-02 | Phase 27 | Pending |
 | AZUG-03 | Phase 27 | Pending |
