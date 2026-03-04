@@ -419,3 +419,155 @@ def collect_transit_gateways(
             )
 
     return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_internet_gateways(
+    ec2_client,
+    account_id: str,
+    region: str,
+) -> list[CloudResource]:
+    """Discover all Internet Gateways in a region.
+
+    Uses describe_internet_gateways paginator. IGWs are DDI objects (AWSG-04).
+    ip_addresses is always empty -- IGWs have no IP address concept in the
+    reference counting model.
+
+    Args:
+        ec2_client: boto3 EC2 client for the target account/region.
+        account_id: AWS account ID owning these resources.
+        region: AWS region being scanned.
+
+    Returns:
+        List of CloudResource with resource_type="aws-internet-gateway".
+    """
+    resources: list[CloudResource] = []
+    paginator = ec2_client.get_paginator("describe_internet_gateways")
+
+    for page in paginator.paginate():
+        for igw in page.get("InternetGateways", []):
+            tags = igw.get("Tags", [])
+            attached_vpcs = [
+                att["VpcId"]
+                for att in igw.get("Attachments", [])
+                if "VpcId" in att
+            ]
+            resources.append(
+                CloudResource(
+                    resource_id=igw["InternetGatewayId"],
+                    resource_type="aws-internet-gateway",
+                    provider="aws",
+                    account_id=account_id,
+                    region=region,
+                    name=_get_name_tag(tags),
+                    ip_addresses=[],
+                    tags=_tags_to_dict(tags),
+                    details={
+                        "attached_vpcs": attached_vpcs,
+                        "owner_id": igw.get("OwnerId", ""),
+                    },
+                )
+            )
+
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_customer_gateways(
+    ec2_client,
+    account_id: str,
+    region: str,
+) -> list[CloudResource]:
+    """Discover all Customer Gateways in a region.
+
+    Uses direct call (describe_customer_gateways does not support a paginator).
+    Skips gateways in "deleted" state -- these are soft-deleted tombstones that
+    appear in the API response but are no longer active objects. Matches
+    reference implementation filtering behavior.
+
+    Args:
+        ec2_client: boto3 EC2 client for the target account/region.
+        account_id: AWS account ID owning these resources.
+        region: AWS region being scanned.
+
+    Returns:
+        List of CloudResource with resource_type="aws-customer-gateway".
+    """
+    resources: list[CloudResource] = []
+    response = ec2_client.describe_customer_gateways()
+
+    for cgw in response.get("CustomerGateways", []):
+        if cgw.get("State") == "deleted":
+            continue
+        tags = cgw.get("Tags", [])
+        resources.append(
+            CloudResource(
+                resource_id=cgw["CustomerGatewayId"],
+                resource_type="aws-customer-gateway",
+                provider="aws",
+                account_id=account_id,
+                region=region,
+                name=_get_name_tag(tags),
+                ip_addresses=[],
+                tags=_tags_to_dict(tags),
+                details={
+                    "bgp_asn": cgw.get("BgpAsn", ""),
+                    "ip_address": cgw.get("IpAddress", ""),
+                    "state": cgw.get("State", ""),
+                    "type": cgw.get("Type", ""),
+                },
+            )
+        )
+
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_route_tables(
+    ec2_client,
+    account_id: str,
+    region: str,
+) -> list[CloudResource]:
+    """Discover all Route Tables in a region.
+
+    Uses describe_route_tables paginator. Counts ALL route tables including
+    the implicit main route table auto-created with each VPC. The reference
+    implementation applies no filtering -- neither do we.
+
+    Args:
+        ec2_client: boto3 EC2 client for the target account/region.
+        account_id: AWS account ID owning these resources.
+        region: AWS region being scanned.
+
+    Returns:
+        List of CloudResource with resource_type="aws-route-table".
+    """
+    resources: list[CloudResource] = []
+    paginator = ec2_client.get_paginator("describe_route_tables")
+
+    for page in paginator.paginate():
+        for rt in page.get("RouteTables", []):
+            tags = rt.get("Tags", [])
+            # Main route table: any Associations entry with Main=True
+            is_main = any(
+                assoc.get("Main", False)
+                for assoc in rt.get("Associations", [])
+            )
+            resources.append(
+                CloudResource(
+                    resource_id=rt["RouteTableId"],
+                    resource_type="aws-route-table",
+                    provider="aws",
+                    account_id=account_id,
+                    region=region,
+                    name=_get_name_tag(tags),
+                    ip_addresses=[],
+                    tags=_tags_to_dict(tags),
+                    details={
+                        "vpc_id": rt.get("VpcId", ""),
+                        "is_main": is_main,
+                    },
+                )
+            )
+
+    return resources
