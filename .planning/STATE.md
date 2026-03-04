@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Reference Parity
 status: completed
-stopped_at: Completed 26-03-PLAN.md (Route53 Resolver and Health Check/Traffic Policy collectors)
-last_updated: "2026-03-04T05:24:51.944Z"
-last_activity: "2026-03-04 — Completed 26-02: EC2 DDI collectors (IGW, CGW, Route Tables) (2 tasks, 1 file, 5 min)"
+stopped_at: Completed 26-04-PLAN.md (IPAM and Direct Connect collectors)
+last_updated: "2026-03-04T05:30:22.497Z"
+last_activity: "2026-03-04 — Completed 26-03: Route53 Resolver and health check/traffic policy collectors (2 tasks, 2 files, 4 min)"
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 9
-  completed_plans: 7
-  percent: 94
+  completed_plans: 8
+  percent: 96
 ---
 
 # Session State
@@ -26,9 +26,9 @@ See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
 ## Current Position
 
 Phase: 26 of 29 (AWS DDI Gaps) — IN PROGRESS
-Plan: 03 complete (26-03-PLAN.md) — Route53 Resolver and health check/traffic policy collectors implemented; plans 04-05 remaining
-Status: Phase 26 plan 03 complete — proceed to 26-04 (IPAM collectors)
-Last activity: 2026-03-04 — Completed 26-03: Route53 Resolver and health check/traffic policy collectors (2 tasks, 2 files, 4 min)
+Plan: 04 complete (26-04-PLAN.md) — IPAM and Direct Connect collectors; plan 05 remaining
+Status: Phase 26 plan 04 complete — proceed to 26-05 (provider wiring)
+Last activity: 2026-03-04 — Completed 26-04: IPAM and Direct Connect collectors (2 tasks, 3 files, 2 min)
 
 Progress: [██████████] 96%
 
@@ -48,6 +48,7 @@ Progress: [██████████] 96%
 | Phase 26 P01 | 2 | 2 tasks | 2 files |
 | Phase 26 P02 | 5 | 2 tasks | 1 files |
 | Phase 26 P03 | 4 min | 2 tasks | 2 files |
+| Phase 26 P04 | 2min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,8 @@ Progress: [██████████] 96%
 - DDI-only collectors set ip_addresses=[] regardless of API response — no IP address concept in reference counting model (plan 26-02)
 - Resolver functions use 3-arg signature (resolver_client, account_id, region) — route53resolver is per-region, distinct from global route53 (plan 26-03)
 - collect_traffic_policies uses page.get('TrafficPolicySummaries') — real AWS API key, not 'TrafficPolicies' (plan 26-03)
+- IPAM tests rewritten from @mock_aws/create_ipam to MagicMock — moto 5.1.21 does not implement create_ipam (plan 26-04)
+- Direct Connect API uses camelCase response keys (directConnectGateways, directConnectGatewayId) — distinct from EC2 PascalCase (plan 26-04)
 
 ### Known Technical Debt (carry forward)
 
@@ -102,6 +105,7 @@ Progress: [██████████] 96%
 
 ## Session Log
 
+- 2026-03-04: Phase 26 plan 04 complete — IPAM (5 collectors) and Direct Connect Gateway collector; AWSG-03/06 GREEN
 - 2026-03-04: Phase 26 plan 03 complete — Route53 Resolver + health check/traffic policy collectors; AWSG-01/02/07 GREEN
 - 2026-03-04: Phase 26 plan 02 complete — EC2 DDI collectors: collect_internet_gateways, collect_customer_gateways, collect_route_tables; AWSG-04/05 GREEN
 - 2026-03-04: Phase 26 plan 01 complete — TDD RED gate for AWSG-01..07; 15 new types, 13 new collector tests, 1 new categorizer test
@@ -113,6 +117,6 @@ Progress: [██████████] 96%
 
 ## Session Continuity
 
-Last session: 2026-03-04T05:24:51.942Z
-Stopped at: Completed 26-03-PLAN.md (Route53 Resolver and Health Check/Traffic Policy collectors)
+Last session: 2026-03-04T05:30:22.495Z
+Stopped at: Completed 26-04-PLAN.md (IPAM and Direct Connect collectors)
 Resume file: None
