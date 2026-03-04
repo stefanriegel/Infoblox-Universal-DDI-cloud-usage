@@ -131,7 +131,14 @@ Plans:
   3. Running an AWS scan against an account with networking resources produces DDI counts that include Internet Gateways, Customer Gateways, Route Tables, and Direct Connect Gateways
   4. Running an AWS scan against an account with Route53 health checks or traffic policies produces DDI counts that include those resources
   5. The AWS XLS report resource-type breakdown shows each new DDI type as a distinct row with its object count
-**Plans**: TBD
+**Plans**: 5 plans
+
+Plans:
+- [ ] 26-01-PLAN.md — Wave 0 test scaffolding: add failing tests for all 7 AWSG requirements to test_collectors_ddi.py + test_categorizer.py
+- [ ] 26-02-PLAN.md — Extend ec2.py: collect_internet_gateways, collect_customer_gateways, collect_route_tables (AWSG-04, AWSG-05)
+- [ ] 26-03-PLAN.md — Extend route53.py: Resolver collectors (AWSG-01, AWSG-02) + Health Check / Traffic Policy collectors (AWSG-07)
+- [ ] 26-04-PLAN.md — Create ipam.py (5 IPAM types, AWSG-03) + direct_connect.py (AWSG-06)
+- [ ] 26-05-PLAN.md — Wire all collectors into provider.py + update categorizer.py DDI_TYPES with 15 new types
 
 ### Phase 27: Azure DDI Gaps
 **Goal**: The Azure collector counts all DDI object types from the reference implementation — Virtual Network Gateways (VPN and ExpressRoute), Private Link Services, Virtual WANs, Route Tables, and Azure Tenants
@@ -197,8 +204,8 @@ Plans:
 | 22. NIOS Object Family Breakdown | v1.4 | 2/2 | Complete | 2026-03-03 |
 | 23. Results Navigation | v1.5 | 2/2 | Complete | 2026-03-03 |
 | 24. Wizard Navigation Fix | v1.6 | 1/1 | Complete | 2026-03-03 |
-| 25. IP Methodology Fix | 4/4 | Complete   | 2026-03-03 | - |
-| 26. AWS DDI Gaps | v1.7 | 0/TBD | Not started | - |
+| 25. IP Methodology Fix | v1.7 | 4/4 | Complete | 2026-03-03 |
+| 26. AWS DDI Gaps | v1.7 | 0/5 | Not started | - |
 | 27. Azure DDI Gaps | v1.7 | 0/TBD | Not started | - |
 | 28. GCP DDI Gaps | v1.7 | 0/TBD | Not started | - |
 | 29. Microsoft AD Core | v1.7 | 0/TBD | Not started | - |
