@@ -37,6 +37,29 @@ DDI_TYPES: set[str] = {
     "gcp-subnet",
     "gcp-dns-zone",
     "gcp-dns-record",
+    # AWS DDI Gaps — Phase 26 (AWSG-01 through AWSG-07)
+    # AWSG-01: Route53 Resolver Endpoints
+    "aws-resolver-endpoint",
+    # AWSG-02: Route53 Resolver Rules and Rule Associations
+    "aws-resolver-rule",
+    "aws-resolver-rule-association",
+    # AWSG-03: IPAM types (all 5 sub-types from reference)
+    "aws-ipam",
+    "aws-ipam-scope",
+    "aws-ipam-pool",
+    "aws-ipam-resource-discovery",
+    "aws-ipam-resource-discovery-association",
+    # AWSG-04: Internet Gateways and Customer Gateways
+    "aws-internet-gateway",
+    "aws-customer-gateway",
+    # AWSG-05: Route Tables (all, including implicit main route table)
+    "aws-route-table",
+    # AWSG-06: Direct Connect Gateways
+    "aws-direct-connect-gateway",
+    # AWSG-07: Route53 Health Checks and Traffic Policies
+    "aws-route53-health-check",
+    "aws-route53-traffic-policy",
+    "aws-route53-traffic-policy-instance",
 }
 
 # Resource types that are discovered but not counted (token-free)
