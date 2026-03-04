@@ -1032,67 +1032,91 @@ def test_collect_resolver_rule_associations_discovers_associations():
 
 
 # --- AWSG-03: IPAM ---
+# Note: moto 5.x does not implement create_ipam/describe_ipams — use MagicMock.
 
 
-@mock_aws
 def test_collect_ipams_discovers_ipam():
     """IPAM resources should be collected as global resources."""
-    ec2_global = boto3.client("ec2", region_name=REGION)
+    from unittest.mock import MagicMock
 
-    ipam = ec2_global.create_ipam(
-        OperatingRegions=[{"RegionName": REGION}],
-    )
-    ipam_id = ipam["Ipam"]["IpamId"]
+    ec2_mock = MagicMock()
+    mock_paginator = MagicMock()
+    mock_paginator.paginate.return_value = [
+        {
+            "Ipams": [
+                {
+                    "IpamId": "ipam-0a1b2c3d4e5f60001",
+                    "State": "create-complete",
+                    "ScopeCount": 2,
+                    "OperatingRegions": [{"RegionName": REGION}],
+                    "Tags": [{"Key": "Name", "Value": "test-ipam"}],
+                }
+            ]
+        }
+    ]
+    ec2_mock.get_paginator.return_value = mock_paginator
 
-    resources = collect_ipams(ec2_global, ACCOUNT_ID)
-    our_ipams = [r for r in resources if r.resource_id == ipam_id]
-    assert len(our_ipams) == 1
-    assert our_ipams[0].resource_type == "aws-ipam"
-    assert our_ipams[0].region == "global"
-    assert our_ipams[0].ip_addresses == []
+    resources = collect_ipams(ec2_mock, ACCOUNT_ID)
+    assert len(resources) == 1
+    assert resources[0].resource_id == "ipam-0a1b2c3d4e5f60001"
+    assert resources[0].resource_type == "aws-ipam"
+    assert resources[0].region == "global"
+    assert resources[0].ip_addresses == []
 
 
-@mock_aws
 def test_collect_ipam_scopes_discovers_scopes():
-    """IPAM scopes (created automatically with IPAM) should be collected."""
-    ec2_global = boto3.client("ec2", region_name=REGION)
+    """IPAM scopes should be collected as global resources."""
+    from unittest.mock import MagicMock
 
-    ec2_global.create_ipam(
-        OperatingRegions=[{"RegionName": REGION}],
-    )
+    ec2_mock = MagicMock()
+    mock_paginator = MagicMock()
+    mock_paginator.paginate.return_value = [
+        {
+            "IpamScopes": [
+                {
+                    "IpamScopeId": "ipam-scope-0a1b2c3d4e5f60001",
+                    "IpamScopeType": "public",
+                    "State": "create-complete",
+                    "Tags": [],
+                },
+                {
+                    "IpamScopeId": "ipam-scope-0a1b2c3d4e5f60002",
+                    "IpamScopeType": "private",
+                    "State": "create-complete",
+                    "Tags": [],
+                },
+            ]
+        }
+    ]
+    ec2_mock.get_paginator.return_value = mock_paginator
 
-    resources = collect_ipam_scopes(ec2_global, ACCOUNT_ID)
+    resources = collect_ipam_scopes(ec2_mock, ACCOUNT_ID)
     assert len(resources) >= 1
     assert all(r.resource_type == "aws-ipam-scope" for r in resources)
 
 
-@mock_aws
 def test_collect_ipam_pools_discovers_pools():
     """IPAM pools should be collected with correct resource type."""
-    ec2_global = boto3.client("ec2", region_name=REGION)
+    from unittest.mock import MagicMock
 
-    ipam = ec2_global.create_ipam(
-        OperatingRegions=[{"RegionName": REGION}],
-    )
-    ipam_id = ipam["Ipam"]["IpamId"]
+    pool_id = "ipam-pool-0a1b2c3d4e5f60001"
+    ec2_mock = MagicMock()
+    mock_paginator = MagicMock()
+    mock_paginator.paginate.return_value = [
+        {
+            "IpamPools": [
+                {
+                    "IpamPoolId": pool_id,
+                    "AddressFamily": "ipv4",
+                    "State": "create-complete",
+                    "Tags": [{"Key": "Name", "Value": "test-pool"}],
+                }
+            ]
+        }
+    ]
+    ec2_mock.get_paginator.return_value = mock_paginator
 
-    # Get the public scope created with the IPAM
-    scopes = ec2_global.describe_ipam_scopes(
-        Filters=[{"Name": "ipam-id", "Values": [ipam_id]}]
-    )
-    public_scope_id = next(
-        s["IpamScopeId"]
-        for s in scopes["IpamScopes"]
-        if s["IpamScopeType"] == "public"
-    )
-
-    pool = ec2_global.create_ipam_pool(
-        IpamScopeId=public_scope_id,
-        AddressFamily="ipv4",
-    )
-    pool_id = pool["IpamPool"]["IpamPoolId"]
-
-    resources = collect_ipam_pools(ec2_global, ACCOUNT_ID)
+    resources = collect_ipam_pools(ec2_mock, ACCOUNT_ID)
     our_pools = [r for r in resources if r.resource_id == pool_id]
     assert len(our_pools) == 1
     assert our_pools[0].resource_type == "aws-ipam-pool"
