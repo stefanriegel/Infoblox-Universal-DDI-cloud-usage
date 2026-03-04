@@ -13,7 +13,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from cloud_usage.schema.resource import CloudResource
-from cloud_usage.counting.categorizer import categorize_resources
+from cloud_usage.counting.categorizer import categorize_resources, DDI_TYPES
 
 
 def _make_resource(
@@ -562,3 +562,40 @@ class TestCategorizeGcpMixedBatch:
         assert "token-free" in result[5].skip_reason  # gcp-disk
         assert "token-free" in result[6].skip_reason  # gcp-gke-cluster
         assert result[7].counted is False  # gcp-vm no IPs
+
+
+# --- Phase 26 (AWSG-01 through AWSG-07): DDI_TYPES assertions ---
+
+
+def test_ddi_types_contains_phase26_aws_types():
+    """Phase 26 (AWSG-01 through AWSG-07): all 15 new AWS DDI resource types
+    must be present in DDI_TYPES to ensure correct token categorization."""
+    phase26_types = {
+        # AWSG-01: Route53 Resolver endpoints
+        "aws-resolver-endpoint",
+        # AWSG-02: Route53 Resolver rules and associations
+        "aws-resolver-rule",
+        "aws-resolver-rule-association",
+        # AWSG-03: IPAM types (all 5)
+        "aws-ipam",
+        "aws-ipam-scope",
+        "aws-ipam-pool",
+        "aws-ipam-resource-discovery",
+        "aws-ipam-resource-discovery-association",
+        # AWSG-04: Internet and Customer Gateways
+        "aws-internet-gateway",
+        "aws-customer-gateway",
+        # AWSG-05: Route Tables
+        "aws-route-table",
+        # AWSG-06: Direct Connect Gateways
+        "aws-direct-connect-gateway",
+        # AWSG-07: Route53 Health Checks and Traffic Policies
+        "aws-route53-health-check",
+        "aws-route53-traffic-policy",
+        "aws-route53-traffic-policy-instance",
+    }
+    for type_str in phase26_types:
+        assert type_str in DDI_TYPES, (
+            f"Phase 26 DDI type '{type_str}' missing from DDI_TYPES — "
+            f"add it to src/cloud_usage/counting/categorizer.py"
+        )
