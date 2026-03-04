@@ -33,6 +33,31 @@ from cloud_usage.providers.aws.collectors.route53 import (
 )
 from cloud_usage.providers.aws.collectors.dhcp import collect_dhcp_option_sets
 
+# --- Phase 26 imports (RED until implementations exist) ---
+from cloud_usage.providers.aws.collectors.ec2 import (
+    collect_customer_gateways,
+    collect_internet_gateways,
+    collect_route_tables,
+)
+from cloud_usage.providers.aws.collectors.route53 import (
+    collect_health_checks,
+    collect_resolver_endpoints,
+    collect_resolver_rule_associations,
+    collect_resolver_rules,
+    collect_traffic_policies,
+    collect_traffic_policy_instances,
+)
+from cloud_usage.providers.aws.collectors.ipam import (
+    collect_ipam_pools,
+    collect_ipam_resource_discoveries,
+    collect_ipam_resource_discovery_associations,
+    collect_ipam_scopes,
+    collect_ipams,
+)
+from cloud_usage.providers.aws.collectors.direct_connect import (
+    collect_direct_connect_gateways,
+)
+
 ACCOUNT_ID = "123456789012"
 REGION = "us-east-1"
 
@@ -851,3 +876,347 @@ def test_collect_subnets_returns_correct_vpc_association():
 
     assert s1.details["vpc_id"] == vpc1_id
     assert s2.details["vpc_id"] == vpc2_id
+
+
+# ============================================================================
+# Phase 26 (AWSG-01 through AWSG-07) — collector tests
+# RED until implementations exist in ec2.py, route53.py, ipam.py, direct_connect.py
+# ============================================================================
+
+
+# --- AWSG-04: Internet Gateways ---
+
+
+@mock_aws
+def test_collect_internet_gateways_discovers_attached_igw():
+    """Internet gateways attached to a VPC should be collected."""
+    ec2 = boto3.client("ec2", region_name=REGION)
+    vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+    vpc_id = vpc["Vpc"]["VpcId"]
+    igw = ec2.create_internet_gateway()
+    igw_id = igw["InternetGateway"]["InternetGatewayId"]
+    ec2.attach_internet_gateway(InternetGatewayId=igw_id, VpcId=vpc_id)
+
+    resources = collect_internet_gateways(ec2, ACCOUNT_ID, REGION)
+    our_igws = [r for r in resources if r.resource_id == igw_id]
+    assert len(our_igws) >= 1
+    assert our_igws[0].resource_type == "aws-internet-gateway"
+    assert our_igws[0].ip_addresses == []
+    assert our_igws[0].resource_id == igw_id
+
+
+# --- AWSG-04: Customer Gateways ---
+
+
+@mock_aws
+def test_collect_customer_gateways_discovers_cgw():
+    """Customer gateways should be collected with correct resource type."""
+    ec2 = boto3.client("ec2", region_name=REGION)
+    cgw = ec2.create_customer_gateway(BgpAsn=65000, IpAddress="1.2.3.4", Type="ipsec.1")
+    cgw_id = cgw["CustomerGateway"]["CustomerGatewayId"]
+
+    resources = collect_customer_gateways(ec2, ACCOUNT_ID, REGION)
+    our_cgws = [r for r in resources if r.resource_id == cgw_id]
+    assert len(our_cgws) == 1
+    assert our_cgws[0].resource_type == "aws-customer-gateway"
+    assert our_cgws[0].ip_addresses == []
+
+
+# --- AWSG-05: Route Tables ---
+
+
+@mock_aws
+def test_collect_route_tables_discovers_all_including_main():
+    """Route tables (including main route table) should be collected."""
+    ec2 = boto3.client("ec2", region_name=REGION)
+    vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+    vpc_id = vpc["Vpc"]["VpcId"]
+
+    resources = collect_route_tables(ec2, ACCOUNT_ID, REGION)
+    # VPC creation auto-creates a main route table
+    our_rts = [r for r in resources if r.details.get("vpc_id") == vpc_id]
+    assert len(our_rts) >= 1
+    assert all(r.resource_type == "aws-route-table" for r in our_rts)
+    assert all(r.ip_addresses == [] for r in our_rts)
+
+
+# --- AWSG-01: Route53 Resolver Endpoints ---
+
+
+@mock_aws
+def test_collect_resolver_endpoints_discovers_endpoints():
+    """Resolver endpoints should be collected with correct resource type."""
+    ec2 = boto3.client("ec2", region_name=REGION)
+    resolver_client = boto3.client("route53resolver", region_name=REGION)
+
+    vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+    vpc_id = vpc["Vpc"]["VpcId"]
+    subnet1 = ec2.create_subnet(VpcId=vpc_id, CidrBlock="10.0.1.0/24", AvailabilityZone="us-east-1a")
+    subnet2 = ec2.create_subnet(VpcId=vpc_id, CidrBlock="10.0.2.0/24", AvailabilityZone="us-east-1b")
+    sg = ec2.create_security_group(GroupName="test-sg", Description="test", VpcId=vpc_id)
+    sg_id = sg["GroupId"]
+
+    endpoint = resolver_client.create_resolver_endpoint(
+        CreatorRequestId="test-req-1",
+        Name="test-outbound-endpoint",
+        SecurityGroupIds=[sg_id],
+        Direction="OUTBOUND",
+        IpAddresses=[
+            {"SubnetId": subnet1["Subnet"]["SubnetId"]},
+            {"SubnetId": subnet2["Subnet"]["SubnetId"]},
+        ],
+    )
+    endpoint_id = endpoint["ResolverEndpoint"]["Id"]
+
+    resources = collect_resolver_endpoints(resolver_client, ACCOUNT_ID, REGION)
+    our_endpoints = [r for r in resources if r.resource_id == endpoint_id]
+    assert len(our_endpoints) == 1
+    assert our_endpoints[0].resource_type == "aws-resolver-endpoint"
+    assert our_endpoints[0].ip_addresses == []
+
+
+# --- AWSG-02: Route53 Resolver Rules ---
+
+
+@mock_aws
+def test_collect_resolver_rules_discovers_rules():
+    """Resolver rules should be collected with correct resource type."""
+    resolver_client = boto3.client("route53resolver", region_name=REGION)
+
+    rule = resolver_client.create_resolver_rule(
+        CreatorRequestId="test-rule-1",
+        Name="test-forward-rule",
+        RuleType="SYSTEM",
+        DomainName="example.internal",
+    )
+    rule_id = rule["ResolverRule"]["Id"]
+
+    resources = collect_resolver_rules(resolver_client, ACCOUNT_ID, REGION)
+    our_rules = [r for r in resources if r.resource_id == rule_id]
+    assert len(our_rules) == 1
+    assert our_rules[0].resource_type == "aws-resolver-rule"
+    assert our_rules[0].ip_addresses == []
+
+
+# --- AWSG-02: Route53 Resolver Rule Associations ---
+
+
+@mock_aws
+def test_collect_resolver_rule_associations_discovers_associations():
+    """Resolver rule associations should be collected with correct resource type."""
+    ec2 = boto3.client("ec2", region_name=REGION)
+    resolver_client = boto3.client("route53resolver", region_name=REGION)
+
+    vpc = ec2.create_vpc(CidrBlock="10.0.0.0/16")
+    vpc_id = vpc["Vpc"]["VpcId"]
+
+    rule = resolver_client.create_resolver_rule(
+        CreatorRequestId="test-rule-assoc-1",
+        Name="test-rule-for-assoc",
+        RuleType="SYSTEM",
+        DomainName="internal.example.com",
+    )
+    rule_id = rule["ResolverRule"]["Id"]
+
+    assoc = resolver_client.associate_resolver_rule(
+        ResolverRuleId=rule_id,
+        VPCId=vpc_id,
+        Name="test-association",
+    )
+    assoc_id = assoc["ResolverRuleAssociation"]["Id"]
+
+    resources = collect_resolver_rule_associations(resolver_client, ACCOUNT_ID, REGION)
+    our_assocs = [r for r in resources if r.resource_id == assoc_id]
+    assert len(our_assocs) == 1
+    assert our_assocs[0].resource_type == "aws-resolver-rule-association"
+
+
+# --- AWSG-03: IPAM ---
+
+
+@mock_aws
+def test_collect_ipams_discovers_ipam():
+    """IPAM resources should be collected as global resources."""
+    ec2_global = boto3.client("ec2", region_name=REGION)
+
+    ipam = ec2_global.create_ipam(
+        OperatingRegions=[{"RegionName": REGION}],
+    )
+    ipam_id = ipam["Ipam"]["IpamId"]
+
+    resources = collect_ipams(ec2_global, ACCOUNT_ID)
+    our_ipams = [r for r in resources if r.resource_id == ipam_id]
+    assert len(our_ipams) == 1
+    assert our_ipams[0].resource_type == "aws-ipam"
+    assert our_ipams[0].region == "global"
+    assert our_ipams[0].ip_addresses == []
+
+
+@mock_aws
+def test_collect_ipam_scopes_discovers_scopes():
+    """IPAM scopes (created automatically with IPAM) should be collected."""
+    ec2_global = boto3.client("ec2", region_name=REGION)
+
+    ec2_global.create_ipam(
+        OperatingRegions=[{"RegionName": REGION}],
+    )
+
+    resources = collect_ipam_scopes(ec2_global, ACCOUNT_ID)
+    assert len(resources) >= 1
+    assert all(r.resource_type == "aws-ipam-scope" for r in resources)
+
+
+@mock_aws
+def test_collect_ipam_pools_discovers_pools():
+    """IPAM pools should be collected with correct resource type."""
+    ec2_global = boto3.client("ec2", region_name=REGION)
+
+    ipam = ec2_global.create_ipam(
+        OperatingRegions=[{"RegionName": REGION}],
+    )
+    ipam_id = ipam["Ipam"]["IpamId"]
+
+    # Get the public scope created with the IPAM
+    scopes = ec2_global.describe_ipam_scopes(
+        Filters=[{"Name": "ipam-id", "Values": [ipam_id]}]
+    )
+    public_scope_id = next(
+        s["IpamScopeId"]
+        for s in scopes["IpamScopes"]
+        if s["IpamScopeType"] == "public"
+    )
+
+    pool = ec2_global.create_ipam_pool(
+        IpamScopeId=public_scope_id,
+        AddressFamily="ipv4",
+    )
+    pool_id = pool["IpamPool"]["IpamPoolId"]
+
+    resources = collect_ipam_pools(ec2_global, ACCOUNT_ID)
+    our_pools = [r for r in resources if r.resource_id == pool_id]
+    assert len(our_pools) == 1
+    assert our_pools[0].resource_type == "aws-ipam-pool"
+
+
+# --- AWSG-07: Route53 Health Checks ---
+
+
+@mock_aws
+def test_collect_health_checks_discovers_health_checks():
+    """Route53 health checks should be collected as global resources."""
+    route53_client = boto3.client("route53", region_name="us-east-1")
+
+    hc = route53_client.create_health_check(
+        CallerReference="hc-test-ref-1",
+        HealthCheckConfig={
+            "IPAddress": "1.2.3.4",
+            "Port": 80,
+            "Type": "HTTP",
+            "ResourcePath": "/health",
+            "RequestInterval": 30,
+            "FailureThreshold": 3,
+        },
+    )
+    hc_id = hc["HealthCheck"]["Id"]
+
+    resources = collect_health_checks(route53_client, ACCOUNT_ID)
+    our_hcs = [r for r in resources if r.resource_id == hc_id]
+    assert len(our_hcs) == 1
+    assert our_hcs[0].resource_type == "aws-route53-health-check"
+    assert our_hcs[0].region == "global"
+
+
+# --- AWSG-07: Route53 Traffic Policies ---
+
+
+@mock_aws
+def test_collect_traffic_policies_discovers_policies():
+    """Traffic policies should be collected — mock if moto does not support them."""
+    from unittest.mock import MagicMock
+
+    # moto's Route53 does not support traffic policies; use MagicMock pattern
+    route53_mock = MagicMock()
+    mock_paginator = MagicMock()
+    mock_paginator.paginate.return_value = [
+        {
+            "TrafficPolicies": [
+                {
+                    "Id": "tp-test-id-1",
+                    "Name": "test-traffic-policy",
+                    "Type": "A",
+                    "LatestVersion": 1,
+                    "TrafficPolicyCount": 1,
+                }
+            ]
+        }
+    ]
+    route53_mock.get_paginator.return_value = mock_paginator
+
+    resources = collect_traffic_policies(route53_mock, ACCOUNT_ID)
+    assert len(resources) == 1
+    assert resources[0].resource_type == "aws-route53-traffic-policy"
+    assert resources[0].region == "global"
+    assert resources[0].ip_addresses == []
+
+
+@mock_aws
+def test_collect_traffic_policy_instances_discovers_instances():
+    """Traffic policy instances should be collected — mock if moto does not support them."""
+    from unittest.mock import MagicMock
+
+    route53_mock = MagicMock()
+    mock_paginator = MagicMock()
+    mock_paginator.paginate.return_value = [
+        {
+            "TrafficPolicyInstances": [
+                {
+                    "Id": "tpi-test-id-1",
+                    "HostedZoneId": "ZEXAMPLE123",
+                    "Name": "www.example.com",
+                    "TTL": 60,
+                    "State": "Applied",
+                    "TrafficPolicyId": "tp-test-id-1",
+                    "TrafficPolicyVersion": 1,
+                    "TrafficPolicyType": "A",
+                }
+            ]
+        }
+    ]
+    route53_mock.get_paginator.return_value = mock_paginator
+
+    resources = collect_traffic_policy_instances(route53_mock, ACCOUNT_ID)
+    assert len(resources) == 1
+    assert resources[0].resource_type == "aws-route53-traffic-policy-instance"
+    assert resources[0].region == "global"
+    assert resources[0].ip_addresses == []
+
+
+# --- AWSG-06: Direct Connect Gateways ---
+
+
+def test_collect_direct_connect_gateways_returns_resources():
+    """Direct Connect gateways — mock since moto DX support is limited."""
+    from unittest.mock import MagicMock
+
+    dx_client = MagicMock()
+    mock_paginator = MagicMock()
+    mock_paginator.paginate.return_value = [
+        {
+            "directConnectGateways": [
+                {
+                    "directConnectGatewayId": "cf68415c-f4ae-48f2-87a7-3b52cexample",
+                    "directConnectGatewayName": "test-dx-gw",
+                    "directConnectGatewayState": "available",
+                    "amazonSideAsn": 64512,
+                    "ownerAccount": "123456789012",
+                }
+            ]
+        }
+    ]
+    dx_client.get_paginator.return_value = mock_paginator
+
+    resources = collect_direct_connect_gateways(dx_client, ACCOUNT_ID)
+    assert len(resources) == 1
+    assert resources[0].resource_type == "aws-direct-connect-gateway"
+    assert resources[0].region == "global"
+    assert resources[0].ip_addresses == []
