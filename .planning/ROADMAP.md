@@ -183,7 +183,13 @@ Plans:
   4. The AD scan collects AD Users via `Get-ADUser -Filter *` and produces Asset counts using SID as the primary key
   5. Running `--ad-autodiscover --ad-discovery-server dc1.corp.example.com` discovers all domain controllers in the forest via `Get-ADForest`/`Get-ADDomainController` and scans each one
   6. An XLS report is produced for the AD scan with the same UDDI native token formula (DDI÷25, IPs÷13, Assets÷3) and the same report structure as cloud provider reports
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 29-01-PLAN.md — TDD RED gate: write failing tests for all AD requirements in test_ad_collector.py, test_ad_runner.py, and test_categorizer.py
+- [ ] 29-02-PLAN.md — AD package core: constants, AdOptions dataclass, MicrosoftAdCollector (WinRM session, DNS/DHCP/Users collection, autodiscovery)
+- [ ] 29-03-PLAN.md — Runner: run_ad_analysis(), _aggregate_results(), _to_cloud_resources() conversion, XLS output
+- [ ] 29-04-PLAN.md — CLI wiring: --ad-* argument group, _run_ad_cli(), categorizer DDI_TYPES for ad-dns-zone/ad-dns-record/ad-dhcp-scope
 
 ## Progress
 
@@ -217,5 +223,5 @@ Plans:
 | 25. IP Methodology Fix | v1.7 | 4/4 | Complete | 2026-03-03 |
 | 26. AWS DDI Gaps | 5/5 | Complete    | 2026-03-04 | - |
 | 27. Azure DDI Gaps | 3/3 | Complete    | 2026-03-07 | - |
-| 28. GCP DDI Gaps | 3/3 | Complete   | 2026-03-07 | - |
-| 29. Microsoft AD Core | v1.7 | 0/TBD | Not started | - |
+| 28. GCP DDI Gaps | 3/3 | Complete    | 2026-03-07 | - |
+| 29. Microsoft AD Core | v1.7 | 0/4 | Not started | - |
