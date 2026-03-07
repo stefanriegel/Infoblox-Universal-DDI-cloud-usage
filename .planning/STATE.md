@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Reference Parity
 status: completed
-stopped_at: Completed 29-01-PLAN.md — TDD RED gate for Microsoft AD provider
-last_updated: "2026-03-07T19:03:27.517Z"
-last_activity: "2026-03-07 — Completed 29-01: TDD RED gate for Microsoft AD; 38 failing tests across 3 files; AD-01..08 contract defined; 1 task, 3 files, 6 min"
+stopped_at: Completed 29-02-PLAN.md — AD collector implementation; 22 tests GREEN
+last_updated: "2026-03-07T19:14:49.016Z"
+last_activity: "2026-03-07 — Completed 29-01: TDD RED gate for Microsoft AD; 1 task, 3 files, 6 min"
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 19
-  completed_plans: 16
-  percent: 100
+  completed_plans: 17
+  percent: 95
 ---
 
 # Session State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
 
 ## Current Position
 
-Phase: 29 of 29 (Microsoft AD Core) — IN PROGRESS (1/4 plans done)
-Plan: 01 complete (29-01-PLAN.md) — TDD RED gate: 38 failing tests in 3 files; AD-01..08 contract defined; ImportError/AssertionError confirmed
-Status: Phase 29 plan 01 COMPLETE — proceed to 29-02 (AD provider implementation)
-Last activity: 2026-03-07 — Completed 29-01: TDD RED gate for Microsoft AD; 1 task, 3 files, 6 min
+Phase: 29 of 29 (Microsoft AD Core) — IN PROGRESS (2/4 plans done)
+Plan: 02 complete (29-02-PLAN.md) — AD provider package: constants/options/collector; 22 tests GREEN; 4 files
+Status: Phase 29 plan 02 COMPLETE — proceed to 29-03 (AD runner + CLI wiring)
+Last activity: 2026-03-07 — Completed 29-02: AD collector implementation; 2 tasks, 4 files, 7 min
 
-Progress: [██████████] 95%
+Progress: [██████████] 96%
 
 ## Performance Metrics
 
@@ -57,6 +57,8 @@ Progress: [██████████] 95%
 | Phase 28 P02 | 5 | 2 tasks | 4 files |
 | Phase 28 P03 | 13 min | 2 tasks | 3 files |
 | Phase 29 P01 | 6 min | 1 tasks | 3 files |
+| Phase 29 P02 | 7 min | 2 tasks | 4 files |
+| Phase 29 P02 | 7 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -83,6 +85,9 @@ Progress: [██████████] 95%
 - ad-dhcp-ip resource type included as optional shape for DHCP lease/reservation IPs — runner tests tolerate both shapes (plan 29-01)
 - TestAdDdiTypesInCategorizer uses class (not standalone function) for consistency with Phase 27/28 patterns (plan 29-01)
 - _collect_dns/_collect_dhcp/_collect_users all take (self, session) — session is the WinRM session object built by _build_session() (plan 29-01)
+- record_keys used as _collect_dns return key (plan spec said supported_record_entries but 29-01 tests use record_keys) — auto-aligned (plan 29-02)
+- run_ad_analysis() stub added to __init__.py in 29-02 (not deferred to 29-03) — TestAllDcsFail imports at module level (plan 29-02)
+- collect_all() returns list of result dicts; injects server key if missing from mocked _collect_server returns (plan 29-02)
 
 ### Key Phase 28 Decisions
 
@@ -145,6 +150,7 @@ Progress: [██████████] 95%
 
 ## Session Log
 
+- 2026-03-07: Phase 29 plan 02 complete — AD provider package GREEN: constants/options/collector; 22 test_ad_collector.py tests pass; WinRMError, lazy winrm import, DC failure isolation (2 tasks, 4 files, 7 min)
 - 2026-03-07: Phase 29 plan 01 complete — TDD RED gate: 38 failing tests in 3 files; AD-01..08 contract defined via ModuleNotFoundError+AssertionError; MicrosoftAdCollector, AdOptions, run_ad_analysis() contracts set (1 task, 3 files, 6 min)
 - 2026-03-07: Phase 28 plan 03 complete — provider wiring + 6 DDI types in categorizer; Phase 28 (GCP DDI Gaps) COMPLETE; GCPG-01..04 fulfilled (2 tasks, 3 files, 13 min)
 - 2026-03-07: Phase 28 plan 02 complete — 4 GCP DDI collectors GREEN; ip_addresses=[] fix, router_nats, target_vpn_gateways, gke_cidr_ranges; 56 tests pass (2 tasks, 4 files, 5 min)
@@ -166,6 +172,6 @@ Progress: [██████████] 95%
 
 ## Session Continuity
 
-Last session: 2026-03-07T19:03:27.515Z
-Stopped at: Completed 29-01-PLAN.md — TDD RED gate for Microsoft AD provider
+Last session: 2026-03-07T19:14:49.014Z
+Stopped at: Completed 29-02-PLAN.md — AD collector implementation; 22 tests GREEN
 Resume file: None
