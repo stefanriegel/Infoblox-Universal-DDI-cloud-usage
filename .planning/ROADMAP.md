@@ -149,7 +149,12 @@ Plans:
   2. Running an Azure scan against a subscription with Private Link Services produces DDI counts that include those services as DDI objects
   3. Running an Azure scan against a subscription with Virtual WANs, Route Tables, or Tenant-level resources produces DDI counts that include those objects
   4. The Azure XLS report resource-type breakdown shows each new DDI type as a distinct row with its object count
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 27-01-PLAN.md — Wave 0 test scaffolding: update TestCollectAzureVpnGateways to assert azure-vnet-gateway; add TestCollectAzurePrivateLinkServices, TestCollectAzureVirtualWans, TestCollectAzureRouteTables, TestCollectAzureTenants; add test_azure_ddi_gaps_in_ddi_types to test_categorizer.py
+- [ ] 27-02-PLAN.md — Implement: rewrite collect_azure_vpn_gateways(), add collect_azure_private_link_services/virtual_wans/route_tables/tenants in hybrid_networking.py; fix SubscriptionClient import in client_factory.py
+- [ ] 27-03-PLAN.md — Wire all 5 collectors into provider.py with tenant deduplication; add 5 new type strings to categorizer.py DDI_TYPES
 
 ### Phase 28: GCP DDI Gaps
 **Goal**: The GCP collector counts all DDI object types from the reference implementation — Compute Addresses (reserved static IPs), GKE CIDR Ranges (control plane, pod, service), Router NAT Mapping Infos, and Target VPN Gateways (legacy)
@@ -205,7 +210,7 @@ Plans:
 | 23. Results Navigation | v1.5 | 2/2 | Complete | 2026-03-03 |
 | 24. Wizard Navigation Fix | v1.6 | 1/1 | Complete | 2026-03-03 |
 | 25. IP Methodology Fix | v1.7 | 4/4 | Complete | 2026-03-03 |
-| 26. AWS DDI Gaps | 5/5 | Complete   | 2026-03-04 | - |
-| 27. Azure DDI Gaps | v1.7 | 0/TBD | Not started | - |
+| 26. AWS DDI Gaps | 5/5 | Complete    | 2026-03-04 | - |
+| 27. Azure DDI Gaps | v1.7 | 0/3 | Not started | - |
 | 28. GCP DDI Gaps | v1.7 | 0/TBD | Not started | - |
 | 29. Microsoft AD Core | v1.7 | 0/TBD | Not started | - |
