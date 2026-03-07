@@ -206,6 +206,96 @@ def collect_gcp_gke_clusters(
 
 
 @retry_with_backoff(max_retries=3)
+def collect_gcp_gke_cidr_ranges(
+    container_client: Any | None,
+    project_id: str,
+) -> list[CloudResource]:
+    """Discover GKE cluster CIDR ranges as DDI objects.
+
+    For each GKE cluster, conditionally emits up to three DDI objects:
+    - gcp-gke-control-plane-range: only if private_cluster_config.master_ipv4_cidr_block is set
+    - gcp-gke-pod-range: only if ip_allocation_policy.cluster_ipv4_cidr_block is set
+    - gcp-gke-service-range: only if ip_allocation_policy.services_ipv4_cidr_block is set
+
+    Handles None container_client gracefully (returns []). ip_addresses=[]
+    for all -- these are topology CIDR objects, not Address Records.
+
+    Args:
+        container_client: container_v1.ClusterManagerClient, or None.
+        project_id: GCP project ID.
+
+    Returns:
+        List of CloudResource with resource_type in
+        {gcp-gke-control-plane-range, gcp-gke-pod-range, gcp-gke-service-range}.
+    """
+    if container_client is None:
+        return []
+
+    resources: list[CloudResource] = []
+
+    response = container_client.list_clusters(
+        parent=f"projects/{project_id}/locations/-",
+    )
+
+    for cluster in response.clusters:
+        tags = dict(cluster.resource_labels) if cluster.resource_labels else {}
+
+        # Control plane CIDR (private clusters only)
+        pcc = getattr(cluster, "private_cluster_config", None)
+        control_plane_cidr = getattr(pcc, "master_ipv4_cidr_block", None) if pcc else None
+        if control_plane_cidr:
+            resources.append(CloudResource(
+                resource_id=f"projects/{project_id}/locations/{cluster.location}/clusters/{cluster.name}/cidrRanges/control-plane",
+                resource_type="gcp-gke-control-plane-range",
+                provider="gcp",
+                account_id=project_id,
+                region=cluster.location,
+                name=f"{cluster.name}/control-plane",
+                ip_addresses=[],
+                tags=tags,
+                details={"cidr_block": control_plane_cidr, "cluster": cluster.name},
+            ))
+
+        # Pod CIDR
+        iap = getattr(cluster, "ip_allocation_policy", None)
+        pod_cidr = getattr(iap, "cluster_ipv4_cidr_block", None) if iap else None
+        if pod_cidr:
+            resources.append(CloudResource(
+                resource_id=f"projects/{project_id}/locations/{cluster.location}/clusters/{cluster.name}/cidrRanges/pod",
+                resource_type="gcp-gke-pod-range",
+                provider="gcp",
+                account_id=project_id,
+                region=cluster.location,
+                name=f"{cluster.name}/pod",
+                ip_addresses=[],
+                tags=tags,
+                details={"cidr_block": pod_cidr, "cluster": cluster.name},
+            ))
+
+        # Service CIDR
+        svc_cidr = getattr(iap, "services_ipv4_cidr_block", None) if iap else None
+        if svc_cidr:
+            resources.append(CloudResource(
+                resource_id=f"projects/{project_id}/locations/{cluster.location}/clusters/{cluster.name}/cidrRanges/service",
+                resource_type="gcp-gke-service-range",
+                provider="gcp",
+                account_id=project_id,
+                region=cluster.location,
+                name=f"{cluster.name}/service",
+                ip_addresses=[],
+                tags=tags,
+                details={"cidr_block": svc_cidr, "cluster": cluster.name},
+            ))
+
+    logger.debug(
+        "Discovered %d GKE CIDR ranges in project %s",
+        len(resources),
+        project_id,
+    )
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
 def collect_gcp_url_maps(
     url_maps_client: Any | None,
     project_id: str,
