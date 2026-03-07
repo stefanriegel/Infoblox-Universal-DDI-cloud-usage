@@ -26,7 +26,11 @@ from cloud_usage.providers.azure.collectors.hybrid_networking import (
     collect_azure_load_balancers,
     collect_azure_nat_gateways,
     collect_azure_private_endpoints,
+    collect_azure_private_link_services,
+    collect_azure_route_tables,
+    collect_azure_tenants,
     collect_azure_virtual_wan_hubs,
+    collect_azure_virtual_wans,
     collect_azure_vnet_peerings,
     collect_azure_vpn_gateways,
 )
@@ -452,8 +456,8 @@ class TestCollectAzureVpnGateways:
                         name="vpn-gw-1",
                         location="eastus",
                         tags=None,
-                        ip_configurations=[SimpleNamespace(private_ip_address="10.0.0.10")],
-                        gateway_type="Vpn",
+                        ip_configurations=[SimpleNamespace(private_ip_address="10.0.0.5")],
+                        gateway_type="ExpressRoute",
                         vpn_type="RouteBased",
                     ),
                 ]
@@ -465,9 +469,9 @@ class TestCollectAzureVpnGateways:
 
         assert len(result) == 1
         gw = result[0]
-        assert gw.resource_type == "azure-vpn-gateway"
-        assert gw.ip_addresses == ["10.0.0.10"]
-        assert gw.details["gateway_type"] == "Vpn"
+        assert gw.resource_type == "azure-vnet-gateway"
+        assert gw.ip_addresses == ["10.0.0.5"]
+        assert gw.details["gateway_type"] == "ExpressRoute"
         assert gw.details["vpn_type"] == "RouteBased"
         assert gw.details["resource_group"] == "rg1"
 
@@ -681,3 +685,148 @@ class TestCollectAzureBastionHosts:
         assert len(result) == 1
         assert result[0].ip_addresses == []
         assert result[0].details["dns_name"] == ""
+
+
+# ---------------------------------------------------------------------------
+# Private Link Service tests — AZUG-02
+# ---------------------------------------------------------------------------
+
+class TestCollectAzurePrivateLinkServices:
+    """Tests for collect_azure_private_link_services."""
+
+    def test_pls_collection(self):
+        """Private Link Service with ip_configurations yields private IPs."""
+        client = MagicMock()
+
+        client.private_link_services.list_by_subscription.return_value = [
+            SimpleNamespace(
+                id=_arm_id("rg1", "Microsoft.Network/privateLinkServices/pls-1"),
+                name="pls-1",
+                location="eastus",
+                tags={"env": "prod"},
+                ip_configurations=[
+                    SimpleNamespace(private_ip_address="10.1.0.4"),
+                ],
+            ),
+        ]
+
+        result = collect_azure_private_link_services(client, "sub1")
+
+        assert len(result) == 1
+        pls = result[0]
+        assert pls.resource_type == "azure-private-link-service"
+        assert pls.ip_addresses == ["10.1.0.4"]
+        assert pls.provider == "azure"
+        assert pls.account_id == "sub1"
+
+    def test_pls_no_ip_configs(self):
+        """Private Link Service with empty ip_configurations has empty IPs."""
+        client = MagicMock()
+
+        client.private_link_services.list_by_subscription.return_value = [
+            SimpleNamespace(
+                id=_arm_id("rg1", "Microsoft.Network/privateLinkServices/pls-noip"),
+                name="pls-noip",
+                location="eastus",
+                tags=None,
+                ip_configurations=[],
+            ),
+        ]
+
+        result = collect_azure_private_link_services(client, "sub1")
+
+        assert len(result) == 1
+        assert result[0].ip_addresses == []
+
+
+# ---------------------------------------------------------------------------
+# Virtual WAN tests — AZUG-03
+# ---------------------------------------------------------------------------
+
+class TestCollectAzureVirtualWans:
+    """Tests for collect_azure_virtual_wans (parent WAN objects, not hubs)."""
+
+    def test_virtual_wan_collection(self):
+        """Virtual WAN object is collected with empty ip_addresses."""
+        client = MagicMock()
+
+        client.virtual_wans.list.return_value = [
+            SimpleNamespace(
+                id=_arm_id("rg1", "Microsoft.Network/virtualWans/wan-1"),
+                name="wan-1",
+                location="eastus",
+                tags=None,
+            ),
+        ]
+
+        result = collect_azure_virtual_wans(client, "sub1")
+
+        assert len(result) == 1
+        wan = result[0]
+        assert wan.resource_type == "azure-virtual-wan"
+        assert wan.ip_addresses == []
+        assert wan.provider == "azure"
+        assert wan.account_id == "sub1"
+        assert wan.name == "wan-1"
+        assert wan.region == "eastus"
+
+
+# ---------------------------------------------------------------------------
+# Route Table tests — AZUG-04
+# ---------------------------------------------------------------------------
+
+class TestCollectAzureRouteTables:
+    """Tests for collect_azure_route_tables."""
+
+    def test_route_table_collection(self):
+        """Route table is collected with empty ip_addresses."""
+        client = MagicMock()
+
+        client.route_tables.list_all.return_value = [
+            SimpleNamespace(
+                id=_arm_id("rg1", "Microsoft.Network/routeTables/rt-1"),
+                name="rt-1",
+                location="eastus",
+                tags=None,
+            ),
+        ]
+
+        result = collect_azure_route_tables(client, "sub1")
+
+        assert len(result) == 1
+        rt = result[0]
+        assert rt.resource_type == "azure-route-table"
+        assert rt.ip_addresses == []
+        assert rt.provider == "azure"
+        assert rt.account_id == "sub1"
+        assert rt.name == "rt-1"
+        assert rt.region == "eastus"
+
+
+# ---------------------------------------------------------------------------
+# Tenant tests — AZUG-05
+# ---------------------------------------------------------------------------
+
+class TestCollectAzureTenants:
+    """Tests for collect_azure_tenants."""
+
+    def test_tenant_collection(self):
+        """Azure tenant is collected with region='global' and empty ip_addresses."""
+        subscription_client = MagicMock()
+
+        subscription_client.tenants.list.return_value = [
+            SimpleNamespace(
+                id="/tenants/t1",
+                tenant_id="t1",
+            ),
+        ]
+
+        result = collect_azure_tenants(subscription_client, "sub1")
+
+        assert len(result) == 1
+        tenant = result[0]
+        assert tenant.resource_type == "azure-tenant"
+        assert tenant.region == "global"
+        assert tenant.ip_addresses == []
+        assert tenant.provider == "azure"
+        assert tenant.account_id == "sub1"
