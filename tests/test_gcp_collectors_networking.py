@@ -471,3 +471,182 @@ class TestCollectGcpReservedIps:
         assert result[0].region == "us-central1"
         assert result[1].region == "us-central1"
         assert result[2].region == "europe-west1"
+
+
+# ---------------------------------------------------------------------------
+# Phase 28 helpers: Router NAT and Target VPN Gateway
+# ---------------------------------------------------------------------------
+
+
+def _make_router(name="router-1", self_link=None, nats=None):
+    """Create a mock Cloud Router object."""
+    r = MagicMock()
+    r.name = name
+    r.self_link = self_link or f"https://compute.googleapis.com/compute/v1/projects/proj/regions/us-central1/routers/{name}"
+    r.nats = nats if nats is not None else []
+    r.labels = None
+    return r
+
+
+def _make_nat(name="nat-1"):
+    """Create a mock Cloud Router NAT object."""
+    n = MagicMock()
+    n.name = name
+    return n
+
+
+def _make_target_vpn_gw(name="vpn-gw-1", self_link=None):
+    """Create a mock Target VPN Gateway object."""
+    gw = MagicMock()
+    gw.name = name
+    gw.self_link = self_link or f"https://compute.googleapis.com/compute/v1/projects/proj/regions/us-central1/targetVpnGateways/{name}"
+    gw.labels = None
+    return gw
+
+
+# ===========================================================================
+# GCPG-01: collect_gcp_reserved_ips DDI-only fix (Phase 28)
+# ===========================================================================
+
+
+class TestCollectGcpReservedIpsDdiOnly:
+    """Phase 28 GCPG-01: Reserved IPs must be DDI-only with ip_addresses=[].
+
+    After Plan 28-02 the collector sets ip_addresses=[] (DDI-only mode).
+    This test is RED now (current code still populates ip_addresses) and
+    becomes GREEN after the Plan 02 fix.
+    """
+
+    def test_reserved_ip_has_empty_ip_addresses(self):
+        """After GCPG-01 fix: ip_addresses==[] and resource_type=='gcp-reserved-ip'."""
+        from cloud_usage.providers.gcp.collectors.networking import collect_gcp_reserved_ips
+
+        addr = _make_address("static-1", address="10.128.0.5")
+        scoped = _make_scoped_list([addr], "addresses")
+
+        addresses_client = MagicMock()
+        addresses_client.aggregated_list.return_value = [("regions/us-central1", scoped)]
+
+        global_client = MagicMock()
+        global_client.list.return_value = []
+
+        result = collect_gcp_reserved_ips(addresses_client, global_client, "proj")
+
+        assert len(result) == 1
+        assert result[0].resource_type == "gcp-reserved-ip"
+        assert result[0].ip_addresses == []
+
+
+# ===========================================================================
+# GCPG-03: collect_gcp_router_nats (Phase 28)
+# ===========================================================================
+
+
+class TestCollectGcpRouterNats:
+    """Phase 28 GCPG-03: Cloud Router NAT configurations.
+
+    Tests are RED until collect_gcp_router_nats is implemented in Plan 02.
+    """
+
+    def test_router_with_nats_emits_one_per_nat(self):
+        """Router with one NAT emits exactly one gcp-router-nat resource."""
+        from cloud_usage.providers.gcp.collectors.networking import collect_gcp_router_nats
+
+        router = _make_router(name="router-1", nats=[_make_nat("nat-1")])
+        scoped = _make_scoped_list([router], "routers")
+
+        routers_client = MagicMock()
+        routers_client.aggregated_list.return_value = [("regions/us-central1", scoped)]
+
+        result = collect_gcp_router_nats(routers_client, "proj")
+
+        assert len(result) == 1
+        assert result[0].resource_type == "gcp-router-nat"
+        assert result[0].ip_addresses == []
+
+    def test_router_with_two_nats_emits_two(self):
+        """Router with two NATs emits two gcp-router-nat resources."""
+        from cloud_usage.providers.gcp.collectors.networking import collect_gcp_router_nats
+
+        router = _make_router(name="router-1", nats=[_make_nat("nat-1"), _make_nat("nat-2")])
+        scoped = _make_scoped_list([router], "routers")
+
+        routers_client = MagicMock()
+        routers_client.aggregated_list.return_value = [("regions/us-central1", scoped)]
+
+        result = collect_gcp_router_nats(routers_client, "proj")
+
+        assert len(result) == 2
+
+    def test_router_with_no_nats_emits_nothing(self):
+        """Router with empty nats list emits no resources."""
+        from cloud_usage.providers.gcp.collectors.networking import collect_gcp_router_nats
+
+        router = _make_router(name="router-empty", nats=[])
+        scoped = _make_scoped_list([router], "routers")
+
+        routers_client = MagicMock()
+        routers_client.aggregated_list.return_value = [("regions/us-central1", scoped)]
+
+        result = collect_gcp_router_nats(routers_client, "proj")
+
+        assert result == []
+
+    def test_router_nat_resource_id_constructed(self):
+        """resource_id contains project_id, region, router name, and nat name."""
+        from cloud_usage.providers.gcp.collectors.networking import collect_gcp_router_nats
+
+        router = _make_router(name="router-1", nats=[_make_nat("nat-1")])
+        scoped = _make_scoped_list([router], "routers")
+
+        routers_client = MagicMock()
+        routers_client.aggregated_list.return_value = [("regions/us-central1", scoped)]
+
+        result = collect_gcp_router_nats(routers_client, "my-proj")
+
+        resource_id = result[0].resource_id
+        assert "my-proj" in resource_id
+        assert "us-central1" in resource_id
+        assert "router-1" in resource_id
+        assert "nat-1" in resource_id
+
+
+# ===========================================================================
+# GCPG-04: collect_gcp_target_vpn_gateways (Phase 28)
+# ===========================================================================
+
+
+class TestCollectGcpTargetVpnGateways:
+    """Phase 28 GCPG-04: Legacy Target VPN Gateways.
+
+    Tests are RED until collect_gcp_target_vpn_gateways is implemented in Plan 02.
+    """
+
+    def test_target_vpn_gateway_collection(self):
+        """Target VPN gateway is collected as gcp-target-vpn-gateway with ip_addresses==[]."""
+        from cloud_usage.providers.gcp.collectors.networking import collect_gcp_target_vpn_gateways
+
+        gw = _make_target_vpn_gw("vpn-gw-1")
+        scoped = _make_scoped_list([gw], "target_vpn_gateways")
+
+        target_vpn_gateways_client = MagicMock()
+        target_vpn_gateways_client.aggregated_list.return_value = [("regions/us-central1", scoped)]
+
+        result = collect_gcp_target_vpn_gateways(target_vpn_gateways_client, "proj")
+
+        assert len(result) == 1
+        assert result[0].resource_type == "gcp-target-vpn-gateway"
+        assert result[0].ip_addresses == []
+
+    def test_target_vpn_gateway_skips_empty_scopes(self):
+        """Scoped list with no target_vpn_gateways emits no resources."""
+        from cloud_usage.providers.gcp.collectors.networking import collect_gcp_target_vpn_gateways
+
+        scoped = _make_empty_scoped_list("target_vpn_gateways")
+
+        target_vpn_gateways_client = MagicMock()
+        target_vpn_gateways_client.aggregated_list.return_value = [("regions/us-central1", scoped)]
+
+        result = collect_gcp_target_vpn_gateways(target_vpn_gateways_client, "proj")
+
+        assert result == []
