@@ -39,7 +39,11 @@ from cloud_usage.providers.azure.collectors.hybrid_networking import (
     collect_azure_load_balancers,
     collect_azure_nat_gateways,
     collect_azure_private_endpoints,
+    collect_azure_private_link_services,
+    collect_azure_route_tables,
+    collect_azure_tenants,
     collect_azure_virtual_wan_hubs,
+    collect_azure_virtual_wans,
     collect_azure_vnet_peerings,
     collect_azure_vpn_gateways,
 )
@@ -110,6 +114,10 @@ class AzureDiscoveryProvider(DiscoveryProvider):
             sub["id"]: sub.get("display_name", "")
             for sub in subscriptions
         }
+
+        # Tenant deduplication: tenants.list() returns same set per subscription;
+        # collect only once across all subscriptions to avoid inflating DDI count.
+        self._tenants_collected: bool = False
 
     @property
     def provider_name(self) -> str:
@@ -309,6 +317,28 @@ class AzureDiscoveryProvider(DiscoveryProvider):
             "Virtual WAN Hubs", account_id, collect_azure_virtual_wan_hubs,
             clients.network, account_id,
         ))
+
+        all_resources.extend(self._safe_collect(
+            "Private Link Services", account_id, collect_azure_private_link_services,
+            clients.network, account_id,
+        ))
+
+        all_resources.extend(self._safe_collect(
+            "Virtual WANs", account_id, collect_azure_virtual_wans,
+            clients.network, account_id,
+        ))
+
+        all_resources.extend(self._safe_collect(
+            "Route Tables", account_id, collect_azure_route_tables,
+            clients.network, account_id,
+        ))
+
+        if not self._tenants_collected:
+            all_resources.extend(self._safe_collect(
+                "Tenants", account_id, collect_azure_tenants,
+                clients.subscription, account_id,
+            ))
+            self._tenants_collected = True
 
         all_resources.extend(self._safe_collect(
             "Bastion Hosts", account_id, collect_azure_bastion_hosts,
