@@ -31,6 +31,7 @@ sys.modules.setdefault("google.cloud.storage", _mock_storage)
 
 from cloud_usage.providers.gcp.collectors.token_free import (
     collect_gcp_disks,
+    collect_gcp_gke_cidr_ranges,
     collect_gcp_gke_clusters,
     collect_gcp_instance_groups,
     collect_gcp_storage_buckets,
@@ -452,3 +453,122 @@ class TestCollectGcpStorageBuckets:
         assert len(resources) == 2
         assert resources[0].name == "bucket-a"
         assert resources[1].name == "bucket-b"
+
+
+# --- GKE CIDR Ranges collector tests (Phase 28 GCPG-02) ---
+
+
+def _make_mock_cluster_with_cidrs(
+    name="cluster-1",
+    location="us-central1",
+    control_plane_cidr="10.0.0.0/28",
+    pod_cidr="10.1.0.0/16",
+    service_cidr="10.2.0.0/20",
+):
+    """Create a mock GKE Cluster with private cluster config and IP allocation policy."""
+    cluster = MagicMock()
+    cluster.name = name
+    cluster.location = location
+    cluster.self_link = (
+        f"https://container.googleapis.com/v1/projects/{PROJECT_ID}"
+        f"/locations/{location}/clusters/{name}"
+    )
+    cluster.resource_labels = {}
+    # private_cluster_config
+    pcc = MagicMock()
+    pcc.master_ipv4_cidr_block = control_plane_cidr
+    cluster.private_cluster_config = pcc
+    # ip_allocation_policy
+    iap = MagicMock()
+    iap.cluster_ipv4_cidr_block = pod_cidr
+    iap.services_ipv4_cidr_block = service_cidr
+    cluster.ip_allocation_policy = iap
+    return cluster
+
+
+class TestCollectGcpGkeCidrRanges:
+    """Phase 28 GCPG-02: GKE CIDR ranges (control-plane, pod, service).
+
+    Tests are RED until collect_gcp_gke_cidr_ranges is implemented in Plan 02.
+    """
+
+    def test_cluster_with_all_cidrs_emits_three(self):
+        """Cluster with all three CIDRs emits three DDI resources."""
+        cluster = _make_mock_cluster_with_cidrs(
+            control_plane_cidr="10.0.0.0/28",
+            pod_cidr="10.1.0.0/16",
+            service_cidr="10.2.0.0/20",
+        )
+        response = MagicMock()
+        response.clusters = [cluster]
+
+        client = MagicMock()
+        client.list_clusters.return_value = response
+
+        result = collect_gcp_gke_cidr_ranges(client, PROJECT_ID)
+
+        assert len(result) == 3
+        resource_types = {r.resource_type for r in result}
+        assert "gcp-gke-control-plane-range" in resource_types
+        assert "gcp-gke-pod-range" in resource_types
+        assert "gcp-gke-service-range" in resource_types
+
+    def test_cluster_without_private_control_plane_emits_two(self):
+        """Cluster without control-plane CIDR emits only pod and service ranges."""
+        cluster = _make_mock_cluster_with_cidrs(
+            control_plane_cidr="",  # falsy — no control plane CIDR
+            pod_cidr="10.1.0.0/16",
+            service_cidr="10.2.0.0/20",
+        )
+        response = MagicMock()
+        response.clusters = [cluster]
+
+        client = MagicMock()
+        client.list_clusters.return_value = response
+
+        result = collect_gcp_gke_cidr_ranges(client, PROJECT_ID)
+
+        assert len(result) == 2
+        resource_types = {r.resource_type for r in result}
+        assert "gcp-gke-pod-range" in resource_types
+        assert "gcp-gke-service-range" in resource_types
+        assert "gcp-gke-control-plane-range" not in resource_types
+
+    def test_cluster_with_no_cidrs_emits_nothing(self):
+        """Cluster with no CIDRs set emits no DDI resources."""
+        cluster = _make_mock_cluster_with_cidrs(
+            control_plane_cidr="",
+            pod_cidr="",
+            service_cidr="",
+        )
+        response = MagicMock()
+        response.clusters = [cluster]
+
+        client = MagicMock()
+        client.list_clusters.return_value = response
+
+        result = collect_gcp_gke_cidr_ranges(client, PROJECT_ID)
+
+        assert result == []
+
+    def test_none_container_client_returns_empty(self):
+        """None container_client returns [] (graceful fallback)."""
+        result = collect_gcp_gke_cidr_ranges(None, PROJECT_ID)
+        assert result == []
+
+    def test_gke_cidr_ip_addresses_are_empty(self):
+        """All GKE CIDR resources have ip_addresses==[] (DDI-only)."""
+        cluster = _make_mock_cluster_with_cidrs(
+            control_plane_cidr="10.0.0.0/28",
+            pod_cidr="10.1.0.0/16",
+            service_cidr="10.2.0.0/20",
+        )
+        response = MagicMock()
+        response.clusters = [cluster]
+
+        client = MagicMock()
+        client.list_clusters.return_value = response
+
+        result = collect_gcp_gke_cidr_ranges(client, PROJECT_ID)
+
+        assert all(r.ip_addresses == [] for r in result)

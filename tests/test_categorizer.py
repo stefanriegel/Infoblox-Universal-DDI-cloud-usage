@@ -615,3 +615,17 @@ def test_azure_ddi_gaps_in_ddi_types():
     assert "azure-tenant" in DDI_TYPES
     # Confirm old type string is gone
     assert "azure-vpn-gateway" not in DDI_TYPES
+
+
+def test_gcp_ddi_gaps_in_ddi_types():
+    """Phase 28 — GCPG-01 through GCPG-04: six new GCP DDI type strings."""
+    # GCPG-01: Compute Addresses (reserved static IPs) — DDI-only, ip_addresses=[]
+    assert "gcp-reserved-ip" in DDI_TYPES
+    # GCPG-02: GKE CIDR Ranges (three subtypes)
+    assert "gcp-gke-control-plane-range" in DDI_TYPES
+    assert "gcp-gke-pod-range" in DDI_TYPES
+    assert "gcp-gke-service-range" in DDI_TYPES
+    # GCPG-03: Router NAT Mapping Infos
+    assert "gcp-router-nat" in DDI_TYPES
+    # GCPG-04: Target VPN Gateways (legacy)
+    assert "gcp-target-vpn-gateway" in DDI_TYPES
