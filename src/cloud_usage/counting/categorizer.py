@@ -60,6 +60,12 @@ DDI_TYPES: set[str] = {
     "aws-route53-health-check",
     "aws-route53-traffic-policy",
     "aws-route53-traffic-policy-instance",
+    # Azure DDI Gaps — Phase 27 (AZUG-01 through AZUG-05)
+    "azure-vnet-gateway",           # AZUG-01: VPN + ExpressRoute gateways (renamed from azure-vpn-gateway)
+    "azure-private-link-service",   # AZUG-02: Private Link Services
+    "azure-virtual-wan",            # AZUG-03: Virtual WANs (parent WAN object, distinct from azure-vwan-hub)
+    "azure-route-table",            # AZUG-04: Route Tables
+    "azure-tenant",                 # AZUG-05: Azure Tenants
 }
 
 # Resource types that are discovered but not counted (token-free)
