@@ -445,9 +445,9 @@ def collect_azure_vpn_gateways(
     subscription_id: str,
     vnets: list[CloudResource],
 ) -> list[CloudResource]:
-    """Discover VPN gateways across unique resource groups.
+    """Discover VNet gateways (VPN and ExpressRoute) across unique resource groups.
 
-    Per RESEARCH.md: VPN gateways (virtual_network_gateways) require
+    Per RESEARCH.md: VNet gateways (virtual_network_gateways) require
     per-resource-group listing. Iterates unique resource groups from
     discovered VNets.
 
@@ -458,7 +458,7 @@ def collect_azure_vpn_gateways(
             derive unique resource groups).
 
     Returns:
-        List of CloudResource with resource_type="azure-vpn-gateway".
+        List of CloudResource with resource_type="azure-vnet-gateway".
     """
     resources: list[CloudResource] = []
 
@@ -480,7 +480,7 @@ def collect_azure_vpn_gateways(
                 resources.append(
                     CloudResource(
                         resource_id=gw.id,
-                        resource_type="azure-vpn-gateway",
+                        resource_type="azure-vnet-gateway",
                         provider="azure",
                         account_id=subscription_id,
                         region=gw.location,
@@ -496,13 +496,157 @@ def collect_azure_vpn_gateways(
                 )
         except Exception:
             logger.warning(
-                "Failed to list VPN gateways in resource group %s",
+                "Failed to list VNet gateways in resource group %s",
                 rg,
                 exc_info=True,
             )
 
     logger.debug(
-        "Discovered %d VPN gateways in subscription %s",
+        "Discovered %d VNet gateways in subscription %s",
+        len(resources),
+        subscription_id,
+    )
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_azure_private_link_services(
+    network_client: Any,
+    subscription_id: str,
+) -> list[CloudResource]:
+    """Discover all Private Link Services in a subscription.
+
+    Uses network_client.private_link_services.list_by_subscription() for
+    subscription-level enumeration. Extracts IPs from ip_configurations.
+
+    Args:
+        network_client: Azure NetworkManagementClient.
+        subscription_id: Azure subscription ID.
+
+    Returns:
+        List of CloudResource with resource_type="azure-private-link-service".
+    """
+    resources: list[CloudResource] = []
+
+    for pls in network_client.private_link_services.list_by_subscription():
+        rg = _extract_resource_group(pls.id)
+
+        ip_addresses: list[str] = []
+        for ip_config in (pls.ip_configurations or []):
+            if ip_config.private_ip_address:
+                ip_addresses.append(ip_config.private_ip_address)
+
+        resources.append(
+            CloudResource(
+                resource_id=pls.id,
+                resource_type="azure-private-link-service",
+                provider="azure",
+                account_id=subscription_id,
+                region=pls.location,
+                name=pls.name,
+                ip_addresses=ip_addresses,
+                tags=dict(pls.tags) if pls.tags else {},
+                details={
+                    "resource_group": rg,
+                },
+            )
+        )
+
+    logger.debug(
+        "Discovered %d Private Link Services in subscription %s",
+        len(resources),
+        subscription_id,
+    )
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_azure_virtual_wans(
+    network_client: Any,
+    subscription_id: str,
+) -> list[CloudResource]:
+    """Discover all Virtual WAN objects in a subscription.
+
+    Uses network_client.virtual_wans.list() for subscription-level
+    enumeration. Discovers parent WAN objects (distinct from vwan-hub).
+
+    Args:
+        network_client: Azure NetworkManagementClient.
+        subscription_id: Azure subscription ID.
+
+    Returns:
+        List of CloudResource with resource_type="azure-virtual-wan".
+    """
+    resources: list[CloudResource] = []
+
+    for wan in network_client.virtual_wans.list():
+        rg = _extract_resource_group(wan.id)
+
+        resources.append(
+            CloudResource(
+                resource_id=wan.id,
+                resource_type="azure-virtual-wan",
+                provider="azure",
+                account_id=subscription_id,
+                region=wan.location,
+                name=wan.name,
+                ip_addresses=[],
+                tags=dict(wan.tags) if wan.tags else {},
+                details={
+                    "resource_group": rg,
+                },
+            )
+        )
+
+    logger.debug(
+        "Discovered %d Virtual WANs in subscription %s",
+        len(resources),
+        subscription_id,
+    )
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_azure_route_tables(
+    network_client: Any,
+    subscription_id: str,
+) -> list[CloudResource]:
+    """Discover all route tables in a subscription.
+
+    Uses network_client.route_tables.list_all() for subscription-level
+    enumeration. Counts ALL route tables including auto-created main
+    route tables — no filtering.
+
+    Args:
+        network_client: Azure NetworkManagementClient.
+        subscription_id: Azure subscription ID.
+
+    Returns:
+        List of CloudResource with resource_type="azure-route-table".
+    """
+    resources: list[CloudResource] = []
+
+    for rt in network_client.route_tables.list_all():
+        rg = _extract_resource_group(rt.id)
+
+        resources.append(
+            CloudResource(
+                resource_id=rt.id,
+                resource_type="azure-route-table",
+                provider="azure",
+                account_id=subscription_id,
+                region=rt.location,
+                name=rt.name,
+                ip_addresses=[],
+                tags=dict(rt.tags) if rt.tags else {},
+                details={
+                    "resource_group": rg,
+                },
+            )
+        )
+
+    logger.debug(
+        "Discovered %d route tables in subscription %s",
         len(resources),
         subscription_id,
     )
@@ -610,6 +754,52 @@ def collect_azure_bastion_hosts(
 
     logger.debug(
         "Discovered %d Bastion hosts in subscription %s",
+        len(resources),
+        subscription_id,
+    )
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_azure_tenants(
+    subscription_client: Any,
+    subscription_id: str,
+) -> list[CloudResource]:
+    """Discover all Azure AD tenants accessible from the subscription.
+
+    Uses subscription_client.tenants.list() for enumeration.
+    TenantIdDescription has only id and tenant_id fields — no location
+    or tags. Region is hardcoded to "global".
+
+    Args:
+        subscription_client: Azure SubscriptionClient.
+        subscription_id: Azure subscription ID (used as account_id).
+
+    Returns:
+        List of CloudResource with resource_type="azure-tenant".
+    """
+    resources: list[CloudResource] = []
+
+    for tenant in subscription_client.tenants.list():
+        resource_id = tenant.id or f"/tenants/{tenant.tenant_id}"
+        resources.append(
+            CloudResource(
+                resource_id=resource_id,
+                resource_type="azure-tenant",
+                provider="azure",
+                account_id=subscription_id,
+                region="global",
+                name=tenant.tenant_id or "",
+                ip_addresses=[],
+                tags={},
+                details={
+                    "tenant_id": tenant.tenant_id or "",
+                },
+            )
+        )
+
+    logger.debug(
+        "Discovered %d tenants in subscription %s",
         len(resources),
         subscription_id,
     )

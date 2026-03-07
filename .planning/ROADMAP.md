@@ -211,6 +211,6 @@ Plans:
 | 24. Wizard Navigation Fix | v1.6 | 1/1 | Complete | 2026-03-03 |
 | 25. IP Methodology Fix | v1.7 | 4/4 | Complete | 2026-03-03 |
 | 26. AWS DDI Gaps | 5/5 | Complete    | 2026-03-04 | - |
-| 27. Azure DDI Gaps | v1.7 | 0/3 | Not started | - |
+| 27. Azure DDI Gaps | 1/3 | In Progress|  | - |
 | 28. GCP DDI Gaps | v1.7 | 0/TBD | Not started | - |
 | 29. Microsoft AD Core | v1.7 | 0/TBD | Not started | - |

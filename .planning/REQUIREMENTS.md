@@ -37,11 +37,11 @@ Requirements for the Reference Parity milestone. Each maps to roadmap phases.
 
 ### Azure DDI Gaps
 
-- [ ] **AZUG-01**: Virtual Network Gateways (VPN and ExpressRoute) counted as DDI objects
-- [ ] **AZUG-02**: Private Link Services counted as DDI objects
-- [ ] **AZUG-03**: Virtual WANs counted as DDI objects
-- [ ] **AZUG-04**: Route Tables counted as DDI objects
-- [ ] **AZUG-05**: Azure Tenants counted as DDI objects
+- [x] **AZUG-01**: Virtual Network Gateways (VPN and ExpressRoute) counted as DDI objects
+- [x] **AZUG-02**: Private Link Services counted as DDI objects
+- [x] **AZUG-03**: Virtual WANs counted as DDI objects
+- [x] **AZUG-04**: Route Tables counted as DDI objects
+- [x] **AZUG-05**: Azure Tenants counted as DDI objects
 
 ### GCP DDI Gaps
 
@@ -97,11 +97,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AWSG-05 | Phase 26 | Complete |
 | AWSG-06 | Phase 26 | Complete |
 | AWSG-07 | Phase 26 | Complete |
-| AZUG-01 | Phase 27 | Pending |
-| AZUG-02 | Phase 27 | Pending |
-| AZUG-03 | Phase 27 | Pending |
-| AZUG-04 | Phase 27 | Pending |
-| AZUG-05 | Phase 27 | Pending |
+| AZUG-01 | Phase 27 | Complete |
+| AZUG-02 | Phase 27 | Complete |
+| AZUG-03 | Phase 27 | Complete |
+| AZUG-04 | Phase 27 | Complete |
+| AZUG-05 | Phase 27 | Complete |
 | GCPG-01 | Phase 28 | Pending |
 | GCPG-02 | Phase 28 | Pending |
 | GCPG-03 | Phase 28 | Pending |
