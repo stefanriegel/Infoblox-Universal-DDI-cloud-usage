@@ -138,7 +138,9 @@ def collect_gcp_reserved_ips(
     - Regional addresses via addresses_client.aggregated_list() (one API call).
     - Global addresses via global_addresses_client.list() (one API call).
 
-    Each reserved IP is a managed asset with the actual IP in ip_addresses.
+    DDI-only -- ip_addresses=[] per reference; Compute Addresses are
+    Networking Basics, not Address Records. Address details are preserved
+    in the details dict for audit/display purposes.
 
     Args:
         addresses_client: compute_v1.AddressesClient for regional addresses.
@@ -171,10 +173,6 @@ def collect_gcp_reserved_ips(
                 else f"projects/{project_id}/regions/{region}/addresses/{address.name}"
             )
 
-            ip_addresses: list[str] = []
-            if getattr(address, "address", None):
-                ip_addresses = [address.address]
-
             resources.append(
                 CloudResource(
                     resource_id=resource_id,
@@ -183,7 +181,7 @@ def collect_gcp_reserved_ips(
                     account_id=project_id,
                     region=region,
                     name=address.name,
-                    ip_addresses=ip_addresses,
+                    ip_addresses=[],
                     tags=dict(address.labels) if getattr(address, "labels", None) else {},
                     details={
                         "address_type": getattr(address, "address_type", ""),
@@ -201,10 +199,6 @@ def collect_gcp_reserved_ips(
             else f"projects/{project_id}/global/addresses/{address.name}"
         )
 
-        ip_addresses = []
-        if getattr(address, "address", None):
-            ip_addresses = [address.address]
-
         resources.append(
             CloudResource(
                 resource_id=resource_id,
@@ -213,7 +207,7 @@ def collect_gcp_reserved_ips(
                 account_id=project_id,
                 region="global",
                 name=address.name,
-                ip_addresses=ip_addresses,
+                ip_addresses=[],
                 tags=dict(address.labels) if getattr(address, "labels", None) else {},
                 details={
                     "address_type": getattr(address, "address_type", ""),
@@ -222,5 +216,106 @@ def collect_gcp_reserved_ips(
                 },
             )
         )
+
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_gcp_router_nats(
+    routers_client,
+    project_id: str,
+) -> list[CloudResource]:
+    """Discover all Router NAT configs across all regions in a GCP project.
+
+    Uses RoutersClient.aggregated_list() to enumerate all Cloud Routers.
+    Each NAT configuration on a router produces one DDI object. Routers
+    with no NAT configs are skipped. ip_addresses=[] -- DDI topology objects.
+
+    Args:
+        routers_client: compute_v1.RoutersClient for the project.
+        project_id: GCP project ID.
+
+    Returns:
+        List of CloudResource with resource_type="gcp-router-nat".
+    """
+    resources: list[CloudResource] = []
+
+    for region_key, scoped_list in routers_client.aggregated_list(project=project_id):
+        if not scoped_list.routers:
+            continue
+
+        region = region_key.split("/")[-1]
+
+        for router in scoped_list.routers:
+            nats = getattr(router, "nats", None) or []
+            for nat in nats:
+                resource_id = (
+                    f"projects/{project_id}/regions/{region}"
+                    f"/routers/{router.name}/nats/{nat.name}"
+                )
+                resources.append(
+                    CloudResource(
+                        resource_id=resource_id,
+                        resource_type="gcp-router-nat",
+                        provider="gcp",
+                        account_id=project_id,
+                        region=region,
+                        name=nat.name,
+                        ip_addresses=[],
+                        tags=dict(router.labels) if getattr(router, "labels", None) else {},
+                        details={
+                            "router_name": router.name,
+                        },
+                    )
+                )
+
+    return resources
+
+
+@retry_with_backoff(max_retries=3)
+def collect_gcp_target_vpn_gateways(
+    target_vpn_gateways_client,
+    project_id: str,
+) -> list[CloudResource]:
+    """Discover all Target VPN Gateways (legacy) across all regions in a GCP project.
+
+    Uses TargetVpnGatewaysClient.aggregated_list() for all-region enumeration.
+    These are legacy Target VPN Gateways (not HA VPN Gateways). ip_addresses=[]
+    -- DDI topology objects in the Networking Basics category.
+
+    Args:
+        target_vpn_gateways_client: compute_v1.TargetVpnGatewaysClient.
+        project_id: GCP project ID.
+
+    Returns:
+        List of CloudResource with resource_type="gcp-target-vpn-gateway".
+    """
+    resources: list[CloudResource] = []
+
+    for region_key, scoped_list in target_vpn_gateways_client.aggregated_list(project=project_id):
+        if not scoped_list.target_vpn_gateways:
+            continue
+
+        region = region_key.split("/")[-1]
+
+        for gw in scoped_list.target_vpn_gateways:
+            resource_id = (
+                gw.self_link
+                if getattr(gw, "self_link", None)
+                else f"projects/{project_id}/regions/{region}/targetVpnGateways/{gw.name}"
+            )
+            resources.append(
+                CloudResource(
+                    resource_id=resource_id,
+                    resource_type="gcp-target-vpn-gateway",
+                    provider="gcp",
+                    account_id=project_id,
+                    region=region,
+                    name=gw.name,
+                    ip_addresses=[],
+                    tags=dict(gw.labels) if getattr(gw, "labels", None) else {},
+                    details={},
+                )
+            )
 
     return resources

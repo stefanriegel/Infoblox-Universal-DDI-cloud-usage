@@ -51,6 +51,8 @@ class GCPClients:
     url_maps: Any | None = None
     container: Any | None = None
     sqladmin: Any | None = None
+    routers: Any | None = None
+    target_vpn_gateways: Any | None = None
 
 
 def _try_create(name: str, factory_fn) -> Any | None:
@@ -132,6 +134,14 @@ def create_shared_clients(credentials) -> GCPClients:
         "sqladmin",
         lambda: _create_sqladmin_client(credentials),
     )
+    clients.routers = _try_create(
+        "routers",
+        lambda: _create_routers_client(credentials),
+    )
+    clients.target_vpn_gateways = _try_create(
+        "target_vpn_gateways",
+        lambda: _create_target_vpn_gateways_client(credentials),
+    )
 
     return clients
 
@@ -192,3 +202,13 @@ def _create_container_client(credentials):
 def _create_sqladmin_client(credentials):
     from googleapiclient.discovery import build
     return build("sqladmin", "v1", credentials=credentials, cache_discovery=False)
+
+
+def _create_routers_client(credentials):
+    from google.cloud import compute_v1
+    return compute_v1.RoutersClient(credentials=credentials)
+
+
+def _create_target_vpn_gateways_client(credentials):
+    from google.cloud import compute_v1
+    return compute_v1.TargetVpnGatewaysClient(credentials=credentials)

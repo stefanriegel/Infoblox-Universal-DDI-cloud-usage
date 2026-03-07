@@ -366,7 +366,7 @@ class TestCollectGcpReservedIps:
         assert r.account_id == "proj-a"
         assert r.region == "us-east1"
         assert r.name == "internal-1"
-        assert r.ip_addresses == ["10.128.0.5"]
+        assert r.ip_addresses == []  # DDI-only: GCPG-01 fix
         assert r.details["address_type"] == "INTERNAL"
         assert r.details["status"] == "RESERVED"
         assert r.details["purpose"] == "GCE_ENDPOINT"
@@ -400,7 +400,8 @@ class TestCollectGcpReservedIps:
 
         result = collect_gcp_reserved_ips(addresses_client, global_client, "proj")
 
-        assert result[0].ip_addresses == ["192.168.1.10"]
+        # DDI-only after GCPG-01 fix: ip_addresses is always empty
+        assert result[0].ip_addresses == []
 
     def test_empty_address_has_no_ips(self):
         from cloud_usage.providers.gcp.collectors.networking import collect_gcp_reserved_ips
