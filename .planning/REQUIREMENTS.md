@@ -45,10 +45,10 @@ Requirements for the Reference Parity milestone. Each maps to roadmap phases.
 
 ### GCP DDI Gaps
 
-- [ ] **GCPG-01**: Compute Addresses (reserved static IPs) counted as DDI objects
-- [ ] **GCPG-02**: GKE CIDR Ranges (control plane/pod/service) counted as DDI objects
-- [ ] **GCPG-03**: Router NAT Mapping Infos counted as DDI objects
-- [ ] **GCPG-04**: Target VPN Gateways (legacy) counted as DDI objects
+- [x] **GCPG-01**: Compute Addresses (reserved static IPs) counted as DDI objects
+- [x] **GCPG-02**: GKE CIDR Ranges (control plane/pod/service) counted as DDI objects
+- [x] **GCPG-03**: Router NAT Mapping Infos counted as DDI objects
+- [x] **GCPG-04**: Target VPN Gateways (legacy) counted as DDI objects
 
 ## Future Requirements
 
@@ -102,10 +102,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AZUG-03 | Phase 27 | Complete |
 | AZUG-04 | Phase 27 | Complete |
 | AZUG-05 | Phase 27 | Complete |
-| GCPG-01 | Phase 28 | Pending |
-| GCPG-02 | Phase 28 | Pending |
-| GCPG-03 | Phase 28 | Pending |
-| GCPG-04 | Phase 28 | Pending |
+| GCPG-01 | Phase 28 | Complete |
+| GCPG-02 | Phase 28 | Complete |
+| GCPG-03 | Phase 28 | Complete |
+| GCPG-04 | Phase 28 | Complete |
 
 **Coverage:**
 - v1.7 requirements: 28 total

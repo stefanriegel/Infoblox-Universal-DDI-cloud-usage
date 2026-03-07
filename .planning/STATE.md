@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Reference Parity
 status: completed
-stopped_at: Completed 27-03-PLAN.md
-last_updated: "2026-03-07T16:47:41.048Z"
-last_activity: "2026-03-07 — Completed 27-02: 5 Azure DDI collectors GREEN; SubscriptionClient import fix; 2 tasks, 2 files, 5 min"
+stopped_at: Completed 28-01-PLAN.md
+last_updated: "2026-03-07T17:38:56.402Z"
+last_activity: "2026-03-07 — Completed 27-03: provider wiring + 5 DDI types in categorizer; Phase 27 COMPLETE; 2 tasks, 2 files, 5 min"
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 12
-  completed_plans: 12
+  total_plans: 15
+  completed_plans: 13
   percent: 96
 ---
 
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
 
 ## Current Position
 
-Phase: 27 of 29 (Azure DDI Gaps) — COMPLETE (3/3 plans done, AZUG-01 through AZUG-05 fulfilled)
-Plan: 03 complete (27-03-PLAN.md) — provider wiring + DDI_TYPES update; all 5 Azure DDI types integrated into pipeline
-Status: Phase 27 complete — proceed to Phase 28 (GCP DDI Gaps, GCPG-01 through GCPG-04)
-Last activity: 2026-03-07 — Completed 27-03: provider wiring + 5 DDI types in categorizer; Phase 27 COMPLETE; 2 tasks, 2 files, 5 min
+Phase: 28 of 29 (GCP DDI Gaps) — IN PROGRESS (1/3 plans done)
+Plan: 01 complete (28-01-PLAN.md) — TDD RED gate: 3 test classes + 1 categorizer function for GCPG-01..04; ImportError/AssertionError confirmed
+Status: Phase 28 plan 01 complete — proceed to Phase 28 plan 02 (GCP DDI collector implementation)
+Last activity: 2026-03-07 — Completed 28-01: TDD RED gate for GCPG-01..04; 13 new failing tests, 3 files, 2 min
 
 Progress: [██████████] 96%
 
@@ -53,6 +53,7 @@ Progress: [██████████] 96%
 | Phase 27 P01 | 2 | 2 tasks | 2 files |
 | Phase 27 P02 | 5 | 2 tasks | 2 files |
 | Phase 27 P03 | 5 | 2 tasks | 2 files |
+| Phase 28 P01 | 2 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -70,6 +71,12 @@ Progress: [██████████] 96%
 - IP counting methodology: align with reference — count NIC/config objects (not unique IP addresses); remove standalone ENI/EIP/NAT GW IP counting from AWS
 - Microsoft AD: full implementation matching reference `microsoft_ad.py` — DNS + DHCP + Users + Autodiscovery; CLI-only for v1.7 (dashboard tab deferred)
 - Phase ordering: METH fix first (Phase 25) as it is foundational to correct IP counts in all providers; cloud DDI gap phases (26-28) can run in any order after 25; AD (Phase 29) is independent but placed last as it is a full new provider
+
+### Key Phase 28 Decisions
+
+- collect_gcp_gke_cidr_ranges imported at module level in token_free test — causes ImportError at collection time (stronger RED gate than in-method import) (plan 28-01)
+- gcp-reserved-ip already in DDI_TYPES as asset type; GCPG-01 RED test asserts ip_addresses==[] on collector, not DDI_TYPES membership (plan 28-01)
+- TestCollectGcpReservedIpsDdiOnly placed alongside existing TestCollectGcpReservedIps to group by collector module (plan 28-01)
 
 ### Key Phase 27 Decisions
 
@@ -121,6 +128,7 @@ Progress: [██████████] 96%
 
 ## Session Log
 
+- 2026-03-07: Phase 28 plan 01 complete — TDD RED gate: 13 new failing tests in 3 files; GCPG-01..04 covered; ImportError/AssertionError confirmed (2 tasks, 3 files, 2 min)
 - 2026-03-07: Phase 27 plan 03 complete — provider wiring + 5 DDI types in categorizer; Phase 27 (Azure DDI Gaps) COMPLETE; AZUG-01..05 fulfilled (2 tasks, 2 files, 5 min)
 - 2026-03-07: Phase 27 plan 02 complete — 5 Azure DDI collectors GREEN (1 rewritten, 4 new); SubscriptionClient import fixed (2 tasks, 2 files, 5 min)
 - 2026-03-07: Phase 27 plan 01 complete — TDD RED gate: 4 new test classes + categorizer assertion for AZUG-01..05; ImportError/AssertionError confirmed (2 tasks, 2 files, 2 min)
@@ -138,6 +146,6 @@ Progress: [██████████] 96%
 
 ## Session Continuity
 
-Last session: 2026-03-07T16:47:41.046Z
-Stopped at: Completed 27-03-PLAN.md
+Last session: 2026-03-07T17:38:56.400Z
+Stopped at: Completed 28-01-PLAN.md
 Resume file: None
