@@ -212,7 +212,7 @@ def _create_mgmt_groups(credential):
 
 
 def _create_subscription(credential):
-    from azure.mgmt.resource import SubscriptionClient
+    from azure.mgmt.subscription import SubscriptionClient
     return SubscriptionClient(credential)
 
 
