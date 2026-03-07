@@ -25,11 +25,14 @@ from cloud_usage.providers.gcp.collectors.dns import (
 )
 from cloud_usage.providers.gcp.collectors.networking import (
     collect_gcp_reserved_ips,
+    collect_gcp_router_nats,
     collect_gcp_subnets,
+    collect_gcp_target_vpn_gateways,
     collect_gcp_vpcs,
 )
 from cloud_usage.providers.gcp.collectors.token_free import (
     collect_gcp_disks,
+    collect_gcp_gke_cidr_ranges,
     collect_gcp_gke_clusters,
     collect_gcp_instance_groups,
     collect_gcp_storage_buckets,
@@ -209,6 +212,14 @@ class GCPDiscoveryProvider(DiscoveryProvider):
                 "Reserved IPs", account_id, collect_gcp_reserved_ips,
                 clients.addresses, clients.global_addresses, account_id,
             ))
+            all_resources.extend(self._safe_collect(
+                "Router NAT Configs", account_id, collect_gcp_router_nats,
+                clients.routers, account_id,
+            ))
+            all_resources.extend(self._safe_collect(
+                "Target VPN Gateways", account_id, collect_gcp_target_vpn_gateways,
+                clients.target_vpn_gateways, account_id,
+            ))
 
         # ---- Database: Cloud SQL ----
         if sqladmin_enabled:
@@ -237,6 +248,10 @@ class GCPDiscoveryProvider(DiscoveryProvider):
         if container_enabled:
             all_resources.extend(self._safe_collect(
                 "GKE Clusters", account_id, collect_gcp_gke_clusters,
+                clients.container, account_id,
+            ))
+            all_resources.extend(self._safe_collect(
+                "GKE CIDR Ranges", account_id, collect_gcp_gke_cidr_ranges,
                 clients.container, account_id,
             ))
 

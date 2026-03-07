@@ -66,6 +66,13 @@ DDI_TYPES: set[str] = {
     "azure-virtual-wan",            # AZUG-03: Virtual WANs (parent WAN object, distinct from azure-vwan-hub)
     "azure-route-table",            # AZUG-04: Route Tables
     "azure-tenant",                 # AZUG-05: Azure Tenants
+    # GCP DDI Gaps — Phase 28 (GCPG-01 through GCPG-04)
+    "gcp-reserved-ip",              # GCPG-01: Compute Addresses (reserved static IPs) — DDI-only, no IP contribution
+    "gcp-gke-control-plane-range",  # GCPG-02: GKE cluster control plane CIDR (private clusters only)
+    "gcp-gke-pod-range",            # GCPG-02: GKE cluster pod IP CIDR range
+    "gcp-gke-service-range",        # GCPG-02: GKE cluster service IP CIDR range
+    "gcp-router-nat",               # GCPG-03: Cloud Router NAT Mapping Info (one per NAT config per router)
+    "gcp-target-vpn-gateway",       # GCPG-04: Target VPN Gateway (legacy, not HA VPN)
 }
 
 # Resource types that are discovered but not counted (token-free)

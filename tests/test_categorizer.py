@@ -531,11 +531,12 @@ class TestCategorizeGcpAssetResources:
         assert resources[0].counted is True
         assert resources[0].category == "asset"
 
-    def test_gcp_reserved_ip_with_ip_is_asset(self):
+    def test_gcp_reserved_ip_is_ddi(self):
+        # gcp-reserved-ip is in DDI_TYPES (GCPG-01) — DDI wins even with ip_addresses
         r = _make_gcp_resource("gcp-reserved-ip", ip_addresses=["34.100.0.10"])
         resources = categorize_resources([r])
         assert resources[0].counted is True
-        assert resources[0].category == "asset"
+        assert resources[0].category == "ddi"
 
 
 class TestCategorizeGcpMixedBatch:
