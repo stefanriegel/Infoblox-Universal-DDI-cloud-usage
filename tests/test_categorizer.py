@@ -630,3 +630,42 @@ def test_gcp_ddi_gaps_in_ddi_types():
     assert "gcp-router-nat" in DDI_TYPES
     # GCPG-04: Target VPN Gateways (legacy)
     assert "gcp-target-vpn-gateway" in DDI_TYPES
+
+
+# --- Phase 29 (AD-01 through AD-08): DDI_TYPES assertions ---
+
+
+class TestAdDdiTypesInCategorizer:
+    """Phase 29 — AD-02/AD-03: AD DDI type strings must be in DDI_TYPES.
+
+    These tests are RED until plan 29-03 adds ad-* entries to categorizer.DDI_TYPES.
+    AD Users (ad-user) are Assets, NOT DDI — confirmed absent here.
+    """
+
+    def test_ad_dns_zone_in_ddi_types(self):
+        """AD DNS zone type 'ad-dns-zone' must be in DDI_TYPES (RED until 29-03)."""
+        assert "ad-dns-zone" in DDI_TYPES, (
+            "Phase 29 DDI type 'ad-dns-zone' missing from DDI_TYPES — "
+            "add it to src/cloud_usage/counting/categorizer.py in plan 29-03"
+        )
+
+    def test_ad_dns_record_in_ddi_types(self):
+        """AD DNS record type 'ad-dns-record' must be in DDI_TYPES (RED until 29-03)."""
+        assert "ad-dns-record" in DDI_TYPES, (
+            "Phase 29 DDI type 'ad-dns-record' missing from DDI_TYPES — "
+            "add it to src/cloud_usage/counting/categorizer.py in plan 29-03"
+        )
+
+    def test_ad_dhcp_scope_in_ddi_types(self):
+        """AD DHCP scope type 'ad-dhcp-scope' must be in DDI_TYPES (RED until 29-03)."""
+        assert "ad-dhcp-scope" in DDI_TYPES, (
+            "Phase 29 DDI type 'ad-dhcp-scope' missing from DDI_TYPES — "
+            "add it to src/cloud_usage/counting/categorizer.py in plan 29-03"
+        )
+
+    def test_ad_user_not_in_ddi_types(self):
+        """AD Users 'ad-user' must NOT be in DDI_TYPES — users are Assets, not DDI."""
+        assert "ad-user" not in DDI_TYPES, (
+            "AD Users (ad-user) should be categorized as Assets, not DDI. "
+            "Remove 'ad-user' from DDI_TYPES."
+        )
