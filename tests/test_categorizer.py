@@ -599,3 +599,19 @@ def test_ddi_types_contains_phase26_aws_types():
             f"Phase 26 DDI type '{type_str}' missing from DDI_TYPES — "
             f"add it to src/cloud_usage/counting/categorizer.py"
         )
+
+
+def test_azure_ddi_gaps_in_ddi_types():
+    """Phase 27 — AZUG-01 through AZUG-05: five new Azure DDI type strings."""
+    # AZUG-01: VNet Gateways (VPN + ExpressRoute) — renamed from azure-vpn-gateway
+    assert "azure-vnet-gateway" in DDI_TYPES
+    # AZUG-02: Private Link Services
+    assert "azure-private-link-service" in DDI_TYPES
+    # AZUG-03: Virtual WANs (parent WAN objects, distinct from azure-vwan-hub)
+    assert "azure-virtual-wan" in DDI_TYPES
+    # AZUG-04: Route Tables
+    assert "azure-route-table" in DDI_TYPES
+    # AZUG-05: Azure Tenants
+    assert "azure-tenant" in DDI_TYPES
+    # Confirm old type string is gone
+    assert "azure-vpn-gateway" not in DDI_TYPES
