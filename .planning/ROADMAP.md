@@ -165,7 +165,12 @@ Plans:
   2. Running a GCP scan against a project with GKE clusters produces DDI counts that include control plane, pod, and service CIDR ranges as separate DDI objects
   3. Running a GCP scan against a project with Cloud Routers configured for NAT or Target VPN Gateways produces DDI counts that include Router NAT Mapping Infos and Target VPN Gateway objects
   4. The GCP XLS report resource-type breakdown shows each new DDI type as a distinct row with its object count
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 28-01-PLAN.md — Wave 0 test scaffolding: add failing tests for GCPG-01/03/04 to test_gcp_collectors_networking.py, GCPG-02 to test_gcp_collectors_token_free.py, 6 DDI type assertions to test_categorizer.py
+- [ ] 28-02-PLAN.md — Implement: fix collect_gcp_reserved_ips (DDI-only), add collect_gcp_gke_cidr_ranges, collect_gcp_router_nats, collect_gcp_target_vpn_gateways; add RoutersClient + TargetVpnGatewaysClient to client_factory.py
+- [ ] 28-03-PLAN.md — Wire 4 new collectors into provider.py; add 6 GCP DDI type strings to categorizer.py DDI_TYPES
 
 ### Phase 29: Microsoft AD Core
 **Goal**: Users can scan a Microsoft Active Directory environment via WinRM/PowerShell and receive a complete UDDI token estimate for DNS objects, DHCP objects, and AD Users — with Kerberos or NTLM auth, optional DC autodiscovery, and an XLS report using the same token formula as cloud providers
@@ -211,6 +216,6 @@ Plans:
 | 24. Wizard Navigation Fix | v1.6 | 1/1 | Complete | 2026-03-03 |
 | 25. IP Methodology Fix | v1.7 | 4/4 | Complete | 2026-03-03 |
 | 26. AWS DDI Gaps | 5/5 | Complete    | 2026-03-04 | - |
-| 27. Azure DDI Gaps | 3/3 | Complete   | 2026-03-07 | - |
-| 28. GCP DDI Gaps | v1.7 | 0/TBD | Not started | - |
+| 27. Azure DDI Gaps | 3/3 | Complete    | 2026-03-07 | - |
+| 28. GCP DDI Gaps | v1.7 | 0/3 | Not started | - |
 | 29. Microsoft AD Core | v1.7 | 0/TBD | Not started | - |
