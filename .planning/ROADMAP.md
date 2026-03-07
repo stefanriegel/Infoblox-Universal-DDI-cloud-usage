@@ -100,7 +100,7 @@ Archive: `.planning/milestones/v1.5-ROADMAP.md`
 - [x] **Phase 26: AWS DDI Gaps** — Add Route53 Resolver, IPAM, gateways, route tables, Direct Connect, and Route53 health/traffic types to AWS collector (completed 2026-03-04)
 - [x] **Phase 27: Azure DDI Gaps** — Add Virtual Network Gateways, Private Link Services, Virtual WANs, Route Tables, and Tenants to Azure collector (completed 2026-03-07)
 - [x] **Phase 28: GCP DDI Gaps** — Add Compute Addresses, GKE CIDR Ranges, Router NAT Mapping Infos, and Target VPN Gateways to GCP collector (completed 2026-03-07)
-- [ ] **Phase 29: Microsoft AD Core** — Full WinRM/PowerShell provider: DNS, DHCP, Users, Kerberos/NTLM auth, DC autodiscovery, XLS output
+- [x] **Phase 29: Microsoft AD Core** — Full WinRM/PowerShell provider: DNS, DHCP, Users, Kerberos/NTLM auth, DC autodiscovery, XLS output (completed 2026-03-07)
 
 ## Phase Details
 
@@ -224,4 +224,4 @@ Plans:
 | 26. AWS DDI Gaps | 5/5 | Complete    | 2026-03-04 | - |
 | 27. Azure DDI Gaps | 3/3 | Complete    | 2026-03-07 | - |
 | 28. GCP DDI Gaps | 3/3 | Complete    | 2026-03-07 | - |
-| 29. Microsoft AD Core | 3/4 | In Progress|  | - |
+| 29. Microsoft AD Core | 4/4 | Complete   | 2026-03-07 | - |
