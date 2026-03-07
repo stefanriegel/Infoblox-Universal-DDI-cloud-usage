@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Reference Parity
 status: completed
-stopped_at: Completed 28-02-PLAN.md
-last_updated: "2026-03-07T17:43:33.892Z"
-last_activity: "2026-03-07 — Completed 28-01: TDD RED gate for GCPG-01..04; 13 new failing tests, 3 files, 2 min"
+stopped_at: Completed 28-03-PLAN.md
+last_updated: "2026-03-07T17:59:53.791Z"
+last_activity: "2026-03-07 — Completed 28-02: 4 GCP DDI collectors GREEN; 2 tasks, 4 files, 5 min"
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 15
-  completed_plans: 14
-  percent: 96
+  completed_plans: 15
+  percent: 98
 ---
 
 # Session State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
 
 **Core value:** Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** Phase 28 — GCP DDI Gaps (Phase 27 complete)
+**Current focus:** Phase 29 — Microsoft AD Core (Phase 28 complete)
 
 ## Current Position
 
-Phase: 28 of 29 (GCP DDI Gaps) — IN PROGRESS (2/3 plans done)
-Plan: 02 complete (28-02-PLAN.md) — all 4 GCPG collectors implemented GREEN; 56 tests pass; ready for Plan 03 wiring
-Status: Phase 28 plan 02 complete — proceed to Phase 28 plan 03 (provider wiring + DDI_TYPES categorizer update)
-Last activity: 2026-03-07 — Completed 28-02: 4 GCP DDI collectors GREEN; 2 tasks, 4 files, 5 min
+Phase: 28 of 29 (GCP DDI Gaps) — COMPLETE (3/3 plans done)
+Plan: 03 complete (28-03-PLAN.md) — provider wiring + 6 DDI types in categorizer; GCPG-01..04 fulfilled
+Status: Phase 28 COMPLETE — proceed to Phase 29 (Microsoft AD Core)
+Last activity: 2026-03-07 — Completed 28-03: GCP provider wiring + DDI_TYPES update; 2 tasks, 3 files, 13 min
 
-Progress: [██████████] 98%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -55,6 +55,7 @@ Progress: [██████████] 98%
 | Phase 27 P03 | 5 | 2 tasks | 2 files |
 | Phase 28 P01 | 2 min | 2 tasks | 3 files |
 | Phase 28 P02 | 5 | 2 tasks | 4 files |
+| Phase 28 P03 | 13 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -81,6 +82,8 @@ Progress: [██████████] 98%
 - collect_gcp_reserved_ips: ip_addresses=[] (DDI-only); address string removed from collector output; details dict retains address_type/status/purpose for audit display (plan 28-02)
 - RoutersClient and TargetVpnGatewaysClient use aggregated_list(project=project_id) not aggregated_list(request=Request(...)) — no AggregatedListRoutersRequest class needed (plan 28-02)
 - GKE CIDR emission uses getattr chain for nested proto fields to safely handle missing private_cluster_config or ip_allocation_policy (plan 28-02)
+- gcp-reserved-ip in DDI_TYPES causes category=ddi even with ip_addresses populated; stale TDD RED test updated to assert ddi (plan 28-03)
+- Router NAT and Target VPN Gateway wired under compute_enabled block alongside Reserved IPs; GKE CIDR Ranges under container_enabled block alongside GKE Clusters (plan 28-03)
 
 ### Key Phase 27 Decisions
 
@@ -132,6 +135,7 @@ Progress: [██████████] 98%
 
 ## Session Log
 
+- 2026-03-07: Phase 28 plan 03 complete — provider wiring + 6 DDI types in categorizer; Phase 28 (GCP DDI Gaps) COMPLETE; GCPG-01..04 fulfilled (2 tasks, 3 files, 13 min)
 - 2026-03-07: Phase 28 plan 02 complete — 4 GCP DDI collectors GREEN; ip_addresses=[] fix, router_nats, target_vpn_gateways, gke_cidr_ranges; 56 tests pass (2 tasks, 4 files, 5 min)
 - 2026-03-07: Phase 28 plan 01 complete — TDD RED gate: 13 new failing tests in 3 files; GCPG-01..04 covered; ImportError/AssertionError confirmed (2 tasks, 3 files, 2 min)
 - 2026-03-07: Phase 27 plan 03 complete — provider wiring + 5 DDI types in categorizer; Phase 27 (Azure DDI Gaps) COMPLETE; AZUG-01..05 fulfilled (2 tasks, 2 files, 5 min)
@@ -151,6 +155,6 @@ Progress: [██████████] 98%
 
 ## Session Continuity
 
-Last session: 2026-03-07T17:43:33.890Z
-Stopped at: Completed 28-02-PLAN.md
+Last session: 2026-03-07T17:59:53.789Z
+Stopped at: Completed 28-03-PLAN.md
 Resume file: None
