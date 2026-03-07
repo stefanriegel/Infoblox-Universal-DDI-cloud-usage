@@ -204,6 +204,57 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Comma-separated glob patterns for GCP project IDs to exclude from scan",
     )
 
+    # Microsoft AD analysis options
+    ad_group = parser.add_argument_group("Microsoft Active Directory analysis")
+    ad_group.add_argument(
+        "--ad-servers",
+        type=str,
+        default=None,
+        metavar="DC1,DC2,...",
+        help="Comma-separated DC hostnames to scan for AD analysis",
+    )
+    ad_group.add_argument(
+        "--ad-services",
+        type=str,
+        default=None,
+        metavar="dns,dhcp,user",
+        help="AD services to collect (default: dns,dhcp,user)",
+    )
+    ad_group.add_argument(
+        "--ad-auth-mode",
+        type=str,
+        default="kerberos",
+        choices=["kerberos", "ntlm"],
+        help="WinRM auth mode (default: kerberos)",
+    )
+    ad_group.add_argument("--ad-username", type=str, default=None)
+    ad_group.add_argument("--ad-password", type=str, default=None)
+    ad_group.add_argument(
+        "--ad-autodiscover",
+        action="store_true",
+        default=False,
+        help="Discover all DCs in the forest from a seed DC",
+    )
+    ad_group.add_argument(
+        "--ad-discovery-server",
+        type=str,
+        default=None,
+        help="Seed DC for autodiscovery (required with --ad-autodiscover)",
+    )
+    ad_group.add_argument(
+        "--ad-winrm-port",
+        type=int,
+        default=None,
+        help="WinRM port (default: 5985 HTTP / 5986 HTTPS)",
+    )
+    ad_group.add_argument("--ad-winrm-ssl", action="store_true", default=False)
+    ad_group.add_argument(
+        "--ad-skip-cert-validation", action="store_true", default=False
+    )
+    ad_group.add_argument("--ad-max-retries", type=int, default=3)
+    ad_group.add_argument("--ad-timeout-seconds", type=int, default=60)
+    ad_group.add_argument("--ad-backoff-seconds", type=float, default=2.0)
+
     return parser.parse_args(argv)
 
 
@@ -323,6 +374,15 @@ def main(argv: list[str] | None = None) -> int:
     # NIOS analysis mode — additive branch, exits before cloud provider selection
     elif args.nios:
         return _run_nios_cli(args)
+
+    # AD analysis — runs independently; does not prevent cloud scan
+    if args.ad_servers or args.ad_autodiscover:
+        ad_exit = _run_ad_cli(args)
+        if ad_exit != 0:
+            return ad_exit
+        # If no cloud flags were passed and not in web mode, exit after AD
+        if not (args.aws or args.azure or args.gcp):
+            return 0
 
     # Determine selected providers
     if args.aws or args.azure or args.gcp:
@@ -814,6 +874,85 @@ def _run_nios_cli(args: argparse.Namespace) -> int:
         return 1
 
     sys.stderr.write(f"Output: {written_path}\n")
+    return 0
+
+
+def _run_ad_cli(args: argparse.Namespace) -> int:
+    """Run Microsoft AD analysis from CLI arguments.
+
+    Builds AdOptions from parsed args, calls run_ad_analysis, and writes
+    the output path to stderr. All errors go to stderr. Returns 0 on success,
+    1 on any failure (validation errors, connection errors, all DCs failed).
+
+    Args:
+        args: Parsed CLI arguments with .ad_* fields set.
+
+    Returns:
+        Exit code: 0 on success, 1 on failure.
+    """
+    from datetime import datetime
+
+    from cloud_usage.providers.ad import AdOptions, run_ad_analysis
+    from cloud_usage.providers.ad.options import normalize_ad_servers, normalize_ad_services
+
+    # Determine WinRM port: explicit flag > SSL-sensitive default
+    effective_port = args.ad_winrm_port or (5986 if args.ad_winrm_ssl else 5985)
+
+    # Determine servers list (may be empty when using autodiscover)
+    servers = normalize_ad_servers(args.ad_servers) if args.ad_servers else []
+
+    # Determine services tuple
+    if args.ad_services:
+        try:
+            services = normalize_ad_services(args.ad_services)
+        except ValueError as exc:
+            sys.stderr.write(f"AD error: {exc}\n")
+            return 1
+    else:
+        services = ("dns", "dhcp", "user")
+
+    # Build AdOptions — raises ValueError on invalid combinations (e.g., ntlm without creds)
+    try:
+        options = AdOptions(
+            servers=servers,
+            services=services,
+            auth_mode=args.ad_auth_mode,
+            username=args.ad_username,
+            password=args.ad_password,
+            winrm_port=effective_port,
+            winrm_ssl=args.ad_winrm_ssl,
+            skip_cert_validation=args.ad_skip_cert_validation,
+            max_retries=args.ad_max_retries,
+            timeout_seconds=args.ad_timeout_seconds,
+            backoff_seconds=args.ad_backoff_seconds,
+            autodiscover=args.ad_autodiscover,
+            discovery_server=args.ad_discovery_server,
+        )
+    except ValueError as exc:
+        sys.stderr.write(f"AD error: {exc}\n")
+        return 1
+
+    # Build output path
+    scan_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+    os.makedirs(args.output_dir, exist_ok=True)
+    output_path = os.path.join(args.output_dir, f"ad_analysis_{scan_id}.xlsx")
+
+    sys.stderr.write(f"Running AD analysis...\n")
+
+    try:
+        resources, errors = run_ad_analysis(options, output_path)
+    except Exception as exc:
+        sys.stderr.write(f"AD error: {exc}\n")
+        return 1
+
+    # If all DCs failed (no resources, only errors) → return 1
+    if not resources and errors:
+        sys.stderr.write(f"AD analysis failed: all DCs returned errors.\n")
+        for err in errors:
+            sys.stderr.write(f"  {err}\n")
+        return 1
+
+    sys.stderr.write(f"AD Output: {output_path}\n")
     return 0
 
 
