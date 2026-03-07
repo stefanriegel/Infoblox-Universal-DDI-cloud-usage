@@ -73,6 +73,12 @@ DDI_TYPES: set[str] = {
     "gcp-gke-service-range",        # GCPG-02: GKE cluster service IP CIDR range
     "gcp-router-nat",               # GCPG-03: Cloud Router NAT Mapping Info (one per NAT config per router)
     "gcp-target-vpn-gateway",       # GCPG-04: Target VPN Gateway (legacy, not HA VPN)
+    # Microsoft AD DDI types — Phase 29 (AD-02, AD-03)
+    "ad-dns-zone",      # AD-02: DNS zones (one per zone from Get-DnsServerZone)
+    "ad-dns-record",    # AD-02: DNS records (supported types only, deduped by zone|owner|type|data)
+    "ad-dhcp-scope",    # AD-03: DHCP scopes (one per scope from Get-DhcpServerv4Scope)
+    # ad-dhcp-ip: NOT here — asset, counted via ip_addresses field
+    # ad-user: NOT here — asset, counted via sentinel ip_addresses=["0.0.0.0"]
 }
 
 # Resource types that are discovered but not counted (token-free)
