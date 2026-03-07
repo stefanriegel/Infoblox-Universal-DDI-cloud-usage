@@ -552,3 +552,80 @@ class TestWebMode:
         assert "0.0.0.0" not in combined, (
             "CLI must not print '0.0.0.0' — users would get ERR_NAME_NOT_RESOLVED."
         )
+
+
+# --- Phase 29 (AD-01 through AD-08): CLI wiring tests ---
+
+
+class TestAdCli:
+    """Phase 29: AD CLI argument group and _run_ad_cli() wiring.
+
+    Tests are RED until plan 29-04 adds --ad-* flags to parse_args()
+    and implements _run_ad_cli() + AD branch in main().
+    """
+
+    # --- parse_args tests ---
+
+    def test_parse_args_ad_servers(self):
+        """--ad-servers sets ad_servers to the given hostname string."""
+        args = parse_args(["--ad-servers", "dc1.corp.example.com"])
+        assert args.ad_servers == "dc1.corp.example.com"
+
+    def test_parse_args_ad_services(self):
+        """--ad-services sets ad_services to the given service string."""
+        args = parse_args(["--ad-services", "dns"])
+        assert args.ad_services == "dns"
+
+    def test_parse_args_ad_auth_mode_default(self):
+        """Default --ad-auth-mode is 'kerberos'."""
+        args = parse_args([])
+        assert args.ad_auth_mode == "kerberos"
+
+    def test_parse_args_ad_auth_mode_ntlm(self):
+        """--ad-auth-mode ntlm sets ad_auth_mode to 'ntlm'."""
+        args = parse_args(["--ad-auth-mode", "ntlm"])
+        assert args.ad_auth_mode == "ntlm"
+
+    def test_parse_args_ad_autodiscover(self):
+        """--ad-autodiscover + --ad-discovery-server sets both flags."""
+        args = parse_args(["--ad-autodiscover", "--ad-discovery-server", "dc1"])
+        assert args.ad_autodiscover is True
+        assert args.ad_discovery_server == "dc1"
+
+    def test_parse_args_ad_winrm_port(self):
+        """--ad-winrm-port is parsed as integer."""
+        args = parse_args(["--ad-winrm-port", "5986"])
+        assert args.ad_winrm_port == 5986
+
+    # --- main() integration tests ---
+
+    def test_main_ad_runs_pipeline(self):
+        """main(['--ad-servers', 'dc1']) calls _run_ad_cli and returns 0."""
+        mock_resources = []
+        mock_errors = []
+        with mock.patch(
+            "cloud_usage.cli._run_ad_cli", return_value=0
+        ) as mock_ad_cli:
+            result = main(["--ad-servers", "dc1"])
+        assert result == 0
+        mock_ad_cli.assert_called_once()
+
+    def test_main_ad_plus_cloud(self):
+        """main(['--ad-servers', 'dc1', '--aws']) runs AD AND cloud scan."""
+        mock_ad = mock.patch("cloud_usage.cli._run_ad_cli", return_value=0)
+        mock_providers = mock.patch(
+            "cloud_usage.cli._get_discovery_providers", return_value=[]
+        )
+        mock_logger = mock.patch("cloud_usage.cli.setup_audit_logger")
+
+        with mock_ad as mock_ad_cli, mock_providers, mock_logger as mock_log:
+            mock_log.return_value = mock.MagicMock()
+            result = main(["--ad-servers", "dc1", "--aws", "--skip-auth-check"])
+
+        assert result == 0
+        mock_ad_cli.assert_called_once()
+
+    def test_main_ad_ntlm_no_credentials_returns_1(self):
+        """main() with --ad-auth-mode ntlm but no credentials returns 1."""
+        result = main(["--ad-servers", "dc1", "--ad-auth-mode", "ntlm"])
+        assert result == 1
