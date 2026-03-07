@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Reference Parity
 status: completed
-stopped_at: Completed 27-01-PLAN.md
-last_updated: "2026-03-07T16:24:54.676Z"
-last_activity: "2026-03-04 — Completed 26-05: provider wiring (categorizer + provider.py), 15 DDI types, 13 new collectors (2 tasks, 2 files, 12 min)"
+stopped_at: Completed 27-02-PLAN.md
+last_updated: "2026-03-07T16:37:19.439Z"
+last_activity: "2026-03-07 — Completed 27-01: TDD RED gate for AZUG-01..05; 4 new test classes + 1 categorizer test, 2 files, 2 min"
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 12
-  completed_plans: 10
-  percent: 100
+  completed_plans: 11
+  percent: 96
 ---
 
 # Session State
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
 
 ## Current Position
 
-Phase: 27 of 29 (Azure DDI Gaps) — IN PROGRESS (1/3 plans done, AZUG-01 through AZUG-05 RED gate written)
-Plan: 01 complete (27-01-PLAN.md) — TDD RED gate: failing tests for all 5 new Azure DDI types
-Status: Plan 27-01 complete — proceed to 27-02 (hybrid networking collectors implementation)
-Last activity: 2026-03-07 — Completed 27-01: TDD RED gate for AZUG-01..05; 4 new test classes + 1 categorizer test, 2 files, 2 min
+Phase: 27 of 29 (Azure DDI Gaps) — IN PROGRESS (2/3 plans done, AZUG-01 through AZUG-05 implemented)
+Plan: 02 complete (27-02-PLAN.md) — 5 collector functions implemented (1 rewritten, 4 new); SubscriptionClient import fixed
+Status: Plan 27-02 complete — proceed to 27-03 (provider wiring + DDI_TYPES categorizer update)
+Last activity: 2026-03-07 — Completed 27-02: 5 Azure DDI collectors GREEN; SubscriptionClient import fix; 2 tasks, 2 files, 5 min
 
 Progress: [██████████] 96%
 
@@ -51,6 +51,7 @@ Progress: [██████████] 96%
 | Phase 26 P04 | 2min | 2 tasks | 3 files |
 | Phase 26 P05 | 12min | 2 tasks | 2 files |
 | Phase 27 P01 | 2 | 2 tasks | 2 files |
+| Phase 27 P02 | 5 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,9 @@ Progress: [██████████] 96%
 - collect_azure_tenants imported from hybrid_networking to trigger ImportError RED state; final module location confirmed in plan 27-02 (plan 27-01)
 - azure-vnet-gateway replaces azure-vpn-gateway in AZUG-01; existing test updated with ExpressRoute gateway_type mock and ip 10.0.0.5 (plan 27-01)
 - azure-vpn-gateway was never in DDI_TYPES — confirmed with not-in assertion that passes immediately (plan 27-01)
+- collect_azure_vpn_gateways function name kept unchanged (only resource_type changed azure-vpn-gateway -> azure-vnet-gateway) for minimal import churn (plan 27-02)
+- SubscriptionClient import corrected to azure.mgmt.subscription (was azure.mgmt.resource causing silent None via _try_create) (plan 27-02)
+- collect_azure_tenants placed in hybrid_networking.py; takes subscription_client not network_client; region hardcoded to global (plan 27-02)
 
 ### Key Phase 26 Decisions (so far)
 
@@ -115,6 +119,7 @@ Progress: [██████████] 96%
 
 ## Session Log
 
+- 2026-03-07: Phase 27 plan 02 complete — 5 Azure DDI collectors GREEN (1 rewritten, 4 new); SubscriptionClient import fixed (2 tasks, 2 files, 5 min)
 - 2026-03-07: Phase 27 plan 01 complete — TDD RED gate: 4 new test classes + categorizer assertion for AZUG-01..05; ImportError/AssertionError confirmed (2 tasks, 2 files, 2 min)
 - 2026-03-04: Phase 26 plan 05 complete — provider wiring: 15 DDI types in categorizer, 13 new _safe_collect() calls in provider; all AWSG-01..07 GREEN
 - 2026-03-04: Phase 26 (AWS DDI Gaps) COMPLETE — all 5 plans done
@@ -130,6 +135,6 @@ Progress: [██████████] 96%
 
 ## Session Continuity
 
-Last session: 2026-03-07T16:24:54.673Z
-Stopped at: Completed 27-01-PLAN.md
+Last session: 2026-03-07T16:37:19.437Z
+Stopped at: Completed 27-02-PLAN.md
 Resume file: None
