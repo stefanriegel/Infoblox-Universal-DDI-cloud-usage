@@ -9,14 +9,14 @@ Requirements for the Reference Parity milestone. Each maps to roadmap phases.
 
 ### Microsoft AD
 
-- [ ] **AD-01**: User can scan Microsoft AD via WinRM/PowerShell with `--ad-servers` flag
-- [ ] **AD-02**: Tool collects DNS zones and resource records from AD (DDI + IP counts via `Get-DnsServerZone`/`Get-DnsServerResourceRecord`)
-- [ ] **AD-03**: Tool collects DHCP scopes, leases, and reservations from AD (DDI + IP counts via `Get-DhcpServerv4Scope/Lease/Reservation`)
-- [ ] **AD-04**: Tool collects AD Users as Asset count (`Get-ADUser -Filter *`)
-- [ ] **AD-05**: User can specify AD services to scan (dns, dhcp, user) via `--ad-services` flag
-- [ ] **AD-06**: User can choose auth mode: Kerberos (default) or NTLM (user+pass) via `--ad-auth-mode`
-- [ ] **AD-07**: User can autodiscover all domain controllers from a seed DC via `--ad-autodiscover`/`--ad-discovery-server`
-- [ ] **AD-08**: AD results appear in XLS report with same token formula as cloud providers
+- [x] **AD-01**: User can scan Microsoft AD via WinRM/PowerShell with `--ad-servers` flag
+- [x] **AD-02**: Tool collects DNS zones and resource records from AD (DDI + IP counts via `Get-DnsServerZone`/`Get-DnsServerResourceRecord`)
+- [x] **AD-03**: Tool collects DHCP scopes, leases, and reservations from AD (DDI + IP counts via `Get-DhcpServerv4Scope/Lease/Reservation`)
+- [x] **AD-04**: Tool collects AD Users as Asset count (`Get-ADUser -Filter *`)
+- [x] **AD-05**: User can specify AD services to scan (dns, dhcp, user) via `--ad-services` flag
+- [x] **AD-06**: User can choose auth mode: Kerberos (default) or NTLM (user+pass) via `--ad-auth-mode`
+- [x] **AD-07**: User can autodiscover all domain controllers from a seed DC via `--ad-autodiscover`/`--ad-discovery-server`
+- [x] **AD-08**: AD results appear in XLS report with same token formula as cloud providers
 
 ### IP Methodology
 
@@ -78,14 +78,14 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AD-01 | Phase 29 | Pending |
-| AD-02 | Phase 29 | Pending |
-| AD-03 | Phase 29 | Pending |
-| AD-04 | Phase 29 | Pending |
-| AD-05 | Phase 29 | Pending |
-| AD-06 | Phase 29 | Pending |
-| AD-07 | Phase 29 | Pending |
-| AD-08 | Phase 29 | Pending |
+| AD-01 | Phase 29 | Complete |
+| AD-02 | Phase 29 | Complete |
+| AD-03 | Phase 29 | Complete |
+| AD-04 | Phase 29 | Complete |
+| AD-05 | Phase 29 | Complete |
+| AD-06 | Phase 29 | Complete |
+| AD-07 | Phase 29 | Complete |
+| AD-08 | Phase 29 | Complete |
 | METH-01 | Phase 25 | Complete |
 | METH-02 | Phase 25 | Complete |
 | METH-03 | Phase 25 | Complete |

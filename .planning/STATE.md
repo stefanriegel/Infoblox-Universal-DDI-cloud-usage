@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Reference Parity
 status: completed
-stopped_at: Completed 28-03-PLAN.md
-last_updated: "2026-03-07T17:59:53.791Z"
-last_activity: "2026-03-07 — Completed 28-02: 4 GCP DDI collectors GREEN; 2 tasks, 4 files, 5 min"
+stopped_at: Completed 29-01-PLAN.md — TDD RED gate for Microsoft AD provider
+last_updated: "2026-03-07T19:03:27.517Z"
+last_activity: "2026-03-07 — Completed 29-01: TDD RED gate for Microsoft AD; 38 failing tests across 3 files; AD-01..08 contract defined; 1 task, 3 files, 6 min"
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 15
-  completed_plans: 15
-  percent: 98
+  total_plans: 19
+  completed_plans: 16
+  percent: 100
 ---
 
 # Session State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
 
 ## Current Position
 
-Phase: 28 of 29 (GCP DDI Gaps) — COMPLETE (3/3 plans done)
-Plan: 03 complete (28-03-PLAN.md) — provider wiring + 6 DDI types in categorizer; GCPG-01..04 fulfilled
-Status: Phase 28 COMPLETE — proceed to Phase 29 (Microsoft AD Core)
-Last activity: 2026-03-07 — Completed 28-03: GCP provider wiring + DDI_TYPES update; 2 tasks, 3 files, 13 min
+Phase: 29 of 29 (Microsoft AD Core) — IN PROGRESS (1/4 plans done)
+Plan: 01 complete (29-01-PLAN.md) — TDD RED gate: 38 failing tests in 3 files; AD-01..08 contract defined; ImportError/AssertionError confirmed
+Status: Phase 29 plan 01 COMPLETE — proceed to 29-02 (AD provider implementation)
+Last activity: 2026-03-07 — Completed 29-01: TDD RED gate for Microsoft AD; 1 task, 3 files, 6 min
 
-Progress: [██████████] 100%
+Progress: [██████████] 95%
 
 ## Performance Metrics
 
@@ -56,6 +56,7 @@ Progress: [██████████] 100%
 | Phase 28 P01 | 2 min | 2 tasks | 3 files |
 | Phase 28 P02 | 5 | 2 tasks | 4 files |
 | Phase 28 P03 | 13 min | 2 tasks | 3 files |
+| Phase 29 P01 | 6 min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -73,6 +74,15 @@ Progress: [██████████] 100%
 - IP counting methodology: align with reference — count NIC/config objects (not unique IP addresses); remove standalone ENI/EIP/NAT GW IP counting from AWS
 - Microsoft AD: full implementation matching reference `microsoft_ad.py` — DNS + DHCP + Users + Autodiscovery; CLI-only for v1.7 (dashboard tab deferred)
 - Phase ordering: METH fix first (Phase 25) as it is foundational to correct IP counts in all providers; cloud DDI gap phases (26-28) can run in any order after 25; AD (Phase 29) is independent but placed last as it is a full new provider
+
+### Key Phase 29 Decisions
+
+- Module-level imports (not per-method pytest.raises) used for RED gate — entire file fails collection, matching Phase 28 pattern (plan 29-01)
+- run_ad_analysis() returns tuple (resources, errors) — inferred from resilience model requiring error return (plan 29-01)
+- ad-user sentinel IP ['0.0.0.0'] forces asset categorization through existing pipeline without modifying categorizer (plan 29-01)
+- ad-dhcp-ip resource type included as optional shape for DHCP lease/reservation IPs — runner tests tolerate both shapes (plan 29-01)
+- TestAdDdiTypesInCategorizer uses class (not standalone function) for consistency with Phase 27/28 patterns (plan 29-01)
+- _collect_dns/_collect_dhcp/_collect_users all take (self, session) — session is the WinRM session object built by _build_session() (plan 29-01)
 
 ### Key Phase 28 Decisions
 
@@ -135,6 +145,7 @@ Progress: [██████████] 100%
 
 ## Session Log
 
+- 2026-03-07: Phase 29 plan 01 complete — TDD RED gate: 38 failing tests in 3 files; AD-01..08 contract defined via ModuleNotFoundError+AssertionError; MicrosoftAdCollector, AdOptions, run_ad_analysis() contracts set (1 task, 3 files, 6 min)
 - 2026-03-07: Phase 28 plan 03 complete — provider wiring + 6 DDI types in categorizer; Phase 28 (GCP DDI Gaps) COMPLETE; GCPG-01..04 fulfilled (2 tasks, 3 files, 13 min)
 - 2026-03-07: Phase 28 plan 02 complete — 4 GCP DDI collectors GREEN; ip_addresses=[] fix, router_nats, target_vpn_gateways, gke_cidr_ranges; 56 tests pass (2 tasks, 4 files, 5 min)
 - 2026-03-07: Phase 28 plan 01 complete — TDD RED gate: 13 new failing tests in 3 files; GCPG-01..04 covered; ImportError/AssertionError confirmed (2 tasks, 3 files, 2 min)
@@ -155,6 +166,6 @@ Progress: [██████████] 100%
 
 ## Session Continuity
 
-Last session: 2026-03-07T17:59:53.789Z
-Stopped at: Completed 28-03-PLAN.md
+Last session: 2026-03-07T19:03:27.515Z
+Stopped at: Completed 29-01-PLAN.md — TDD RED gate for Microsoft AD provider
 Resume file: None

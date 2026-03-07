@@ -224,4 +224,4 @@ Plans:
 | 26. AWS DDI Gaps | 5/5 | Complete    | 2026-03-04 | - |
 | 27. Azure DDI Gaps | 3/3 | Complete    | 2026-03-07 | - |
 | 28. GCP DDI Gaps | 3/3 | Complete    | 2026-03-07 | - |
-| 29. Microsoft AD Core | v1.7 | 0/4 | Not started | - |
+| 29. Microsoft AD Core | 1/4 | In Progress|  | - |
