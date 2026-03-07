@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.7
 milestone_name: Reference Parity
 status: completed
-stopped_at: Completed 29-02-PLAN.md — AD collector implementation; 22 tests GREEN
-last_updated: "2026-03-07T19:14:49.016Z"
-last_activity: "2026-03-07 — Completed 29-01: TDD RED gate for Microsoft AD; 1 task, 3 files, 6 min"
+stopped_at: Completed 29-03-PLAN.md — AD runner; 16 tests GREEN; run_ad_analysis() implemented
+last_updated: "2026-03-07T19:22:33.580Z"
+last_activity: "2026-03-07 — Completed 29-02: AD collector implementation; 2 tasks, 4 files, 7 min"
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 19
-  completed_plans: 17
-  percent: 95
+  completed_plans: 18
+  percent: 96
 ---
 
 # Session State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
 
 ## Current Position
 
-Phase: 29 of 29 (Microsoft AD Core) — IN PROGRESS (2/4 plans done)
-Plan: 02 complete (29-02-PLAN.md) — AD provider package: constants/options/collector; 22 tests GREEN; 4 files
-Status: Phase 29 plan 02 COMPLETE — proceed to 29-03 (AD runner + CLI wiring)
-Last activity: 2026-03-07 — Completed 29-02: AD collector implementation; 2 tasks, 4 files, 7 min
+Phase: 29 of 29 (Microsoft AD Core) — IN PROGRESS (3/4 plans done)
+Plan: 03 complete (29-03-PLAN.md) — AD runner: run_ad_analysis(), cross-DC aggregation, CloudResource conversion; 16 tests GREEN; 2 files
+Status: Phase 29 plan 03 COMPLETE — proceed to 29-04 (categorizer DDI_TYPES + CLI wiring)
+Last activity: 2026-03-07 — Completed 29-03: AD runner implementation; 1 task, 2 files, 6 min
 
-Progress: [██████████] 96%
+Progress: [██████████] 98%
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Progress: [██████████] 96%
 | Phase 29 P01 | 6 min | 1 tasks | 3 files |
 | Phase 29 P02 | 7 min | 2 tasks | 4 files |
 | Phase 29 P02 | 7 min | 2 tasks | 4 files |
+| Phase 29 P03 | 6 min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,10 @@ Progress: [██████████] 96%
 - record_keys used as _collect_dns return key (plan spec said supported_record_entries but 29-01 tests use record_keys) — auto-aligned (plan 29-02)
 - run_ad_analysis() stub added to __init__.py in 29-02 (not deferred to 29-03) — TestAllDcsFail imports at module level (plan 29-02)
 - collect_all() returns list of result dicts; injects server key if missing from mocked _collect_server returns (plan 29-02)
+- run_ad_analysis uses sys.modules lookup at call time for MicrosoftAdCollector/write_xlsx_report so test patches at cloud_usage.providers.ad.X work (plan 29-03)
+- run_ad_analysis returns (resources, errors) and only calls write_xlsx_report when output_path is not None (plan 29-03)
+- _aggregate_results() handles both set and dict containers for zone_keys/record_keys/lease_keys/user_keys (real collector vs mock data) (plan 29-03)
+- IP extracted from record dedup key 4th segment: JSON parse first (real), raw string fallback (mock) (plan 29-03)
 
 ### Key Phase 28 Decisions
 
@@ -150,6 +155,7 @@ Progress: [██████████] 96%
 
 ## Session Log
 
+- 2026-03-07: Phase 29 plan 03 complete — AD runner GREEN: run_ad_analysis(), cross-DC aggregation, CloudResource conversion; 16 test_ad_runner.py tests pass; sys.modules patchability pattern (1 task, 2 files, 6 min)
 - 2026-03-07: Phase 29 plan 02 complete — AD provider package GREEN: constants/options/collector; 22 test_ad_collector.py tests pass; WinRMError, lazy winrm import, DC failure isolation (2 tasks, 4 files, 7 min)
 - 2026-03-07: Phase 29 plan 01 complete — TDD RED gate: 38 failing tests in 3 files; AD-01..08 contract defined via ModuleNotFoundError+AssertionError; MicrosoftAdCollector, AdOptions, run_ad_analysis() contracts set (1 task, 3 files, 6 min)
 - 2026-03-07: Phase 28 plan 03 complete — provider wiring + 6 DDI types in categorizer; Phase 28 (GCP DDI Gaps) COMPLETE; GCPG-01..04 fulfilled (2 tasks, 3 files, 13 min)
@@ -172,6 +178,6 @@ Progress: [██████████] 96%
 
 ## Session Continuity
 
-Last session: 2026-03-07T19:14:49.014Z
-Stopped at: Completed 29-02-PLAN.md — AD collector implementation; 22 tests GREEN
+Last session: 2026-03-07T19:22:33.578Z
+Stopped at: Completed 29-03-PLAN.md — AD runner; 16 tests GREEN; run_ad_analysis() implemented
 Resume file: None
