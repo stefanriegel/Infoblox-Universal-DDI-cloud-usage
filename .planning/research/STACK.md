@@ -1,140 +1,186 @@
 # Stack Research
 
-**Domain:** FastAPI + HTMX dashboard — adding audit depth tables to existing app
-**Researched:** 2026-03-03
+**Domain:** FastAPI + HTMX dashboard — v1.8 Dashboard Analytics additions
+**Researched:** 2026-03-07
 **Confidence:** HIGH
 
 ---
 
 ## Context: What Already Exists (Do Not Re-Add)
 
-This is a v1.4 milestone on an existing, validated codebase. The following stack is
-fully in place and must NOT be replaced or re-added:
+This is a v1.8 milestone on a fully operational codebase. The following stack is
+already in place and must NOT be replaced or re-added:
 
 | Existing | Role |
 |----------|------|
 | FastAPI >= 0.115.0 | Web framework, route handlers, HTMX partial endpoints |
-| Jinja2 >= 3.1.0 | Server-side HTML templating — all rendering lives here |
-| HTMX (vendored) | Partial swaps, SSE event wiring, hx-get/hx-target patterns |
+| Jinja2 >= 3.1.0 | Server-side HTML templating |
+| HTMX (vendored) | Partial swaps, SSE event wiring, hx-get/hx-target/sse patterns |
 | PicoCSS (vendored) | Base styling — `<table>`, `<article>`, `<details>` all styled |
+| janus >= 2.0.0 | Thread-safe sync-to-async queue (SSE EventBridge) |
 | lxml >= 5.3.0 | NIOS backup XML streaming parser |
-| xlsxwriter >= 3.1.0 | XLS report generation (NIOS and cloud output) |
+| xlsxwriter >= 3.1.0 | XLS report generation |
 | PyYAML >= 6.0 | NIOS config file parsing |
 | python-multipart >= 0.0.5 | File upload support |
-| janus >= 2.0.0 | Thread-safe async queue (SSE event bridge) |
+| pywinrm (in use) | WinRM/PowerShell AD connectivity — AD provider already operational |
 | pytest >= 8.0.0, moto >= 5.0.0 | Test framework |
-| Python 3.9+ | Required minimum (3.9 guarded throughout) |
+| Python 3.9+ | Required minimum, guarded throughout |
 
-The existing `_compute_summary()` function in `pages.py` already computes
-`per_account_details` (list with account_id, provider, ddi_count, ip_count,
-asset_count, total_tokens) and `per_provider_details`. This data is passed to
-templates but only rendered in the Summary tab. The cloud attribution table feature
-reuses this existing data — no new data pipeline is needed.
+All patterns for SSE progress, wizard tabs, manager state machines, and attribution
+tables are established. The v1.8 features extend these patterns — they do not
+introduce new patterns.
 
 ---
 
-## Recommended Stack — New Additions for v1.4
+## Recommended Stack — New Additions for v1.8
 
-**Answer: No new libraries required.** Both new features are pure template + data
-plumbing work within the existing FastAPI + HTMX + Jinja2 stack.
+**Answer: No new libraries required.** All three v1.8 features are pure routing,
+state management, template, and data aggregation work within the existing stack.
 
-### Core Technologies (unchanged)
+### Core Technologies (unchanged, confirmed correct)
 
 | Technology | Version | Purpose | Why Still Correct |
 |------------|---------|---------|-------------------|
-| FastAPI | >= 0.115.0 | Route handlers for new partials | Existing pattern: add route, pass data to template. No framework change needed. |
-| Jinja2 | >= 3.1.0 | Render new table partials | Both new tables are HTML `<table>` elements in Jinja2 templates — identical to `complete.html` member attribution table already shipped. |
-| HTMX (vendored) | 1.9.x | Tab swap, optional scroll target | No new HTMX attributes needed; existing `hx-get`, `hx-target`, `hx-swap` patterns cover both features. |
-| PicoCSS (vendored) | 2.x | Table, article, scrollable div styling | PicoCSS `<table role="grid">` and the inline `max-height + overflow-y: auto` pattern already used in `complete.html` member attribution section. |
+| FastAPI | >= 0.115.0 | New `/tab/ad`, `/ad/connect`, `/api/sse/ad` routes | Exact same route + StreamingResponse pattern used for NIOS. `run_in_executor` for sync AD runner. |
+| Jinja2 | >= 3.1.0 | New AD tab templates, Top 5 DNS Zones panel | Template-only change. Existing `{% include %}`, `{% for %}`, and `{% if %}` coverage is sufficient. |
+| HTMX (vendored) | 1.9.x | AD wizard step swaps, AD SSE subscription | `hx-ext="sse"`, `sse-connect`, `sse-swap` attributes already used in NIOS tab. Copy pattern verbatim. |
+| janus | >= 2.0.0 | New `AdEventBridge` instance on `app.state` | `EventBridge` class is already generic and reusable. Instantiate a second copy for AD (identical to how `nios_event_bridge` is separate from `event_bridge`). |
+| stdlib `collections.Counter` | stdlib | Top 5 DNS Zones aggregation across scopes | Groups zone names by token count. Used in pages.py already. Zero new import needed in context of dashboard. |
+| stdlib `threading.Lock` | stdlib | `AdScanManager` thread safety | Exact same pattern as `NiosScanManager` — Lock + Enum state machine. |
 
 ### Supporting Libraries (unchanged)
 
-| Library | Version | Purpose | Integration Note |
-|---------|---------|---------|------------------|
-| xlsxwriter | >= 3.1.0 | XLS Object Counters sheet (existing) | Source of truth for family names and display order via `_ALL_FAMILIES_ORDERED` and `_FAMILY_DISPLAY_NAMES` in `nios/output.py`. WebUI table mirrors this ordering. |
-| lxml | >= 5.3.0 | NIOS XML parsing (existing) | `inspect_backup()` returns `IntegrityReport.families_found` — the per-family counts needed for the NIOS WebUI table. No change to parsing. |
-| stdlib `collections.defaultdict` | stdlib | Per-account resource type counting | Already used in `pages.py` `_compute_summary()`. Extend same function to add resource_type breakdown per account. |
-| stdlib `dataclasses` | stdlib | NiosScanManager state extension | Store `integrity_report` (or a `dict[str, int]` family_counts snapshot) on `NiosScanManager` via a new `set_complete()` parameter. |
+| Library | Version | Integration Note |
+|---------|---------|-----------------|
+| pywinrm | in use | AD runner (`runner.py`) already uses it. Dashboard just calls `run_ad_analysis()` via `run_in_executor`. No new pywinrm surface area. |
+| xlsxwriter | >= 3.1.0 | AD runner already writes XLS. Dashboard exposes download link same as NIOS. |
 
 ---
 
-## Integration Points — Where to Wire the New Features
+## Integration Points — Precise Wiring Per Feature
 
-### Cloud Per-Account Attribution Table
+### Feature 1: AD Dashboard Tab (AD-09 + AD-10)
 
-**Data is already computed.** `_compute_summary()` in
-`src/cloud_usage/dashboard/routes/pages.py` builds `per_account_details` (a list of
-dicts: account_id, provider, ddi_count, ip_count, asset_count, total_tokens) and
-passes it to the Results tab context. The Summary tab already renders this list as a
-table.
+**Pattern source:** `src/cloud_usage/dashboard/routes/nios.py` +
+`src/cloud_usage/dashboard/services/nios_manager.py` +
+`src/cloud_usage/dashboard/templates/pages/nios.html` +
+`src/cloud_usage/dashboard/templates/partials/nios/`
 
-**What is missing and where to add it:**
+**What to add:**
 
-1. **Resource type breakdown per account** — `_compute_summary()` iterates resources
-   by account already. Add a secondary dict `{account_id: Counter(resource_type: count)}`
-   in the same loop. Attach it as `resource_type_breakdown` on each account dict.
-   No new library: `collections.Counter` (stdlib) suffices.
+1. **`AdScanManager` service** —
+   `src/cloud_usage/dashboard/services/ad_manager.py`.
+   Mirrors `NiosScanManager` exactly: Enum state (IDLE/RUNNING/COMPLETE/ERROR),
+   `threading.Lock`, `set_running()`, `set_complete(output_path, ad_results)`,
+   `set_error()`, properties for state/output_path/results/error.
+   Store `ad_results` (the list of CloudResource or an aggregated summary dict)
+   for results display. No new patterns.
 
-2. **Formula derivation display** — DDI ÷ 25, IPs ÷ 13, Assets ÷ 3 inline text.
-   These are UDDI spec constants already hardcoded in `token_calculator.py`
-   (`DDI_PER_TOKEN = 25`, `IPS_PER_TOKEN = 13`, `ASSETS_PER_TOKEN = 3`). The
-   template renders them directly (same pattern as `complete.html` which hardcodes
-   divisors as Jinja2 template literals per the v1.3 decision: "Formula divisors
-   hardcoded in template — values are UDDI spec constants, immutable").
+2. **`AdEventBridge` instance** — In `app.py`, instantiate a second
+   `EventBridge()` registered as `app.state.ad_event_bridge`.
+   Exactly as `app.state.nios_event_bridge` is already separate from
+   `app.state.event_bridge`.
 
-3. **Template location** — Add a new partial
-   `templates/partials/account_attribution.html` rendered inside the Results tab
-   (`pages/results.html`). Follow the same scrollable-div + `<table>` pattern used
-   in `partials/nios/complete.html` member attribution section (max-height: 400px,
-   overflow-y: auto, 1px border, border-radius 6px).
+3. **Routes** — `src/cloud_usage/dashboard/routes/ad.py`:
+   - `POST /ad/connect` — accept host/credentials form, validate, start
+     `run_ad_analysis()` in `run_in_executor`, return SSE progress partial.
+   - `GET /api/sse/ad` — stream `ad_event_bridge` as `text/event-stream`.
+     Copy `routes/sse.py` StreamingResponse pattern verbatim.
+   - `GET /api/ad/progress` — return current progress HTML fragment.
+     Copy `GET /api/nios/progress` pattern verbatim.
 
-4. **No new route needed** — `tab_results` in `pages.py` already passes `per_account_details`
-   to the template (via `**summary`). Extend the dict to include resource type breakdown
-   and the data is available in the template. The partial just needs to be included.
+4. **Templates** —
+   `src/cloud_usage/dashboard/templates/pages/ad.html` — outer tab shell with
+   SSE subscription div (copy `pages/nios.html` structure).
+   `src/cloud_usage/dashboard/templates/partials/ad/`:
+   - `step1_connect.html` — hostname, username, password form (no file upload;
+     replace upload widget with text inputs).
+   - `step2_run.html` — SSE progress bar (copy `partials/nios/step2_run.html`
+     with `sse-connect="/api/sse/ad"` and `ad_complete` event name).
+   - `progress_display.html` — copy `partials/nios/progress_display.html`.
+   - `complete.html` — results display: domain, DNS zone count, DHCP scope count,
+     DHCP IP count, AD user count, token totals. Download link for XLS.
+     Pattern: `partials/nios/complete.html` summary cards section.
 
-**Account name vs account ID:** `CloudResource.account_id` stores AWS account IDs,
-Azure subscription IDs, and GCP project IDs — no human-readable account name is
-fetched or stored by any provider. The table heading should be "Account ID" (or
-"Account / Subscription / Project") not "Account Name". Do not attempt to add a
-name lookup — it requires live cloud API calls which are out of scope for this tool's
-offline result-browsing model.
+5. **Tab bar** — Add 5th `<li>` to `partials/tab_bar.html` with
+   `hx-get="/tab/ad"` and `ad_state` badge (running/complete/error).
+   Pass `ad_state` in `_get_tab_context()` in `pages.py` (same as `nios_state`).
 
-### NIOS Object Family Breakdown Table
+6. **Route for tab render** — `GET /tab/ad` in `pages.py`: read from
+   `app.state.ad_manager`, render `pages/ad.html`.
 
-**Data is available from `IntegrityReport.families_found` but not stored in
-`NiosScanManager`.** The pipeline in `routes/nios.py` computes `integrity_report`
-from `inspect_backup()` in Step 1, uses it only for the XLS report, and does not
-store it on `NiosScanManager`. Currently only `scenario_suite` is stored via
-`set_complete(output_path, scenario_suite=scenario_suite)`.
+**AD runner integration:** `run_ad_analysis()` in
+`src/cloud_usage/providers/ad/runner.py` already returns
+`(list[CloudResource], list[str])` when `output_path` is provided (writes XLS).
+Call it via `loop.run_in_executor(None, run_ad_analysis, options)` from the
+async route handler. The AD runner emits progress via a callback hook — wire this
+to `ad_event_bridge.emit()` during the run. If the runner has no progress callback
+yet (CLI-only path), add a lightweight `progress_callback` parameter to `run_ad_analysis()`
+that the dashboard route passes in. This is a small, additive change to `runner.py`.
 
-**What is missing and where to add it:**
+### Feature 2: Top 5 DNS Zones Panel (per scope: NIOS, Cloud, AD)
 
-1. **Store family counts on NiosScanManager** — extend `set_complete()` in
-   `src/cloud_usage/dashboard/services/nios_manager.py` with an additional parameter
-   `family_counts: dict[str, int] | None = None`. Store it as `self._family_counts`.
-   Expose via a `family_counts` property. In `_run_nios_pipeline()` in
-   `routes/nios.py`, pass `integrity_report.families_found` to the updated
-   `set_complete()` call. This is a minimal, backwards-compatible change.
+**Pattern source:** `_compute_summary()` in `src/cloud_usage/dashboard/routes/pages.py`
+and `NiosScanManager.family_breakdown` data pattern.
 
-2. **Filter to non-zero families only** — the template iterates
-   `family_counts.items()` and skips rows where count == 0, matching the "non-zero
-   families only" requirement. No backend filtering needed; Jinja2 `{% if count > 0 %}`
-   suffices.
+**Data sources (all already available after analysis runs):**
 
-3. **Display order** — mirror the XLS Object Counters sheet ordering. The canonical
-   order is `_ALL_FAMILIES_ORDERED` from `nios/output.py`. For the WebUI, pass the
-   family counts as an ordered list rather than a raw dict so Jinja2 renders in the
-   correct sequence. Build this ordered list in the route handler by iterating
-   `_ALL_FAMILIES_ORDERED` and looking up counts from `family_counts`.
+| Scope | Data location | Zone name field |
+|-------|---------------|-----------------|
+| Cloud | `ScanManager.resources` — CloudResource list | `resource.name` where `resource.resource_type` ends in `"dns-zone"` |
+| AD | `AdScanManager.ad_results` — CloudResource list | `resource.details["zone"]` where `resource.resource_type == "ad-dns-zone"` |
+| NIOS | `NiosScanManager` — needs `family_counts` extended | NIOS `DNS_ZONE` objects carry zone FQDN in `raw_attrs`. Key is `"fqdn"` (standard NIOS property name). Parser currently counts zones but does not store names. Requires passing zone names list through NiosScanManager. |
 
-4. **Template location** — add to `templates/partials/nios/complete.html`, below
-   the existing member attribution section. Use the same scrollable-div + `<table>`
-   pattern. Columns: Object Family | Object Count | Counted in UDDI (Yes/No).
+**For Cloud and AD scopes:** Pure `collections.Counter` aggregation in
+`_compute_summary()` or a new `_compute_dns_zones()` helper. Group
+CloudResource objects by zone name, count records per zone, take top 5.
+Token contribution per zone = `ceil(record_count / 25)`.
 
-5. **No new route needed** — `tab_nios` in `pages.py` reads from `nios_manager`
-   and passes context to `pages/nios.html` which includes `partials/nios/complete.html`.
-   Add `family_counts` (the ordered list) to the context dict. The partial template
-   reads it directly.
+**For NIOS scope:** The NIOS parser yields `NiosObject` instances with
+`family=NiosFamily.DNS_ZONE` and zone FQDN in `raw_attrs["fqdn"]`. Currently
+only the count is stored in `IntegrityReport.families_found`. To surface per-zone
+record counts, extend the NIOS pipeline to collect a `dict[zone_fqdn, record_count]`
+during the parse pass and store it on `NiosScanManager` alongside `family_breakdown`.
+
+**No new libraries:** `collections.Counter` (stdlib), dict sorting, and Jinja2
+`{% for zone in top_zones | sort(attribute='tokens', reverse=True) | first(5) %}`
+are sufficient.
+
+**Template location:** Add a "Top 5 DNS Zones" section to
+`templates/pages/summary.html` (or a dedicated `templates/partials/dns_zones.html`
+included by summary.html). Three sub-tables side by side (NIOS | Cloud | AD) or
+stacked if screen width is narrow — use PicoCSS grid columns
+(`<div class="grid"> <div>...</div> <div>...</div> <div>...</div> </div>`).
+
+### Feature 3: CLOUD-EXT-01 — Per-Account Breakdown for v1.7 DDI Types
+
+**Status:** Structurally already working.
+
+`resource_type_breakdown` on each account dict in `per_account_details` already
+groups ALL counted resources by `resource_type` — including every v1.7 type
+(Route53 Resolver endpoints, IPAM pools, VNet Gateways, Compute Addresses, etc.).
+The template in `summary.html` already iterates:
+```html
+{% for rt, info in acct.resource_type_breakdown.items() | sort %}
+<div>{{ rt }}: {{ info.count }} <small>({{ info.category | upper }})</small></div>
+{% endfor %}
+```
+
+**What may still be needed:**
+
+1. **Verify new v1.7 type strings reach the breakdown** — confirm that
+   `categorize_resources()` marks v1.7 types as `counted=True` with correct
+   `category`. If categorizer has gaps for any of the 26 new types, fix in
+   `src/cloud_usage/counting/categorizer.py`. This is a categorizer bug fix, not
+   a stack addition.
+
+2. **Display labels** — The breakdown currently shows raw `resource_type` strings
+   (e.g., `"aws-route53-resolver-endpoint"`). A display name map
+   `DDI_TYPE_LABELS: dict[str, str]` in `pages.py` or `categorizer.py` can
+   humanize these. Pure Python `dict` lookup — no library.
+
+3. **No route or template structural change needed** — the existing
+   `<details>/<summary>` collapse row already renders all types in the breakdown.
 
 ---
 
@@ -142,80 +188,79 @@ store it on `NiosScanManager`. Currently only `scenario_suite` is stored via
 
 | Do NOT add | Why | Use instead |
 |------------|-----|-------------|
-| Any JavaScript charting library | PROJECT.md explicitly calls out "Charts / visualizations — text tables sufficient for enterprise audit context" as out of scope | Plain `<table>` in Jinja2 template |
-| pandas | Already avoided throughout codebase; `collections.Counter` and `defaultdict` handle the resource type breakdown in 3 lines | `collections.Counter` (stdlib) |
-| Any new Python web framework feature | FastAPI + Jinja2 + HTMX pattern is established and consistent across all existing features; adding anything new (e.g., Alpine.js, htmx extensions) creates maintenance burden | Existing HTMX + Jinja2 partial pattern |
-| Live account name lookup | Requires cloud API calls during result-browsing (post-scan); tool is offline for result display, and CloudResource.account_id carries no name — fetching at browse time would require re-auth | Show account_id as-is; label column "Account ID" |
-| A new `family_counts` dataclass | `dict[str, int]` (already the type of `IntegrityReport.families_found`) is sufficient for storage and template consumption | Raw `dict[str, int]` stored on NiosScanManager |
-| `openpyxl` | Already replaced by xlsxwriter in this codebase | xlsxwriter (already in stack) |
+| Any new Python package | All three features are routing, state management, template, and data aggregation — 100% within existing stack | Existing FastAPI + Jinja2 + janus + stdlib |
+| Alpine.js or any JS framework | No interactivity beyond what HTMX already provides; PROJECT.md: Python-only stack for auditability | HTMX SSE + hx-get patterns (already used in NIOS) |
+| LDAP library (python-ldap, ldap3) | AD provider uses pywinrm/PowerShell — already operational; LDAP would require reimplementing counting logic | pywinrm (already in use) |
+| asyncio.Queue (builtin) | Cannot safely bridge sync AD runner thread to async SSE; asyncio.Queue is not thread-safe from sync callers | janus.Queue (already in use — exact same reason as NIOS EventBridge) |
+| A second EventBridge class | `EventBridge` in `services/event_bridge.py` is already generic; just instantiate a second copy for AD | Second `EventBridge()` instance on `app.state.ad_event_bridge` |
+| pandas | `collections.Counter` + dict sorting handles all zone aggregation in stdlib | `collections.Counter` (stdlib) |
+| Chart/visualization library | PROJECT.md: "Charts / visualizations — text tables sufficient for enterprise audit context" is explicitly out of scope | Plain `<table>` in Jinja2 template |
+| Server-side session / cookie auth for AD credentials | Tool runs locally — no multi-user concern; credentials are only needed for the AD scan duration | Pass credentials directly from form POST to `run_ad_analysis()` via AdOptions; do not persist |
 
 ---
 
-## Stack Patterns for These Features
+## Stack Patterns for v1.8
 
-**Pattern: Extend `_compute_summary()` for resource type breakdown**
-
-`_compute_summary()` already iterates `by_account` (dict of account_id -> list of
-CloudResource). Extend the per-account loop to count `resource.resource_type` for
-counted resources using `collections.Counter`. Attach as `resource_type_breakdown`
-in the `per_account_details` dicts.
+**Pattern: Second EventBridge instance for AD (established: NIOS already uses this)**
 
 ```python
-# Inside the per-account loop in _compute_summary()
+# In app.py lifespan startup
+app.state.ad_event_bridge = EventBridge()
+await app.state.ad_event_bridge.start()
+```
+
+AD SSE endpoint copies `routes/sse.py` verbatim, pointing to
+`request.app.state.ad_event_bridge`.
+
+**Pattern: AdScanManager (mirrors NiosScanManager)**
+
+```python
+# services/ad_manager.py
+class AdState(Enum):
+    IDLE = "idle"
+    RUNNING = "running"
+    COMPLETE = "complete"
+    ERROR = "error"
+
+class AdScanManager:
+    def __init__(self) -> None:
+        self._state = AdState.IDLE
+        self._lock = threading.Lock()
+        self._output_path: Optional[str] = None
+        self._error: Optional[str] = None
+        self._ad_results: Optional[dict] = None  # aggregated summary for display
+        self._current_progress: dict = {"step": 0, "total": 5, "label": "Starting..."}
+```
+
+**Pattern: Top 5 DNS Zones aggregation (stdlib only)**
+
+```python
+# In pages.py or a new _compute_dns_zones() helper
 from collections import Counter
-type_breakdown = Counter(
-    r.resource_type for r in acct_resources if r.counted
-)
-per_account_details.append({
-    "account_id": account_id,
-    "provider": account_provider[account_id],
-    "ddi_count": result["ddi_count"],
-    "ip_count": result["ip_count"],
-    "asset_count": result["asset_count"],
-    "total_tokens": result["total_tokens"],
-    "resource_type_breakdown": dict(sorted(type_breakdown.items())),
-})
+
+def _top5_zones_cloud(resources: list[CloudResource]) -> list[dict]:
+    zone_record_counts: Counter = Counter()
+    for r in resources:
+        if r.counted and "dns-record" in r.resource_type:
+            zone = r.details.get("zone") or r.name
+            zone_record_counts[zone] += 1
+    return [
+        {"zone": zone, "records": count, "tokens": -(-count // 25)}
+        for zone, count in zone_record_counts.most_common(5)
+    ]
 ```
 
-**Pattern: Ordered family counts for Jinja2**
+AD scope uses `r.details["zone"]` (already set in `runner.py` `details`).
+Cloud scope uses zone name from provider-specific resource details.
+NIOS scope requires extending the parse pipeline to collect per-zone DNS record
+counts (see integration point above).
 
-Build an ordered list in the route handler so Jinja2 doesn't need to know about
-`_ALL_FAMILIES_ORDERED`:
+**Pattern: NIOS zone name collection (extend existing pipeline)**
 
-```python
-# In tab_nios route handler (pages.py)
-from cloud_usage.nios.output import _ALL_FAMILIES_ORDERED, _DDI_FAMILIES
-
-raw_family_counts = nios_manager.family_counts or {}
-ordered_families = [
-    {
-        "family": family,
-        "count": raw_family_counts.get(family, 0),
-        "is_ddi": family in _DDI_FAMILIES,
-    }
-    for family in _ALL_FAMILIES_ORDERED
-    if raw_family_counts.get(family, 0) > 0  # non-zero only
-]
-context["ordered_families"] = ordered_families
-```
-
-**Pattern: Scrollable attribution table (established in complete.html)**
-
-```html
-<div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--ib-gray-200); border-radius: 6px;">
-  <table style="margin: 0; font-size: 0.85rem;">
-    <thead>...</thead>
-    <tbody>
-      {% for row in rows %}
-      <tr>...</tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-```
-
-This pattern already exists in `partials/nios/complete.html` (member attribution
-table). Both new tables should use it identically.
+The NIOS parser yields `NiosObject(family=DNS_ZONE, raw_attrs={"fqdn": "example.com", ...})`.
+Collect a `Counter[str]` of zone FQDNs during the counter pass and store on
+`NiosScanManager` via an extended `set_complete()` parameter `zone_counts`.
+Access in the route handler and pass to the template as `nios_top_zones`.
 
 ---
 
@@ -223,10 +268,11 @@ table). Both new tables should use it identically.
 
 | Category | Recommended | Alternative | Why Not Alternative |
 |----------|-------------|-------------|---------------------|
-| Family counts storage | Extend `NiosScanManager.set_complete()` with `family_counts` param | Re-run `inspect_backup()` in the route handler on demand | Re-running requires the backup file to still exist on disk and takes seconds on large backups. Storing the dict is zero-cost. |
-| Resource type breakdown | Extend `_compute_summary()` in the existing request/response cycle | New API endpoint that computes breakdown lazily | The scan is already complete when the user views results; computing in `_compute_summary()` is the existing pattern (called by both `tab_results` and `tab_summary`). |
-| Family ordering in template | Build ordered list in route handler, pass to template | Import `_ALL_FAMILIES_ORDERED` directly in template | Jinja2 templates cannot import Python modules. The route handler is the correct layer for data transformation. |
-| Account name display | Show account_id only | Attempt to cache account names during scan | CloudResource has no account name field. Adding name lookup during scan would require new cloud API calls per account and change the discovery pipeline. Not warranted for a table-label improvement. |
+| AD EventBridge | Second `EventBridge()` instance | Shared `event_bridge` with AD events multiplexed | Breaks isolation SC-5; AD scan and cloud scan events would interleave on the same SSE stream |
+| AD credentials handling | Pass directly from POST form to `run_ad_analysis()` in executor; never store | Store in `AdScanManager` | Credentials in memory beyond request lifetime is a security anti-pattern for a local tool; password not needed after the scan starts |
+| Top 5 DNS Zones location | In Summary tab (alongside existing per-account breakdown) | Separate "Analytics" tab | Adding a 6th tab increases navigation complexity; DNS zones data is naturally part of the summary/audit story |
+| NIOS zone name source | Extend parser to collect per-zone record counts | Re-run parse on demand | Re-running a 2GB backup file to get zone names takes 30+ seconds; collect once during the existing pipeline run |
+| AD progress in dashboard | Add `progress_callback` parameter to `run_ad_analysis()` | Emit progress events from within runner using a global | Callback parameter keeps runner testable without a live EventBridge; same design used in NIOS pipeline |
 
 ---
 
@@ -234,11 +280,12 @@ table). Both new tables should use it identically.
 
 | Package | Current in requirements.txt | Python 3.9 Compatible | Notes |
 |---------|-----------------------------|-----------------------|-------|
-| FastAPI | >= 0.115.0 | Yes | 0.115+ supports Python 3.8+ |
-| Jinja2 | >= 3.1.0 | Yes | 3.x supports Python 3.7+ |
-| xlsxwriter | >= 3.1.0 | Yes | Pure Python, no version constraint |
-| lxml | >= 5.3.0 | Yes | 5.3+ has cp39 wheels on Windows, macOS, Linux |
-| stdlib (collections, dataclasses) | stdlib | Yes | dataclasses available since Python 3.7 |
+| FastAPI | >= 0.115.0 | Yes | No version bump needed |
+| Jinja2 | >= 3.1.0 | Yes | No version bump needed |
+| janus | >= 2.0.0 | Yes | janus 2.x requires Python 3.8+ |
+| pywinrm | in use | Yes | Already operational in AD provider |
+| lxml | >= 5.3.0 | Yes | No change to parsing |
+| stdlib (collections, threading, dataclasses) | stdlib | Yes | Python 3.7+ for dataclasses |
 
 No version bumps required. No new packages required.
 
@@ -246,27 +293,32 @@ No version bumps required. No new packages required.
 
 ## Installation
 
-No new packages to install. All capabilities needed for v1.4 are already in the
-existing requirements.txt and virtual environment.
+No new packages to install. All capabilities needed for v1.8 are already in
+the existing requirements.txt and virtual environment.
 
 ---
 
 ## Sources
 
-- Codebase audit of `src/cloud_usage/dashboard/` — routes/pages.py, services/nios_manager.py,
-  templates/partials/nios/complete.html, templates/pages/summary.html (HIGH confidence — direct
-  code inspection)
-- `src/cloud_usage/nios/output.py` — `_ALL_FAMILIES_ORDERED`, `_FAMILY_DISPLAY_NAMES`,
-  `_DDI_FAMILIES` confirmed as authoritative ordering/classification (HIGH confidence)
-- `src/cloud_usage/nios/schema.py` — `IntegrityReport.families_found: dict[str, int]`
-  confirmed as the family count source (HIGH confidence)
-- `src/cloud_usage/schema/resource.py` — `CloudResource.account_id` confirmed as the only
-  account identifier; no account_name field exists (HIGH confidence)
-- `.planning/PROJECT.md` — "Charts / visualizations — text tables sufficient" out-of-scope
-  decision confirmed; Python 3.9+ constraint confirmed (HIGH confidence)
-- requirements.txt — current pinned versions confirmed (HIGH confidence)
+- Direct codebase audit — `src/cloud_usage/dashboard/` routes, services, templates
+  (HIGH confidence — code inspection of every file listed above)
+- `src/cloud_usage/providers/ad/runner.py` — confirmed `run_ad_analysis()` return
+  shape, `CloudResource` details fields for DNS zones, and absence of progress callback
+  (HIGH confidence)
+- `src/cloud_usage/dashboard/services/event_bridge.py` — confirmed `EventBridge` is
+  generic, reusable; no AD-specific coupling (HIGH confidence)
+- `src/cloud_usage/dashboard/templates/pages/summary.html` — confirmed
+  `resource_type_breakdown` already rendered via `{% for rt, info in ... | sort %}`
+  covering all resource types including v1.7 additions (HIGH confidence)
+- `src/cloud_usage/nios/schema.py` — confirmed `NiosFamily.DNS_ZONE` exists;
+  `raw_attrs["fqdn"]` key for zone FQDN is inferred from standard NIOS property
+  naming (MEDIUM confidence — key name unverified against ZF backup; needs empirical
+  check during implementation)
+- `.planning/PROJECT.md` — Python-only constraint, no-charts decision, local execution
+  model, AD provider status confirmed (HIGH confidence)
+- `requirements.txt` — all current pinned versions confirmed (HIGH confidence)
 
 ---
 
-*Stack research for: v1.4 Audit Depth — cloud per-account attribution tables + NIOS object family breakdown*
-*Researched: 2026-03-03*
+*Stack research for: v1.8 Dashboard Analytics — AD tab, Top 5 DNS Zones panel, CLOUD-EXT-01*
+*Researched: 2026-03-07*

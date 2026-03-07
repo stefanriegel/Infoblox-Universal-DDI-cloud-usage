@@ -1,38 +1,19 @@
 # Project Research Summary
 
-**Project:** Infoblox Universal DDI Cloud Usage Estimator — v1.4 Audit Depth
-**Domain:** FastAPI + HTMX + Jinja2 dashboard — additive per-account attribution tables and NIOS object family breakdown
-**Researched:** 2026-03-03
+**Project:** Infoblox Universal DDI Cloud Usage Estimator — v1.8 Dashboard Analytics
+**Domain:** FastAPI + HTMX local audit tool — incremental milestone on a fully shipped v1.7 codebase
+**Researched:** 2026-03-07
 **Confidence:** HIGH
 
 ---
 
 ## Executive Summary
 
-This is a v1.4 milestone on a fully-validated existing tool. The codebase is mature: cloud
-discovery, NIOS Grid backup parsing, SSE-driven progress, and XLS report generation all ship
-and work. What is missing is the WebUI's ability to explain token totals without requiring the
-user to open the XLS file. The two v1.4 features are purely additive: a cloud per-account
-attribution table (with inline formula derivation and resource-type breakdown) and a NIOS object
-family breakdown table (mirroring the XLS Object Counters sheet). Neither feature changes
-existing behaviour; both add new display sections below existing content.
+This is a v1.8 milestone adding three dashboard analytics features to an already-operational tool: an AD Dashboard Tab (connecting the existing Microsoft AD CLI analysis to a browser UI), a Top 5 DNS Zones panel (per-source zone attribution), and CLOUD-EXT-01 (human-readable display names and verification for the 26 new v1.7 DDI types in the per-account attribution table). All three features are purely additive — they extend existing, proven patterns without introducing new libraries, new architectural concepts, or new data pipelines. The work is almost entirely routing, state management, and template work within the existing FastAPI + HTMX + Jinja2 stack.
 
-The recommended approach requires zero new libraries, zero new routes, and zero new service
-files. The cloud attribution table is achieved by extending `_compute_summary()` in `pages.py`
-and updating `pages/summary.html`. The NIOS family breakdown is achieved by storing
-`IntegrityReport.families_found` on `NiosScanManager` (one new field, one new setter, one
-property) and extending `partials/nios/complete.html`. All four key architectural patterns from
-the existing codebase apply directly: additive context extension, thread-safe state accumulation
-in managers, compute-on-render (not at scan time), and template-owned formula constants.
+The recommended approach is to follow the NIOS Analysis tab as the direct implementation model for the AD tab. Every pattern needed — Manager/EventBridge pair, SSE progress streaming, state-machine tab pages, background thread wiring via `run_in_executor` — exists in the NIOS tab and has been validated in production. The AD tab is a targeted adaptation, not a new design. Top 5 DNS Zones is a pure aggregation/display layer over data already in memory after a scan. CLOUD-EXT-01 is largely complete at the data layer; the deliverable is a display-name mapping dict and template annotation.
 
-The primary risks are not technical but presentational. Ceiling-division rounding means
-per-account token totals cannot be summed to the grand total; cross-account IP deduplication
-means per-account IP totals cannot be summed either. Both must be flagged in the templates with
-explanatory notes rather than raw sum footers, or enterprise auditors will immediately lose
-trust. The NIOS family breakdown carries an additional semantic risk: `IntegrityReport
-.families_found` stores raw object counts, not DDI-adjusted counts — the `host_object` family
-expands to 2-3 DDI records each, so the "Object Count" column must be clearly labeled and a
-prominent note must explain that the displayed totals differ from the scenario DDI total.
+The primary risks are implementation-time copy-paste errors: sharing the AD EventBridge with cloud or NIOS SSE (silently breaks progress), missing the SSE race-condition guard (AD tab hangs on fast forests), omitting `ad_state` from `_get_tab_context()` (breaks all tabs with a Jinja2 UndefinedError), and logging `AdOptions` with a plaintext password. All four risks have known prevention strategies and explicit test conditions defined in the research.
 
 ---
 
@@ -40,187 +21,106 @@ prominent note must explain that the displayed totals differ from the scenario D
 
 ### Recommended Stack
 
-No new dependencies are required for v1.4. The existing stack — FastAPI >= 0.115.0, Jinja2 >=
-3.1.0, HTMX (vendored), PicoCSS (vendored), lxml >= 5.3.0, xlsxwriter >= 3.1.0 — is fully
-capable of delivering both features. The only new Python capability needed is
-`collections.Counter` from the standard library, already used elsewhere in the codebase.
+No new libraries are required for v1.8. All three features are routing, state management, template, and data aggregation work that sits entirely within the existing stack: FastAPI, Jinja2, HTMX (vendored), PicoCSS (vendored), janus, and Python stdlib (`collections.Counter`, `threading.Lock`). The `pywinrm` dependency for AD is already operational in the existing CLI provider. The `xlsxwriter` dependency for XLS output is already in use. No version bumps. No new packages to install.
 
-**Core technologies (all unchanged):**
-- **FastAPI >= 0.115.0**: Route handlers — extend `_compute_summary()` and `tab_nios()` context; no new routes
-- **Jinja2 >= 3.1.0**: Renders both new tables using the scrollable-div + `<table>` pattern established in `complete.html`
-- **HTMX (vendored)**: No new attributes needed; existing `hx-get`/`hx-target`/`hx-swap` patterns cover both features
-- **PicoCSS (vendored)**: `<table role="grid">` and scrollable-div styling already handles both new tables
-- **collections.Counter (stdlib)**: Per-account resource-type counting; three-line extension of the existing `_compute_summary()` loop
-
-**Integration points confirmed by direct source read:**
-
-- **Cloud attribution data**: Already computed. `_compute_summary()` builds `per_account_details`
-  (account_id, provider, ddi_count, ip_count, asset_count, total_tokens). Only `resource_type_breakdown`
-  dict is missing — add a `Counter` pass in the same per-account loop. No new route needed.
-- **NIOS family data**: `IntegrityReport.families_found` is computed by `inspect_backup()` in Step 1
-  of the pipeline but currently discarded. Must be stored on `NiosScanManager`. The canonical display
-  order and DDI classification already exist in `nios/output.py` (`_ALL_FAMILIES_ORDERED`) and
-  `nios/counter.py` (`_DDI_FAMILIES`).
+**Core technologies:**
+- **FastAPI >= 0.115.0**: New routes `/tab/ad`, `/ad/run`, `/api/sse/ad`, `/api/ad/progress` — same route + StreamingResponse pattern already used for NIOS
+- **Jinja2 >= 3.1.0**: New AD tab templates and DNS zones panel — template-only additions using existing `{% include %}` / `{% for %}` / `{% if %}` patterns
+- **HTMX (vendored 1.9.x)**: AD wizard step swaps, AD SSE subscription — `hx-ext="sse"` / `sse-connect` / `sse-swap` pattern already used in NIOS tab; copy verbatim
+- **janus >= 2.0.0**: Third `EventBridge()` instance (`ad_event_bridge`) registered on `app.state` — the `EventBridge` class is already generic and reusable
+- **stdlib `collections.Counter`**: Top 5 DNS Zones aggregation — zero new imports
+- **stdlib `threading.Lock`**: `AdScanManager` thread safety — same pattern as `NiosScanManager`
 
 ### Expected Features
 
-**Must have — v1.4 launch (all three required for milestone goal):**
-- **Cloud per-account formula derivation** — inline `DDI ÷ 25 = X.X, IPs ÷ 13 = X.X, Assets ÷ 3 = X.X` per account row; data already present, template-only work following the existing NIOS scenario card pattern
-- **Cloud per-account resource-type count breakdown** — show VM/subnet/DNS zone counts that produced the DDI total; requires `_compute_summary()` extension with `Counter` per account
-- **NIOS object family breakdown table** — non-zero families only, DDI vs. non-DDI flag, reason column; mirrors XLS Object Counters sheet; requires storing `IntegrityReport.families_found` on `NiosScanManager`
+**Must have (table stakes — v1.8 launch):**
+- AD connection wizard (host, port, auth mode, credentials, services scope, autodiscovery toggle) — every other provider has a dashboard entry point; AD CLI has been production since v1.7 with no UI
+- AD SSE progress + results screen with token formula derivation, download CTA, error state + retry — without SSE the UI blocks on a 30–120s synchronous WinRM analysis
+- Top 5 Cloud DNS Zones panel on Summary tab — answers "which zones cost the most?" for cloud customers; data is already in `scan_manager.resources`
+- Top 5 AD DNS Zones panel on AD complete screen — AD forests commonly have dozens of zones; top-5 view adds immediate pre-sales value; data directly available from `run_ad_analysis()` output
+- CLOUD-EXT-01 human-readable display names and validation — v1.7 shipped 26 new DDI types that engineers now cite by name; raw type strings (`aws-resolver-rule-association`) degrade the customer-facing summary table
 
-Also required for milestone completeness (low-complexity additions within the two main features):
-- **Grand total reconciliation footnote** (cloud) — note that per-account token rows do not sum to the grand total due to ceiling division; no new code, template-only
-- **DDI-only family subtotal row** (NIOS) — subtotal row for DDI families using `_DDI_FAMILIES` frozenset; template logic
-- **Informational-only family reason text** (NIOS) — reason column for non-DDI families; values from `_UDDI_FLAG_REASON` in `output.py`
+**Should have (competitive differentiators):**
+- Token contribution breakdown by AD service type (DNS tokens / DHCP tokens / User tokens) on AD complete screen — low-complexity sub-total addition that eliminates "why does DNS dominate?" follow-up questions
+- DDI formula annotation per type in the collapsible breakdown rows (`count ÷ 25 = X tokens`) — already supported by CLOUD-EXT-01 architecture; template-only change
 
-**Should have — add after v1.4 validation:**
-- **Top-N sort for cloud per-account table** — sort by token contribution descending; one-line change in `_compute_summary()`; implement when SE feedback identifies navigation difficulty on large scans
-- **HOST_OBJECT expansion note** — footnote on the NIOS family table explaining that raw object count expands to 2-3 DDI records; implement when first customer confusion about HOST_OBJECT vs. DDI total is reported
-
-**Defer to v1.5+:**
-- Collapsible per-account resource-type rows using `<details>` — useful only at 50+ accounts simultaneously visible
-- Per-component DDI/IP/Asset percentage annotation — low urgency; percentage columns add visual noise for simple accounts
-- Cloud formula derivation card in Results tab — explicitly out of scope per PROJECT.md v1.4
-
-**Anti-features (confirmed do not implement):**
-- Sortable/filterable attribution table columns — Results tab already provides this at resource level; complexity exceeds value for 10-100 row tables
-- Per-account XLS download — existing XLS covers reporting; WebUI table is for in-session audit only
-- Live recalculate on resource type toggle — risks divergence from the official XLS report
-- Chart/graph visualization — explicitly excluded by PROJECT.md
-- Account name lookup — requires live cloud API calls; tool is offline for result display
+**Defer to v1.9+:**
+- Top 5 DNS Zones — NIOS scope: blocked by pipeline gap (`CountResult` has no per-zone accumulator); adding it risks regression on the most validated part of the codebase
+- Per-DC connection status during AD autodiscovery: high complexity; requires per-DC SSE events and collector refactoring; not needed for core AD dashboard
+- Functional grouping of v1.7 DDI types within the breakdown (Route53 Resolver vs. IPAM vs. Networking): display-name fix already addresses readability in v1.8
+- Cross-scope zone overlap detection (same zone in Cloud + AD): high complexity; no immediate pre-sales demand
 
 ### Architecture Approach
 
-Both features follow the same additive extension pattern established throughout the existing
-codebase. No new routes, no new SSE events, no new service files, no new source files. Modified
-components are limited to five existing files.
+v1.8 adds a third Manager/EventBridge pair (`AdScanManager` + `ad_event_bridge`) following the exact pattern established by cloud (`ScanManager` + `event_bridge`) and NIOS (`NiosScanManager` + `nios_event_bridge`). The AD tab page is a state-machine template branching on `ad_state` (idle/running/complete/error), identical to `pages/nios.html`. The background pipeline (`_run_ad_pipeline`) is inlined — calling `MicrosoftAdCollector` directly rather than `run_ad_analysis()` — to enable per-DC SSE progress events, the same design decision made for `_run_nios_pipeline()`. Top 5 DNS Zones and CLOUD-EXT-01 require no pipeline changes; they are pure route-handler helpers and template additions.
 
-**Modified components and their changes:**
-1. **`routes/pages.py`** — add `_count_resource_types()` helper; extend `_compute_summary()` to produce `resource_type_breakdown` per account; add `_build_family_rows()` helper; add `integrity_report` and `family_rows` to `tab_nios()` context
-2. **`pages/summary.html`** — extend per-account table with formula derivation cells and resource-type breakdown section; include non-summable footer notes
-3. **`services/nios_manager.py`** — add `_families_found` field, `families_found` property, `set_families_found()` setter; update `reset()` to clear field
-4. **`routes/nios.py`** — add one line after `inspect_backup()` to call `nios_manager.set_families_found(integrity.families_found)`
-5. **`partials/nios/complete.html`** — append family breakdown section with `{% if family_rows %}` guard after member attribution table
-
-**Architectural patterns to follow:**
-- Additive context extension: route handlers add new keys; templates use `{% if key %}` guards before rendering optional sections
-- Thread-safe state accumulation: new `NiosScanManager` field must use existing `threading.Lock` exactly as `_scenario_suite` does
-- Compute-on-render: `resource_type_breakdown` computed inside `_compute_summary()`, not stored in `ScanManager`
-- Template-owned formula constants: divisors (25/13/3) hardcoded in Jinja2; raw counts passed from Python
-- Business logic in Python: DDI family classification (`_DDI_FAMILIES`) and ordering (`_ALL_FAMILIES_ORDERED`) resolved in route handler before passing clean list to template
-
-**Anti-patterns confirmed to avoid:**
-- Do not treat `CountResult` or `ScenarioSuite` as the family breakdown source — neither exposes per-family counts
-- Do not add an async HTMX partial route for the family table — data is available synchronously at tab render time
-- Do not compute resource-type breakdown at scan time inside `_run_scan_pipeline()` — breaks the established compute-on-render pattern
-- Do not pre-format formula strings in Python route handlers — template owns display logic
+**Major components:**
+1. **`services/ad_manager.py` (new)** — `AdScanManager` with `AdState` enum, `threading.Lock`, `_resources`/`_errors`/`_output_path` fields; mirrors `NiosScanManager` with NIOS-specific fields removed
+2. **`routes/ad.py` (new)** — `POST /ad/run`, `GET /api/sse/ad`, `GET /api/ad/progress`, `GET /tab/ad`; AD background pipeline inlined as `_run_ad_pipeline()` called via `loop.run_in_executor`
+3. **`routes/pages.py` (modified)** — Add `tab_ad()` route; add `_compute_top_dns_zones()` helper; extend `_get_tab_context()` with `ad_state`; extend `tab_summary()` and `tab_ad()` with top-zone data
+4. **`app.py` (modified)** — Register `ad_event_bridge` + `ad_manager` in lifespan; include `ad_router`
+5. **AD templates (new)** — `pages/ad.html`, `partials/ad/step1_connect.html`, `step2_run.html`, `progress_display.html`, `complete.html`; mirror NIOS template directory structure
+6. **`templates/partials/tab_bar.html` (modified)** — Fifth tab entry with AD state badge
+7. **`templates/pages/summary.html` (modified)** — Top 5 Cloud DNS Zones panel + DDI formula annotation in breakdown rows
 
 ### Critical Pitfalls
 
-The pitfalls document covers both v1.1 (NIOS parsing infrastructure, all resolved) and v1.4
-(attribution tables). The v1.4-specific pitfalls are:
-
-1. **Ceiling-division rounding makes per-account token totals non-summable (A1)** — `math.ceil()` means two accounts each with 12 DDI produce `ceil(12/25) = 1` token apiece (sum = 2), while the grand total via a single combined call on 24 DDI also produces `ceil(24/25) = 1` token. Any "Total" footer on the token column will exceed the hero summary card. Prevention: omit a summable token footer; show a note that token totals are computed on combined counts. The existing `complete.html` member attribution table handles the analogous NIOS case — follow that pattern exactly.
-
-2. **Cross-account IP deduplication makes per-account IP totals non-summable (A2)** — the global IP deduplication in `deduplicate_ips_per_vpc()` prevents RFC1918 addresses shared across accounts from inflating the grand total, but summing the per-account IP column in the attribution table undoes that deduplication. Prevention: DDI column footer IS summable (DDI objects cannot be shared across accounts); IP column footer is NOT summable. Make this distinction explicit with different treatment for each column.
-
-3. **`families_found` stores raw object counts, not DDI-adjusted counts (A6)** — `host_object` expands to 2-3 DDI records per object in the counting pipeline, but `families_found["host_object"]` reflects the raw XML object count. Building the family breakdown column from `families_found` and labeling it "DDI Objects" produces a column that does not sum to the scenario DDI total. Prevention: decide before implementation whether to use raw counts (labeled "Object Count") with a HOST_OBJECT expansion note, OR extend `count_objects()` to return DDI-adjusted per-family counts (`per_family_ddi` dict). Either is viable; the label and footnotes must be consistent with the choice.
-
-4. **`reset()` must clear new `NiosScanManager` fields or stale data persists on re-analysis (A8)** — if `reset()` is not updated when `_families_found` is added, a re-uploaded backup shows stale family data from the previous run until the new analysis completes. Prevention: add `self._families_found = None` to `reset()` in the same commit as the field addition to `__init__()`.
-
-5. **`family_rows` context variable must be guarded against `None` in templates (A8)** — `tab_nios()` passes `family_rows` to the template context before any analysis has run; without `{% if family_rows %}` guards the page errors on the initial pre-analysis tab load. Prevention: all new context variables added to `tab_nios()` must have explicit template guards.
-
-**v1.1 pitfalls (resolved in shipped code, not applicable to v1.4):**
-- iterparse memory management (elem.clear()) — resolved Phase 10
-- tar.gz streaming without disk extraction — resolved Phase 10
-- Lease row count vs. unique IP deduplication — resolved Phase 11
-- HOST_OBJECT expansion double-count — resolved Phase 11
-- Dual token formula misapplication — resolved Phase 11/12
-- FastAPI UploadFile closed before background task — resolved Phase 13
+1. **AD EventBridge shared with cloud or NIOS SSE** — Create a third independent `EventBridge()` instance (`app.state.ad_event_bridge`); verify with a test that cloud `emit_done()` does not close the AD SSE subscriber; this is an easy copy-paste error in `app.py` with no runtime error — the stream silently closes at the wrong moment
+2. **SSE race condition: pipeline finishes before browser opens SSE connection** — In `sse_ad()`, check `ad_manager.state in (COMPLETE, ERROR)` before subscribing; emit `ad_complete` immediately if already done; the fix is 4 lines copied from `sse_nios()` lines 384–387
+3. **`_get_tab_context()` missing `ad_state` breaks ALL tabs** — Every tab route calls this shared function; adding `ad_state` to `tab_bar.html` without updating the backend throws Jinja2 `UndefinedError` on every tab; update `_get_tab_context()` first, before adding the tab link to the template
+4. **AD credentials logged via `AdOptions.__repr__`** — Python dataclass default repr includes all fields including `password`; add `__repr__` override masking the password field; never store credentials in `AdScanManager` beyond the pipeline run
+5. **Top 5 DNS Zones ranked by zone-level DDI contribution produces a meaningless tied list** — Every zone contributes exactly 1 DDI; the correct metric is record count per zone (records scale with DNS footprint); rank zones by DNS record count, not by zone object DDI
 
 ---
 
 ## Implications for Roadmap
 
-Both v1.4 features are independent of each other (cloud and NIOS pipelines share no state).
-Either can be built first. Research recommends cloud first (zero structural changes, lower blast
-radius) then NIOS (requires the small `NiosScanManager` API extension).
+Based on research, the suggested phase structure follows the dependency graph from ARCHITECTURE.md: AD foundation first (no dependencies), then AD routes + templates (depends on foundation), then the standalone CLOUD-EXT-01 enhancement, then the Top 5 DNS Zones panels (AD scope depends on AD tab being complete).
 
-### Phase 1: Cloud Per-Account Attribution Table
+### Phase 1: AD Foundation — Manager, EventBridge, App Wiring
 
-**Rationale:** Zero structural changes required. Touches only `pages.py` logic and one template.
-Establishes the display patterns (formula derivation, resource-type breakdown, non-summable
-footers) before touching the NIOS path. Delivers the higher-frequency use case — cloud scans are
-the primary workflow for most SEs. All data is already computed; this is template work plus a
-`Counter` loop.
+**Rationale:** All AD UI work depends on `AdScanManager` and `ad_event_bridge` existing on `app.state`. This phase has no external dependencies and eliminates the highest-risk integration errors (shared EventBridge, missing `ad_state` in shared context) before any templates are written. Gets the tab link rendering in idle state immediately.
+**Delivers:** `services/ad_manager.py` fully defined; `app.py` lifespan registers `ad_event_bridge` + `ad_manager`; `_get_tab_context()` extended with `ad_state`; AD tab link added to `tab_bar.html` (badge renders from state — idle on first load)
+**Addresses:** AD-09 foundation, AD-10 prerequisite
+**Avoids:** Pitfall 1 (shared EventBridge), Pitfall 8 (tab bar UndefinedError), Pitfall 4 (NIOS-specific fields in manager)
 
-**Delivers:** Cloud Summary tab per-account rows with inline formula derivation (DDI ÷ 25, IPs
-÷ 13, Assets ÷ 3) and counted resource-type breakdown (VM/subnet/DNS zone counts). Clear
-non-summable footer notes for token and IP columns.
+### Phase 2: AD Routes and Templates — Full Wizard + SSE + Results
 
-**Features addressed:**
-- Cloud per-account formula derivation (P1)
-- Cloud per-account resource-type count breakdown (P1)
-- Skipped vs. counted split per account (P1)
-- Grand total reconciliation footnote (P1)
+**Rationale:** With the foundation in place, this phase wires the complete AD user flow: form submission, background pipeline dispatch, SSE progress, completion screen. The NIOS tab is the direct model — every component has a documented AD counterpart.
+**Delivers:** `routes/ad.py` with all 4 routes; `_run_ad_pipeline()` inlined with per-DC progress; all AD templates (`pages/ad.html`, 4 partials); AD results screen with DNS zone, DHCP scope, AD user counts, token formula, download CTA, error + retry state
+**Uses:** `MicrosoftAdCollector` directly (not `run_ad_analysis()`) for per-DC SSE progress granularity; `loop.run_in_executor` (not `asyncio.to_thread`) for Python 3.9 compatibility
+**Avoids:** Pitfall 2 (SSE race guard), Pitfall 3 (SSE keepalive via `EventBridge.subscribe()`), Pitfall 9 (credentials not stored/logged)
 
-**Pitfalls to avoid:**
-- A1: No summable token footer — explanatory note only
-- A2: DDI footer is summable; IP footer is not — differentiate explicitly
-- A3: Use provider-appropriate column label per row (Account / Subscription / Project)
-- A4: Breakdown counts only `r.counted == True` resources; label clearly
+### Phase 3: CLOUD-EXT-01 — v1.7 DDI Type Display Names
 
-**Build steps:**
-1. Add `_count_resource_types()` helper to `pages.py`
-2. Extend `per_account_details` in `_compute_summary()` with `resource_type_breakdown`
-3. Update `pages/summary.html` — formula derivation cells + resource-type breakdown + footer notes
-4. Verify: run cloud scan, confirm Summary tab formula derivations are correct and hero token total matches the table's grand total note
+**Rationale:** Fully independent of AD tab work; data path is already correct. The deliverable is a static dict and template annotation. Can be developed in parallel with Phase 2 or immediately after.
+**Delivers:** `DDI_TYPE_DISPLAY_NAMES` dict in `categorizer.py` mapping all 26 v1.7 type strings to human labels; DDI formula annotation (`count ÷ 25 = X tokens`) added to breakdown rows in `summary.html`; validation fixture confirming v1.7 types appear in breakdown for accounts that have them
+**Avoids:** Pitfall 7 (attribution table unreadable with 20+ raw type strings)
 
-### Phase 2: NIOS Object Family Breakdown Table
+### Phase 4: Top 5 DNS Zones Panels
 
-**Rationale:** Requires extending `NiosScanManager` (one new field + setter + property + reset
-clear) and one new call in `_run_nios_pipeline()`. Builds on patterns proven in Phase 1.
-Completes the v1.4 milestone — the NIOS complete screen becomes fully self-contained for audit
-without needing the XLS.
-
-**Delivers:** NIOS complete screen family breakdown section: non-zero families only, DDI vs.
-non-DDI flag, reason column for excluded families, HOST_OBJECT raw count note, scenario-
-independence label. Ordered to match XLS Object Counters sheet.
-
-**Features addressed:**
-- NIOS object family breakdown table (P1)
-- DDI-only family subtotal row (P1)
-- Informational-only family reason text (P1)
-- HOST_OBJECT expansion note (P2 — include in initial implementation given low cost)
-
-**Pitfalls to avoid:**
-- A6: Decide raw vs. DDI-adjusted count before implementation; label column to match
-- A7: Section heading must state explicitly "applies to all scenarios — same object set counted under different formulas"
-- A8: Follow exact `_scenario_suite` pattern for thread safety; update `reset()` in same commit as field addition
-
-**Build steps:**
-1. Add `_families_found` field + property + `set_families_found()` + `reset()` clear to `NiosScanManager`
-2. Add `nios_manager.set_families_found(integrity.families_found)` in `_run_nios_pipeline()` after `inspect_backup()`
-3. Add `_build_family_rows()` helper to `pages.py`; add `family_rows` to `tab_nios()` context
-4. Add family breakdown section to `partials/nios/complete.html` with `{% if family_rows %}` guard
-5. Verify: run NIOS analysis, confirm complete screen shows family breakdown; rerun analysis with a new backup, confirm `reset()` clears previous data
+**Rationale:** Cloud and AD zone panels depend on AD tab completion (Phase 2) for the AD scope. The zone computation is a linear in-memory pass — no new pipeline needed. NIOS scope deferred to v1.9 due to pipeline complexity and regression risk.
+**Delivers:** `_compute_top_dns_zones(resources)` helper in `pages.py`; Top 5 Cloud DNS Zones panel in `summary.html` (ranked by record count); Top 5 AD DNS Zones panel in `partials/ad/complete.html`; NIOS scope shows zone count only ("N DNS zones") without per-zone breakdown
+**Avoids:** Pitfall 5 (source-aware zone name extraction), Pitfall 6 (ranking by record count not zone DDI)
 
 ### Phase Ordering Rationale
 
-- Cloud first because it has zero structural changes and proves display patterns before the `NiosScanManager` extension
-- NIOS second because the manager API change is the only structural risk in the milestone
-- No Phase 3 — both features are complete after Phase 2; P2/P3 polish items (sort order, collapsible rows, percentage annotations) are single-task additions not warranting separate phases
+- Phase 1 before Phase 2: `app.state` objects must exist before routes can reference them; `_get_tab_context()` must include `ad_state` before any template references it
+- Phase 3 is independent: no dependency on AD tab; parallelizable if capacity allows
+- Phase 4 after Phase 2: AD zones panel reads `ad_manager.resources` which only exists after the AD tab pipeline is complete; Cloud zones panel is independent but benefits from being implemented in the same pass
+- NIOS per-zone deferred: `CountResult` has no per-zone accumulator; adding it risks regressions on the ZF Friedrichshafen reference run; not worth the scope in v1.8
 
 ### Research Flags
 
-**Both phases: skip research-phase.** Both features follow well-documented, established codebase
-patterns. The research files contain complete implementation blueprints with exact file names,
-function signatures, and code sketches. No niche domain knowledge, external API integration, or
-new technology is involved.
+Phases with well-documented patterns — skip research-phase, all patterns exist in codebase:
+- **Phase 1:** Direct mirror of NIOS foundation; all patterns confirmed via source reads with exact file/line citations
+- **Phase 2:** Direct mirror of NIOS tab; all integration points documented in ARCHITECTURE.md with specific file names, method signatures, and code sketches
+- **Phase 3:** Self-contained dict + template change; no external dependencies
+- **Phase 4:** In-memory aggregation using stdlib; zone name fields confirmed in source reads for cloud (Route53 confirmed at `route53.py` line 121) and AD (`runner.py` line 277)
 
-- **Phase 1:** Standard pattern. `_compute_summary()` extension is fully specified in ARCHITECTURE.md with working code examples. Template pattern is identical to the existing `complete.html` member attribution scrollable table.
-- **Phase 2:** Standard pattern. `NiosScanManager` extension follows the `_scenario_suite` model exactly. The one open decision (raw vs. DDI-adjusted counts for the family column) is a design choice to make at planning time, not a research gap.
+Phases needing implementation-time verification (not full research — empirical check at start of phase):
+- **Phase 2:** Verify `MicrosoftAdCollector` API surface for direct calling (currently called only via `run_ad_analysis()`); confirm per-DC collect method signature before writing `_run_ad_pipeline()`
+- **Phase 4 (Cloud scope):** Verify Azure and GCP DNS zone name field in `resource.details` for `azure-dns-zone` and `gcp-dns-zone` collectors; confirmed for Route53, not yet verified for Azure/GCP
 
 ---
 
@@ -228,55 +128,42 @@ new technology is involved.
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All findings from direct codebase inspection; confirmed zero new libraries needed; no version conflicts |
-| Features | HIGH | Derived from PROJECT.md milestone spec + direct source reads of all route handlers and templates; XLS report as reference for NIOS family breakdown confirmed |
-| Architecture | HIGH | All integration points source-confirmed: `_compute_summary()` signature, `NiosScanManager` fields, `IntegrityReport.families_found` type, `_ALL_FAMILIES_ORDERED` list, `_DDI_FAMILIES` frozenset |
-| Pitfalls | HIGH | v1.4 pitfalls derived from direct code reading; v1.1 pitfalls verified against CPython and FastAPI issue trackers (all resolved in shipped code) |
+| Stack | HIGH | Direct source inspection of all affected files; no new dependencies; all stack decisions confirmed against `requirements.txt` and existing route code |
+| Features | HIGH | Grounded in existing codebase; features derived from direct inspection of `runner.py`, `options.py`, `routes/nios.py`, `routes/pages.py`; no external documentation needed |
+| Architecture | HIGH | All patterns confirmed via source reads with specific file + line citations; component boundaries precisely mapped; no inferred dependencies |
+| Pitfalls | HIGH | Every pitfall derived from direct code inspection; race condition guard located at specific line (`sse_nios()` lines 384–387); UndefinedError root cause confirmed in `_get_tab_context()` |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Raw counts vs. DDI-adjusted counts for NIOS family breakdown (Pitfall A6):** This is the one
-  open design decision in the milestone. ARCHITECTURE.md recommends using raw counts from
-  `families_found` with a clear "Object Count" label and a HOST_OBJECT expansion note (simpler;
-  no changes to `counter.py`). The alternative — extending `count_objects()` to return
-  DDI-adjusted per-family counts — is more precise but adds scope by touching the counting core.
-  Decide before Phase 2 begins; document the decision in a template comment and the section
-  heading.
-
-- **Cloud per-account attribution table placement in `summary.html`:** The Summary tab already
-  has a per-provider summary table distinct from the per-account detail rows. Confirm during
-  Phase 1 planning exactly where the formula derivation and resource-type breakdown appear — as
-  new columns in the existing per-account table, or as a new expandable section per row. The
-  research files describe both options; pick one before coding the template.
+- **Azure/GCP DNS zone name field in `resource.details`**: Confirmed for Route53 (`route53.py` line 121) and AD (`runner.py` line 277). For Azure and GCP zone collectors, read the collector files before writing `_compute_top_dns_zones()` in Phase 4. If the field name differs from `"zone"`, the extraction will silently produce empty zone panels for Azure/GCP scans.
+- **`MicrosoftAdCollector` per-DC collection API**: The recommended pipeline design calls `MicrosoftAdCollector` directly for per-DC progress events. The exact per-DC collect method signature should be verified before writing `_run_ad_pipeline()` in Phase 2. If the collector does not expose a per-DC method, fall back to `run_ad_analysis()` with indeterminate progress (acceptable for v1.8 MVP).
+- **NIOS zone FQDN key in `raw_attrs`**: The NIOS schema stores zone FQDNs in `NiosObject.raw_attrs`, likely under the key `"fqdn"`. This is inferred from standard NIOS property naming and has not been verified against a real backup. Relevant only if NIOS per-zone panel is prioritized — currently deferred to v1.9.
 
 ---
 
 ## Sources
 
-### Primary (HIGH confidence — direct codebase inspection)
+### Primary (HIGH confidence — direct source inspection)
+- `src/cloud_usage/dashboard/routes/nios.py` — NIOS tab pattern; SSE race guard at lines 384–387; SC-5 isolation
+- `src/cloud_usage/dashboard/routes/pages.py` — `_compute_summary()` attribution table; `_get_tab_context()` shared context builder
+- `src/cloud_usage/dashboard/services/nios_manager.py` — Manager pattern to replicate for `AdScanManager`
+- `src/cloud_usage/dashboard/services/event_bridge.py` — EventBridge generic reusability; keepalive at line 86
+- `src/cloud_usage/dashboard/app.py` — Lifespan pattern; two independent EventBridge instances confirmed
+- `src/cloud_usage/providers/ad/runner.py` — `run_ad_analysis()` return shape; zone name at `_to_cloud_resources()` line 277
+- `src/cloud_usage/providers/ad/options.py` — `AdOptions` fields; auth mode; services tuple
+- `src/cloud_usage/counting/categorizer.py` — All 26 v1.7 DDI types in `DDI_TYPES`; no display names dict yet exists
+- `src/cloud_usage/nios/counter.py` — `CountResult.per_family_ddi` is family-level; no per-zone accumulator
+- `src/cloud_usage/providers/aws/collectors/route53.py` line 121 — `details["zone_name"]` confirmed for Route53 records
+- `src/cloud_usage/dashboard/templates/pages/summary.html` — Attribution breakdown already renders `resource_type_breakdown`
+- `src/cloud_usage/dashboard/templates/partials/tab_bar.html` — Four existing tabs; `nios_state` dependency pattern
+- `.planning/PROJECT.md` — Python-only constraint; no-charts decision; SC-5; v1.8 feature list
 
-- `src/cloud_usage/dashboard/routes/pages.py` — `_compute_summary()`, `tab_nios()`, `tab_summary()`, `tab_results()`
-- `src/cloud_usage/dashboard/services/nios_manager.py` — `NiosScanManager` fields, `set_complete()` signature, `reset()`
-- `src/cloud_usage/dashboard/routes/nios.py` — `_run_nios_pipeline()`: what is computed vs. discarded
-- `src/cloud_usage/nios/schema.py` — `IntegrityReport.families_found: dict[str, int]`
-- `src/cloud_usage/nios/output.py` — `_ALL_FAMILIES_ORDERED`, `_FAMILY_DISPLAY_NAMES`, `_UDDI_FLAG_REASON`
-- `src/cloud_usage/nios/counter.py` — `CountResult`, `_DDI_FAMILIES`
-- `src/cloud_usage/counting/token_calculator.py` — `DDI_PER_TOKEN = 25`, `IPS_PER_TOKEN = 13`, `ASSETS_PER_TOKEN = 3`
-- `src/cloud_usage/schema/resource.py` — `CloudResource.account_id` (confirmed: no `account_name` field)
-- `src/cloud_usage/dashboard/templates/partials/nios/complete.html` — scrollable-div + table pattern, member attribution table
-- `src/cloud_usage/dashboard/templates/pages/summary.html` — existing `per_account_details` table structure
-- `.planning/PROJECT.md` — v1.4 milestone definition, key decisions, out-of-scope items, Python 3.9+ constraint
-
-### Secondary (HIGH confidence — issue trackers, used for v1.1 pitfall validation)
-
-- CPython issue #102055 — ElementTree iterparse memory non-release (v1.1 pitfall, resolved in shipped code)
-- FastAPI discussion #10936 — UploadFile closed before background task (v1.1 pitfall, resolved in shipped code)
-- FastAPI issue #5777 — SpooledTemporaryFile spool limit (v1.1 pitfall, resolved in shipped code)
-- `do_not_commit/CLAUDE.md` — ZF reference backup validated numbers (v1.1 verification data)
+### Secondary (MEDIUM confidence — inferred from codebase patterns)
+- NIOS `raw_attrs["fqdn"]` for DNS zone FQDN — standard NIOS property naming; not verified against a live backup
+- Azure/GCP DNS zone name field in `resource.details` — confirmed pattern for AWS Route53; inferred for Azure/GCP
 
 ---
-
-*Research completed: 2026-03-03*
+*Research completed: 2026-03-07*
 *Ready for roadmap: yes*
