@@ -25,10 +25,24 @@
         </div>
     </nav>
     {% endif %}
+    {% if calc_theme == 'calc-cloud' %}
+    <nav class="provider-selector" aria-label="Cloud provider">
+      <div class="container">
+        <span class="provider-selector-label">Provider:</span>
+        {% for p_key, p_label in [('aws', 'AWS'), ('azure', 'Azure'), ('gcp', 'GCP')] %}
+        <button class="provider-pill{% if active_provider == p_key %} active{% endif %}"
+                hx-get="/cloud/{{ p_key }}/tab/progress"
+                hx-target="#tab-container"
+                hx-push-url="false">{{ p_label }}</button>
+        {% endfor %}
+      </div>
+    </nav>
+    {% endif %}
     <main class="container" id="main-content">
         {% block content %}
         <div id="tab-container"
-             hx-get="/tab/{{ active_tab if active_tab in ('progress', 'nios', 'ad') else 'progress' }}" hx-trigger="load" hx-target="#tab-container">
+             hx-get="{% if calc_theme == 'calc-cloud' %}/cloud/{{ active_provider }}/tab/{{ active_tab }}{% else %}/tab/{{ active_tab if active_tab in ('progress', 'nios', 'ad') else 'progress' }}{% endif %}"
+             hx-trigger="load" hx-target="#tab-container">
             <p>Loading...</p>
         </div>
         {% endblock %}

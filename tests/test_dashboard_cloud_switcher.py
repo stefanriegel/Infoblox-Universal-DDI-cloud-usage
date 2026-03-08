@@ -23,7 +23,6 @@ def test_cloud_page_has_provider_selector() -> None:
     assert "provider-selector" in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-08: provider selector not yet in base.html")
 def test_base_html_has_provider_pills() -> None:
     """base.html must contain 'provider-pill' CSS class."""
     content = Path(
