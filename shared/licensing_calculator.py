@@ -1,0 +1,574 @@
+#!/usr/bin/env python3
+"""
+Universal DDI Licensing Calculator
+
+Calculates Infoblox Universal DDI licensing requirements based on discovered cloud resources.
+Uses official Infoblox Universal DDI licensing metrics from the documentation.
+"""
+
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+import csv
+import re
+
+from shared.constants import ASSET_RESOURCE_TYPES, DDI_RESOURCE_TYPES
+
+# Pre-computed type sets (avoid per-call reconstruction)
+_ALL_DDI_TYPES = frozenset(t for types in DDI_RESOURCE_TYPES.values() for t in types)
+_ALL_ASSET_TYPES = frozenset(t for types in ASSET_RESOURCE_TYPES.values() for t in types)
+
+# Type-based provider mapping sets (used by _determine_provider)
+_AWS_TYPES = frozenset(
+    {"vpc", "subnet", "route53-zone", "route53-record", "dhcp-option-set", "eni", "elastic-ip", "eks-cluster"}
+)
+_AZURE_TYPES = frozenset(
+    {
+        "vm",
+        "vmss-instance",
+        "vnet",
+        "subnet",
+        "dns-zone",
+        "dns-record",
+        "endpoint",
+        "switch",
+        "gateway",
+        "router",
+        "public-ip",
+        "load-balancer",
+        "firewall",
+        "server",
+        "aks-cluster",
+    }
+)
+_GCP_TYPES = frozenset(
+    {"compute-instance", "vpc-network", "dns-zone", "dns-record", "cloud-nat", "gke-cluster", "reserved-ip"}
+)
+
+# Region patterns for provider detection (covers all current and future regions)
+# AWS: two-letter continent + dash + direction/name + dash + digit (e.g. us-east-1, af-south-1)
+_AWS_REGION_RE = re.compile(r"^[a-z]{2}-[a-z]+-\d+$")
+# GCP: continent-direction + digit (e.g. us-central1, europe-west4, asia-southeast1)
+_GCP_REGION_RE = re.compile(r"^[a-z]+-[a-z]+\d+$")
+# Azure: lowercase letters only, no hyphens or digits in position 2-3 (e.g. eastus, westeurope, canadacentral)
+_AZURE_REGION_RE = re.compile(r"^[a-z]{4,}[a-z0-9]*$")
+
+
+class UniversalDDILicensingCalculator:
+    """Calculate Universal DDI licensing requirements from discovered resources."""
+
+    # Official Infoblox Universal DDI licensing ratios (Native Objects)
+    DDI_OBJECTS_PER_TOKEN = 25  # DDI Objects per Management Token
+    ACTIVE_IPS_PER_TOKEN = 13  # Active IP Addresses per Management Token
+    ASSETS_PER_TOKEN = 3  # Managed Assets per Management Token
+
+    def __init__(self):
+        """Initialize the licensing calculator."""
+        self.results = {}
+        self.current_provider: Optional[str] = None
+        self.active_ip_breakdown: Optional[Dict[str, int]] = None
+        self.active_ip_breakdown_by_space: Optional[Dict[str, int]] = None
+
+    def calculate_from_discovery_results(self, native_objects: List[Dict], provider: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Calculate licensing requirements from native discovery results.
+
+        Args:
+            native_objects: List of discovered resources from cloud providers
+            provider: The active provider context (aws|azure|gcp) to preference mapping
+
+        Returns:
+            Dictionary with licensing calculations and recommendations
+        """
+        self.current_provider = (provider or "").lower() or None
+        # Count DDI Objects (network infrastructure for DNS/DHCP/IPAM)
+        ddi_objects = self._count_ddi_objects(native_objects)
+
+        # Count Active IP Addresses (IPs assigned to running resources)
+        active_ips = self._count_active_ips(native_objects)
+
+        # Count Managed Assets (compute/network resources with IPs)
+        managed_assets = self._count_managed_assets(native_objects)
+
+        # Calculate required tokens
+        tokens_for_ddi = max(
+            1,
+            (ddi_objects + self.DDI_OBJECTS_PER_TOKEN - 1) // self.DDI_OBJECTS_PER_TOKEN,
+        )
+        tokens_for_ips = max(1, (active_ips + self.ACTIVE_IPS_PER_TOKEN - 1) // self.ACTIVE_IPS_PER_TOKEN)
+        tokens_for_assets = max(1, (managed_assets + self.ASSETS_PER_TOKEN - 1) // self.ASSETS_PER_TOKEN)
+
+        # Total management tokens needed (sum of all three categories)
+        total_management_tokens = tokens_for_ddi + tokens_for_ips + tokens_for_assets
+
+        # Generate provider breakdown
+        provider_breakdown = self._get_provider_breakdown(native_objects)
+
+        result = {
+            "calculation_timestamp": datetime.now().isoformat(),
+            "licensing_basis": "Infoblox Universal DDI Native Objects (25/13/3 per token)",
+            "counts": {
+                "ddi_objects": ddi_objects,
+                "active_ip_addresses": active_ips,
+                "active_ip_breakdown": self.active_ip_breakdown or {},
+                "active_ip_breakdown_by_space": self.active_ip_breakdown_by_space or {},
+                "managed_assets": managed_assets,
+                "total_objects": len(native_objects),
+            },
+            "token_requirements": {
+                "ddi_objects_tokens": tokens_for_ddi,
+                "active_ips_tokens": tokens_for_ips,
+                "managed_assets_tokens": tokens_for_assets,
+                "total_management_tokens": total_management_tokens,
+            },
+            "provider_breakdown": provider_breakdown,
+            "sizing_ratios": {
+                "ddi_objects_per_token": self.DDI_OBJECTS_PER_TOKEN,
+                "active_ips_per_token": self.ACTIVE_IPS_PER_TOKEN,
+                "assets_per_token": self.ASSETS_PER_TOKEN,
+            },
+        }
+
+        self.results = result
+        return result
+
+    def _count_ddi_objects(self, resources: List[Dict]) -> int:
+        """Count DDI Objects (DNS/DHCP/IPAM infrastructure)."""
+        return sum(1 for r in resources if r.get("resource_type") in _ALL_DDI_TYPES)
+
+    def _count_active_ips(self, resources: List[Dict]) -> int:
+        """Count Active IP Addresses.
+
+        Rules (per Infoblox definition for sizing):
+          - Include: discovered/attached IPs, DHCP lease IPs, fixed addresses, reservations.
+          - Exclude: DNS-derived IP evidence (DNS record/query sources).
+          - De-duplicate by inferred IP Space (VPC/VNet/VPC network), not globally.
+        """
+        from shared.resource_counter import ResourceCounter
+
+        provider = self.current_provider or "multicloud"
+        counter = ResourceCounter(provider)
+        total, breakdown, by_space = counter.count_active_ip_metrics(resources)
+        self.active_ip_breakdown = breakdown
+        self.active_ip_breakdown_by_space = by_space
+        return total
+
+    def _count_managed_assets(self, resources: List[Dict]) -> int:
+        """Count Managed Assets (compute/network resources with IPs)."""
+        # Count assets that have IP addresses (as per Infoblox licensing rules)
+        asset_count = 0
+        for resource in resources:
+            if resource.get("resource_type") in _ALL_ASSET_TYPES:
+                # Check if asset has at least one IP address
+                details = resource.get("details", {})
+                has_ip = False
+
+                # Check for IP fields
+                for ip_field in [
+                    "ip",
+                    "private_ip",
+                    "public_ip",
+                    "private_ips",
+                    "public_ips",
+                ]:
+                    if details.get(ip_field):
+                        has_ip = True
+                        break
+
+                if has_ip:
+                    asset_count += 1
+
+        return asset_count
+
+    def _get_provider_breakdown(self, resources: List[Dict]) -> Dict[str, Dict[str, int]]:
+        """Get breakdown of counts by cloud provider."""
+        providers = {}
+        # Group resources by provider in a single pass (avoids double _determine_provider)
+        resources_by_provider: Dict[str, List[Dict]] = {}
+
+        for resource in resources:
+            provider = self._determine_provider(resource)
+
+            if provider not in providers:
+                providers[provider] = {
+                    "ddi_objects": 0,
+                    "active_ips": 0,
+                    "managed_assets": 0,
+                    "total_objects": 0,
+                }
+                resources_by_provider[provider] = []
+
+            providers[provider]["total_objects"] += 1
+            resources_by_provider[provider].append(resource)
+
+            # Categorize the resource
+            resource_type = resource.get("resource_type", "")
+
+            if resource_type in _ALL_DDI_TYPES:
+                providers[provider]["ddi_objects"] += 1
+            elif resource_type in _ALL_ASSET_TYPES:
+                details = resource.get("details", {})
+                if self._has_ip_addresses(details):
+                    providers[provider]["managed_assets"] += 1
+
+        # Count unique IPs per provider using pre-grouped resources
+        for provider, provider_resources in resources_by_provider.items():
+            providers[provider]["active_ips"] = self._count_active_ips(provider_resources)
+
+        return providers
+
+    def _determine_provider(self, resource: Dict) -> str:
+        """Determine cloud provider from resource by region or resource_type, preferring current provider when ambiguous."""
+        region = (resource.get("region") or "").lower()
+        rtype = (resource.get("resource_type") or "").lower()
+
+        # Region-based detection using naming patterns (covers all current and future regions)
+        if region and region != "global":
+            if _AWS_REGION_RE.match(region):
+                return "aws"
+            if _GCP_REGION_RE.match(region):
+                return "gcp"
+            if _AZURE_REGION_RE.match(region):
+                return "azure"
+
+        # Prefer current provider on overlap
+        cp = (self.current_provider or "").lower()
+        if cp == "aws" and rtype in _AWS_TYPES:
+            return "aws"
+        if cp == "azure" and rtype in _AZURE_TYPES:
+            return "azure"
+        if cp == "gcp" and rtype in _GCP_TYPES:
+            return "gcp"
+
+        # Otherwise choose by type order: gcp first (to avoid misclassifying 'dns-zone'), then azure, then aws
+        if rtype in _GCP_TYPES:
+            return "gcp"
+        if rtype in _AZURE_TYPES:
+            return "azure"
+        if rtype in _AWS_TYPES:
+            return "aws"
+
+        # Fallback on patterns
+        if "route53" in rtype or rtype.startswith("ec2-"):
+            return "aws"
+        if rtype in ("managedzone", "recordset"):
+            return "gcp"
+
+        # Region 'global' could belong to any; prefer current provider if set
+        if region == "global" and cp in {"aws", "azure", "gcp"}:
+            return cp
+
+        return "unknown"
+
+    def _is_ddi_object(self, resource_type: str) -> bool:
+        """Check if resource type is a DDI object."""
+        return resource_type in _ALL_DDI_TYPES
+
+    def _is_managed_asset(self, resource_type: str) -> bool:
+        """Check if resource type is a managed asset."""
+        return resource_type in _ALL_ASSET_TYPES
+
+    def _has_ip_addresses(self, details: Dict) -> bool:
+        """Check if resource details contain IP addresses."""
+        ip_fields = ["ip", "private_ip", "public_ip", "private_ips", "public_ips"]
+        return any(details.get(field) for field in ip_fields)
+
+    def export_csv(self, output_file: str, provider: Optional[str] = None) -> str:
+        """Export licensing calculations to CSV format for Sales Engineers (active provider only)."""
+        if not self.results:
+            raise ValueError("No calculation results available. Run calculate_from_discovery_results first.")
+
+        with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.writer(csvfile)
+
+            # Header
+            writer.writerow(["Infoblox Universal DDI Licensing Calculator"])
+            writer.writerow(["Generated:", self.results["calculation_timestamp"]])
+            writer.writerow(["Basis:", self.results["licensing_basis"]])
+            writer.writerow([])
+
+            # Summary
+            writer.writerow(["LICENSING SUMMARY"])
+            writer.writerow(["Metric", "Count", "Tokens Required", "Per Token Ratio"])
+            writer.writerow(
+                [
+                    "DDI Objects",
+                    self.results["counts"]["ddi_objects"],
+                    self.results["token_requirements"]["ddi_objects_tokens"],
+                    f"{self.DDI_OBJECTS_PER_TOKEN} objects/token",
+                ]
+            )
+            writer.writerow(
+                [
+                    "Active IP Addresses",
+                    self.results["counts"]["active_ip_addresses"],
+                    self.results["token_requirements"]["active_ips_tokens"],
+                    f"{self.ACTIVE_IPS_PER_TOKEN} IPs/token",
+                ]
+            )
+            writer.writerow(
+                [
+                    "Managed Assets",
+                    self.results["counts"]["managed_assets"],
+                    self.results["token_requirements"]["managed_assets_tokens"],
+                    f"{self.ASSETS_PER_TOKEN} assets/token",
+                ]
+            )
+            writer.writerow(
+                [
+                    "TOTAL MANAGEMENT TOKENS",
+                    "",
+                    self.results["token_requirements"]["total_management_tokens"],
+                    "",
+                ]
+            )
+            writer.writerow([])
+
+            aip = self.results["counts"].get("active_ip_breakdown", {}) or {}
+            if aip:
+                writer.writerow(["ACTIVE IP BREAKDOWN (unique, non-additive)"])
+                writer.writerow(["Source", "Count"])
+                for src in sorted(aip):
+                    writer.writerow([src, aip[src]])
+                writer.writerow([])
+
+            # Provider breakdown (only active provider)
+            writer.writerow(["PROVIDER BREAKDOWN"])
+            writer.writerow(
+                [
+                    "Provider",
+                    "DDI Objects",
+                    "Active IPs",
+                    "Managed Assets",
+                    "Total Objects",
+                ]
+            )
+            pb = self.results.get("provider_breakdown", {}) or {}
+            key = (provider or self.current_provider or "").lower()
+            if key and key in pb:
+                counts = pb[key]
+                writer.writerow(
+                    [
+                        key.upper(),
+                        counts["ddi_objects"],
+                        counts["active_ips"],
+                        counts["managed_assets"],
+                        counts["total_objects"],
+                    ]
+                )
+
+        return output_file
+
+    def export_text_summary(self, output_file: str, provider: Optional[str] = None) -> str:
+        """Export a text summary for Sales Engineers (only for the active provider)."""
+        if not self.results:
+            raise ValueError("No calculation results available. Run calculate_from_discovery_results first.")
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            f.write("INFOBLOX UNIVERSAL DDI LICENSING CALCULATOR\n")
+            f.write("=" * 50 + "\n\n")
+
+            f.write(f"Generated: {self.results['calculation_timestamp']}\n")
+            f.write(f"Basis: {self.results['licensing_basis']}\n\n")
+
+            # Summary
+            f.write("LICENSING REQUIREMENTS SUMMARY\n")
+            f.write("-" * 30 + "\n")
+            f.write(
+                f"DDI Objects: {self.results['counts']['ddi_objects']:,} "
+                f"({self.results['token_requirements']['ddi_objects_tokens']} tokens required)\n"
+            )
+            f.write(
+                f"Active IP Addresses: {self.results['counts']['active_ip_addresses']:,} "
+                f"({self.results['token_requirements']['active_ips_tokens']} tokens required)\n"
+            )
+
+            aip = self.results["counts"].get("active_ip_breakdown", {}) or {}
+            if aip:
+                subnet_reserved = aip.get("subnet_reservation", 0)
+                if subnet_reserved:
+                    f.write(f"  Includes subnet reserved addresses: {subnet_reserved:,}\n")
+                f.write("  Active IP breakdown (unique, non-additive):\n")
+                for src in sorted(aip):
+                    f.write(f"    - {src}: {aip[src]:,}\n")
+                f.write("\n")
+            f.write(
+                f"Managed Assets: {self.results['counts']['managed_assets']:,} "
+                f"({self.results['token_requirements']['managed_assets_tokens']} tokens required)\n"
+            )
+            f.write(f"\nTOTAL MANAGEMENT TOKENS REQUIRED: {self.results['token_requirements']['total_management_tokens']}\n\n")
+
+            # Provider breakdown (only active provider)
+            f.write("CLOUD PROVIDER BREAKDOWN\n")
+            f.write("-" * 25 + "\n")
+            pb = self.results.get("provider_breakdown", {}) or {}
+            key = (provider or self.current_provider or "").lower()
+            if key and key in pb:
+                counts = pb[key]
+                f.write(f"{key.upper()}:\n")
+                f.write(f"  DDI Objects: {counts['ddi_objects']:,}\n")
+                f.write(f"  Active IPs: {counts['active_ips']:,}\n")
+                f.write(f"  Managed Assets: {counts['managed_assets']:,}\n")
+                f.write(f"  Total Objects: {counts['total_objects']:,}\n\n")
+
+            # Ratios
+            f.write("INFOBLOX UNIVERSAL DDI SIZING RATIOS (Native Objects)\n")
+            f.write("-" * 45 + "\n")
+            f.write(f"DDI Objects: {self.DDI_OBJECTS_PER_TOKEN} per Management Token\n")
+            f.write(f"Active IPs: {self.ACTIVE_IPS_PER_TOKEN} per Management Token\n")
+            f.write(f"Managed Assets: {self.ASSETS_PER_TOKEN} per Management Token\n")
+
+        return output_file
+
+    def export_estimator_csv(self, output_file: str) -> str:
+        """Export only Yellow-cell fields expected by the sizing Excel (flat CSV).
+        Columns:
+          - ddi_objects
+          - active_ip_addresses
+          - managed_assets
+          - tokens_ddi_objects
+          - tokens_active_ips
+          - tokens_managed_assets
+          - tokens_total
+        """
+        if not self.results:
+            raise ValueError("No calculation results available. Run calculate_from_discovery_results first.")
+
+        counts = self.results["counts"]
+        tokens = self.results["token_requirements"]
+
+        with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(
+                [
+                    "ddi_objects",
+                    "active_ip_addresses",
+                    "managed_assets",
+                    "tokens_ddi_objects",
+                    "tokens_active_ips",
+                    "tokens_managed_assets",
+                    "tokens_total",
+                ]
+            )
+            writer.writerow(
+                [
+                    counts["ddi_objects"],
+                    counts["active_ip_addresses"],
+                    counts["managed_assets"],
+                    tokens["ddi_objects_tokens"],
+                    tokens["active_ips_tokens"],
+                    tokens["managed_assets_tokens"],
+                    tokens["total_management_tokens"],
+                ]
+            )
+        return output_file
+
+    def export_proof_manifest(
+        self,
+        output_file: str,
+        provider: str,
+        scope: dict,
+        regions: list,
+        native_objects: List[Dict],
+    ) -> str:
+        """Export an auditable JSON manifest for future sizing reviews.
+        Includes: scope (accounts/subscriptions/projects), regions, ratios and source, breakdowns,
+        and a SHA-256 hash over the discovered object set and over this manifest.
+        """
+        if not self.results:
+            raise ValueError("No calculation results available. Run calculate_from_discovery_results first.")
+        import hashlib
+        import json as _json
+
+        # Minimal resource projection for hashing to keep stable
+        def project(r: Dict) -> Dict:
+            d = r.get("details", {}) or {}
+            # only keep likely-relevant IP fields as evidence
+            ip_fields = {
+                k: d.get(k)
+                for k in (
+                    "ip",
+                    "private_ip",
+                    "public_ip",
+                    "private_ips",
+                    "public_ips",
+                    "ipv6_ip",
+                    "ipv6_ips",
+                    "ip_address",
+                    "reserved_ips",
+                    "reservation_ips",
+                    "fixed_ips",
+                    "fixed_addresses",
+                    "dhcp_lease_ips",
+                    "lease_ips",
+                    "leases",
+                    "elastic_ip",
+                    "elastic_ips",
+                )
+                if k in d
+            }
+            return {
+                "resource_id": r.get("resource_id"),
+                "resource_type": r.get("resource_type"),
+                "region": r.get("region"),
+                "name": r.get("name"),
+                "state": r.get("state"),
+                "requires_management_token": r.get("requires_management_token"),
+                "ip_evidence": ip_fields,
+            }
+
+        projected = sorted(
+            (project(r) for r in native_objects),
+            key=lambda x: (
+                x.get("resource_id") or "",
+                x.get("resource_type") or "",
+                x.get("name") or "",
+            ),
+        )
+        canonical = _json.dumps(projected, sort_keys=True, separators=(",", ":"))
+        resources_sha256 = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+        # Breakdown by resource_type counts
+        by_type = {}
+        for r in native_objects:
+            t = r.get("resource_type", "unknown")
+            by_type[t] = by_type.get(t, 0) + 1
+
+        # Filter provider breakdown to the selected provider only
+        pb_all = self.results.get("provider_breakdown", {}) or {}
+        pb_filtered = {}
+        if provider in pb_all:
+            pb_filtered[provider] = pb_all.get(provider, {})
+
+        manifest = {
+            "generated_at": self.results.get("calculation_timestamp"),
+            "provider": provider,
+            "scope": scope or {},
+            "regions": regions or [],
+            "licensing_basis": self.results.get("licensing_basis"),
+            "ratios": {
+                "ddi_objects_per_token": self.DDI_OBJECTS_PER_TOKEN,
+                "active_ips_per_token": self.ACTIVE_IPS_PER_TOKEN,
+                "assets_per_token": self.ASSETS_PER_TOKEN,
+            },
+            "counts": self.results.get("counts", {}),
+            "token_requirements": self.results.get("token_requirements", {}),
+            "breakdowns": {
+                "provider_breakdown": pb_filtered,
+            },
+            "resources_summary": {
+                "total_objects": len(native_objects),
+                "by_type": by_type,
+                "sample_resources": projected[:20],
+            },
+            "hashes": {"resources_sha256": resources_sha256},
+        }
+
+        # Serialize manifest to bytes, hash it, then write once
+        manifest_bytes = _json.dumps(manifest, indent=2).encode("utf-8")
+        manifest_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+        manifest["hashes"]["manifest_sha256"] = manifest_sha256
+
+        with open(output_file, "w", encoding="utf-8") as f:
+            _json.dump(manifest, f, indent=2)
+
+        return output_file
