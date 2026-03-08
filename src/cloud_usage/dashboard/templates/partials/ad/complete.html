@@ -1,0 +1,78 @@
+{# AD Analysis complete partial.
+   Shows count tiles (DNS Zones, DHCP Scopes, AD Users), token card, download CTA,
+   and Run Another Analysis button.
+   Variables: dns_zone_count (int), dhcp_scope_count (int), user_count (int),
+              ddi_count (int), ip_count (int), token_total (float),
+              download_filename (str|None) #}
+<article class="completion-banner">
+  <header>
+    <strong>AD Analysis Complete</strong>
+  </header>
+
+  <p style="margin: 0.75rem 0 0.25rem; font-size: 0.85rem; color: var(--ib-gray-600); text-transform: uppercase; letter-spacing: 0.05em;">Active Directory Inventory</p>
+
+  <div class="scenario-grid">
+
+    {# --- DNS Zones tile --- #}
+    <div class="scenario-card">
+      <span class="sc-label">DNS Zones</span>
+      <span class="hero-tokens">{{ dns_zone_count }}</span>
+      <small>zones</small>
+    </div>
+
+    {# --- DHCP Scopes tile --- #}
+    <div class="scenario-card">
+      <span class="sc-label">DHCP Scopes</span>
+      <span class="hero-tokens">{{ dhcp_scope_count }}</span>
+      <small>scopes</small>
+    </div>
+
+    {# --- AD Users tile --- #}
+    <div class="scenario-card">
+      <span class="sc-label">AD Users</span>
+      <span class="hero-tokens">{{ user_count }}</span>
+      <small>users</small>
+    </div>
+
+    {# --- Token card (primary) --- #}
+    <div class="scenario-card primary">
+      <span class="sc-label">Universal DDI Token Estimate</span>
+      <span class="hero-tokens" style="color:#fff;">{{ token_total | int }}</span>
+      <small style="color:rgba(255,255,255,0.75)">tokens</small>
+      <div class="sc-breakdown" style="margin-top:0.75rem; text-align:left; font-size:0.8rem; line-height:1.6; color:rgba(255,255,255,0.9);">
+        {% if ddi_count > 0 %}
+        <div>{{ "{:,}".format(ddi_count) }} DDI &divide; 25 = {{ "%.1f"|format(ddi_count / 25) }}</div>
+        {% endif %}
+        {% if ip_count > 0 %}
+        <div>{{ "{:,}".format(ip_count) }} IPs &divide; 13 = {{ "%.1f"|format(ip_count / 13) }}</div>
+        {% endif %}
+        <div style="border-top:1px solid rgba(255,255,255,0.3); margin:0.25rem 0;"></div>
+        <div><strong>Total: {{ "%.1f"|format(token_total) }} tokens</strong></div>
+      </div>
+    </div>
+
+  </div>
+
+  {# --- Download CTA --- #}
+  {% if download_filename %}
+    <div class="download-cta">
+      <a href="/download/{{ download_filename }}"
+         role="button"
+         download="{{ download_filename }}">
+        Download XLS Report
+      </a>
+      <p><small style="color: var(--ib-gray-600); margin-top: 0.4rem; display: block;">{{ download_filename }}</small></p>
+    </div>
+  {% else %}
+    <p><em>Output file not available.</em></p>
+  {% endif %}
+
+  {# --- Run Another Analysis --- #}
+  <p style="margin-top: 1.5rem;">
+    <button class="secondary outline"
+            hx-get="/tab/ad"
+            hx-target="#tab-container">
+      Run Another Analysis
+    </button>
+  </p>
+</article>

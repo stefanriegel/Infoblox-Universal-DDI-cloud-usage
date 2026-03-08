@@ -1,0 +1,127 @@
+{# AD connection wizard — single-step form.
+   Included in pages/ad.html for both idle and error states.
+   Variables: last_options (AdOptions|None) — used for retry pre-fill.
+   Fields: ad_servers (textarea), ad_domain, ad_auth_mode, ad_username, ad_password,
+           ad_svc_dns, ad_svc_dhcp, ad_svc_user, ad_port, ad_ssl, ad_autodiscover. #}
+<article>
+  <header>Active Directory Connection</header>
+
+  <form hx-post="/ad/run" hx-target="#tab-content">
+
+    {# --- Autodiscover checkbox --- #}
+    <label>
+      <input type="checkbox"
+             name="ad_autodiscover"
+             id="ad-autodiscover"
+             {{ 'checked' if last_options and last_options.autodiscover else '' }}>
+      Auto-discover DCs from forest
+    </label>
+
+    {# --- DC host(s) / Seed server textarea --- #}
+    <label id="ad-dc-label" for="ad-servers-input">DC host(s)</label>
+    <textarea name="ad_servers"
+              id="ad-servers-input"
+              required
+              placeholder="e.g. dc1.corp.com, dc2.corp.com">{{ last_options.servers | join(', ') if last_options and not last_options.autodiscover else (last_options.discovery_server if last_options and last_options.autodiscover else '') }}</textarea>
+    <small id="ad-dc-help">Comma-separated list of Domain Controller hostnames</small>
+
+    {# --- Domain --- #}
+    <label for="ad-domain-input">Domain</label>
+    <input type="text"
+           name="ad_domain"
+           id="ad-domain-input"
+           required
+           placeholder="e.g. corp.com"
+           value="{{ last_options.domain if last_options else '' }}">
+
+    {# --- Auth mode --- #}
+    <label for="ad-auth-mode">Authentication Mode</label>
+    <select name="ad_auth_mode" id="ad-auth-mode">
+      <option value="kerberos" {{ '' if last_options and last_options.auth_mode == 'ntlm' else 'selected' }}>Kerberos</option>
+      <option value="ntlm" {{ 'selected' if last_options and last_options.auth_mode == 'ntlm' else '' }}>NTLM</option>
+    </select>
+
+    {# --- Credential fields (visible only for NTLM) --- #}
+    <div id="ad-cred-fields" style="display:none">
+      <label for="ad-username-input">Username</label>
+      <input type="text"
+             name="ad_username"
+             id="ad-username-input"
+             placeholder="DOMAIN\username or username@domain">
+
+      <label for="ad-password-input">Password</label>
+      <input type="password"
+             name="ad_password"
+             id="ad-password-input"
+             placeholder="WinRM password">
+    </div>
+
+    {# --- Services to collect --- #}
+    <fieldset>
+      <legend>Services to collect</legend>
+      <label>
+        <input type="checkbox" name="ad_svc_dns" id="ad-svc-dns" checked>
+        DNS
+      </label>
+      <label>
+        <input type="checkbox" name="ad_svc_dhcp" id="ad-svc-dhcp" checked>
+        DHCP
+      </label>
+      <label>
+        <input type="checkbox" name="ad_svc_user" id="ad-svc-user" checked>
+        AD Users
+      </label>
+    </fieldset>
+
+    {# --- Advanced settings --- #}
+    <details>
+      <summary>Advanced settings</summary>
+
+      <label for="ad-port-input">WinRM Port</label>
+      <input type="number"
+             name="ad_port"
+             id="ad-port-input"
+             value="{{ last_options.winrm_port if last_options else 5985 }}"
+             min="1"
+             max="65535">
+
+      <label>
+        <input type="checkbox"
+               name="ad_ssl"
+               id="ad-ssl">
+        Use SSL (HTTPS transport)
+      </label>
+    </details>
+
+    <button type="submit">Run AD Analysis</button>
+  </form>
+</article>
+
+<script>
+(function() {
+  var authMode = document.getElementById('ad-auth-mode');
+  var credFields = document.getElementById('ad-cred-fields');
+  function updateFields() {
+    credFields.style.display = authMode.value === 'ntlm' ? '' : 'none';
+  }
+  authMode.addEventListener('change', updateFields);
+  updateFields();
+})();
+
+(function() {
+  var autodiscover = document.getElementById('ad-autodiscover');
+  var dcLabel = document.getElementById('ad-dc-label');
+  var dcHelp = document.getElementById('ad-dc-help');
+  function updateLabel() {
+    if (autodiscover.checked) {
+      dcLabel.textContent = 'Seed server';
+      dcHelp.textContent = 'Single DC hostname \u2014 forest DCs discovered via Get-ADForest';
+    } else {
+      dcLabel.textContent = 'DC host(s)';
+      dcHelp.textContent = 'Comma-separated list of Domain Controller hostnames';
+    }
+  }
+  autodiscover.addEventListener('change', updateLabel);
+  updateLabel();
+})();
+</script>
