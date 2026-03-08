@@ -15,12 +15,14 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from cloud_usage.dashboard.routes.ad import router as ad_router
 from cloud_usage.dashboard.routes.download import router as download_router
 from cloud_usage.dashboard.routes.nios import router as nios_router
 from cloud_usage.dashboard.routes.pages import router as pages_router
 from cloud_usage.dashboard.routes.partials import router as partials_router
 from cloud_usage.dashboard.routes.scan import router as scan_router
 from cloud_usage.dashboard.routes.sse import router as sse_router
+from cloud_usage.dashboard.services.ad_manager import AdScanManager
 from cloud_usage.dashboard.services.event_bridge import EventBridge
 from cloud_usage.dashboard.services.nios_manager import NiosScanManager
 from cloud_usage.dashboard.services.scan_manager import ScanManager
@@ -57,6 +59,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     nios_manager = NiosScanManager()
     app.state.nios_manager = nios_manager
 
+    # AD analysis state — independent of cloud scan and NIOS (SC-5)
+    ad_event_bridge = EventBridge()
+    await ad_event_bridge.start()
+    app.state.ad_event_bridge = ad_event_bridge
+
+    ad_manager = AdScanManager()
+    app.state.ad_manager = ad_manager
+
     app.state.templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
     yield
@@ -64,6 +74,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # Shutdown
     await event_bridge.close()
     await nios_event_bridge.close()
+    await ad_event_bridge.close()
 
 
 def create_app() -> FastAPI:
@@ -97,5 +108,6 @@ def create_app() -> FastAPI:
     app.include_router(scan_router)
     app.include_router(sse_router)
     app.include_router(nios_router)
+    app.include_router(ad_router)
 
     return app

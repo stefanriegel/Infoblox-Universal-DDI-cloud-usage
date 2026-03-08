@@ -1,0 +1,13 @@
+{# AD pipeline progress display fragment.
+   Fetched by HTMX GET /api/ad/progress on each sse:ad_progress event.
+   Swapped into #ad-progress-area in the AD running state.
+   Variables: progress (dict with step, total, label, elapsed_seconds)
+   When total=0 the progress bar is indeterminate (no value attribute). #}
+{% if progress.total > 0 %}
+<progress value="{{ progress.step }}" max="{{ progress.total }}"></progress>
+<p>Step {{ progress.step }} of {{ progress.total }}: {{ progress.label }}</p>
+{% else %}
+<progress></progress>
+<p>{{ progress.label }}</p>
+{% endif %}
+<p>Elapsed: {{ progress.elapsed_seconds }}s</p>
