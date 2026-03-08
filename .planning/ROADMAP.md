@@ -153,7 +153,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Every v1.7 DDI type string (aws-route53-resolver-endpoint, azure-vnet-gateway, gcp-reserved-ip, etc.) is rendered as a readable label in the breakdown rows (e.g., "Route53 Resolver Endpoint", "VNet Gateway", "Reserved IP Address")
   2. Existing pre-v1.7 DDI types are unaffected and continue to render as before
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 32-01-PLAN.md — Wave 0: Attribution test scaffold (xfail stubs for ATTR-01)
+- [ ] 32-02-PLAN.md — Wave 1: DDI_DISPLAY_NAMES dict + _compute_summary() display_name key + summary.html substitution
 
 ## Progress
 
@@ -190,5 +193,5 @@ Plans:
 | 28. GCP DDI Gaps | v1.7 | 3/3 | Complete | 2026-03-07 |
 | 29. Microsoft AD Core | v1.7 | 4/4 | Complete | 2026-03-07 |
 | 30. AD Dashboard | v1.8 | 5/5 | Complete | 2026-03-08 |
-| 31. DNS Zones Panels | 3/3 | Complete   | 2026-03-08 | - |
+| 31. DNS Zones Panels | 3/3 | Complete    | 2026-03-08 | - |
 | 32. Attribution Display Names | v1.8 | 0/TBD | Not started | - |
