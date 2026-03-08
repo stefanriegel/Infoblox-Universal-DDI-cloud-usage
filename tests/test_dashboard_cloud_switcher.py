@@ -32,7 +32,6 @@ def test_base_html_has_provider_pills() -> None:
     assert "provider-pill" in content
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-08: provider pill styles not yet in app.css")
 def test_css_has_provider_pill_styles() -> None:
     """app.css must define .provider-pill and .provider-pill.active rules."""
     content = Path("src/cloud_usage/dashboard/static/app.css").read_text()

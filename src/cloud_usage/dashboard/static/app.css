@@ -516,3 +516,48 @@ nav.tab-bar a:hover {
     border-top: 1px solid var(--ib-gray-200);
     margin: 1.5rem 0;
 }
+
+/* Provider selector strip — Phase 37 */
+.provider-selector {
+    background: var(--ib-gray-100);
+    border-bottom: 1px solid var(--ib-gray-200);
+    padding: 0.5rem 0;
+}
+
+.provider-selector .container {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.provider-selector-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--ib-gray-600);
+    margin-right: 0.25rem;
+}
+
+.provider-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.3rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--ib-gray-200);
+    background: transparent;
+    color: var(--ib-gray-900);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.provider-pill:hover {
+    border-color: var(--calc-accent);
+    color: var(--calc-accent);
+}
+
+.provider-pill.active {
+    background: var(--calc-accent);
+    color: #fff;
+    border-color: var(--calc-accent);
+}
