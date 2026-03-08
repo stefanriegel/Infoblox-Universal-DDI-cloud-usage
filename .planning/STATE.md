@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Dashboard Analytics
-status: executing
-stopped_at: Completed 30-ad-dashboard 30-04-PLAN.md
-last_updated: "2026-03-08T11:23:00.000Z"
-last_activity: 2026-03-08 — Plan 30-04 complete; AD tab wired into pages.py and tab_bar.html
+status: completed
+stopped_at: Completed 30-ad-dashboard 30-05-PLAN.md
+last_updated: "2026-03-08T11:36:59.527Z"
+last_activity: 2026-03-08 — Plan 30-04 complete; AD tab wired (pages.py + tab_bar.html), all 20 tests green
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 5
+  completed_plans: 5
   percent: 33
 ---
 
@@ -85,9 +85,11 @@ None.
 - [Phase 30-03]: Token card uses primary scenario-card class; DDI/IP formula lines shown conditionally when count > 0
 - [Phase 30-04]: ad_state added to _get_tab_context() (not just tab_ad()) so tab_bar.html badge works on every page render
 - [Phase 30-04]: app.py was already fully wired from Plan 30-02 — no edits required in this plan
+- [Phase 30-ad-dashboard]: wizard.html five field names renamed to match ad.py form.get() keys (servers, auth_mode, autodiscover, winrm_ssl, winrm_port)
+- [Phase 30-ad-dashboard]: domain pre-fill removed from wizard.html (AdOptions has no .domain field)
 
 ## Session Continuity
 
-Last session: 2026-03-08T11:23:00.000Z
-Stopped at: Completed 30-ad-dashboard 30-04-PLAN.md (Phase 30 COMPLETE)
-Resume file: .planning/phases/31-dns-dashboard/ (next phase)
+Last session: 2026-03-08T11:36:59.525Z
+Stopped at: Completed 30-ad-dashboard 30-05-PLAN.md
+Resume file: None
