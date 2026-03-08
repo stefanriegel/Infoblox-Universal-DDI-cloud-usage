@@ -1,20 +1,6 @@
-/* UDDI Estimator -- Custom CSS overrides
-   Pico CSS handles 90% of styling via semantic HTML.
-   These additions cover dashboard-specific UI patterns. */
-
-/* ===== Color palette ===== */
-:root {
-    --ib-blue: #0066cc;
-    --ib-blue-dark: #004a99;
-    --ib-blue-light: #e8f0fa;
-    --ib-gray-100: #f5f6f8;
-    --ib-gray-200: #e8eaed;
-    --ib-gray-600: #5f6368;
-    --ib-gray-900: #1a1d23;
-    --ib-green: #1a9e4a;
-    --ib-red: #d93025;
-    --ib-orange: #e8710a;
-}
+/* UDDI Estimator -- Component styles.
+   Design tokens (--ib-* variables) are defined in design-system.css root block.
+   This file contains dashboard-specific component styles only. */
 
 /* ===== General body ===== */
 body {
