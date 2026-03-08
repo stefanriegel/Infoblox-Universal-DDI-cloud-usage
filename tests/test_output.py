@@ -200,7 +200,7 @@ class TestXlsxDetailSheet:
         headers = [cell.value for cell in ws[1]]
         expected = [
             "Resource ID", "Type", "Account", "Region", "Name",
-            "IP Addresses", "IP Count", "Counted", "Category",
+            "IP Addresses", "Address Records", "Counted", "Category",
             "Skip Reason", "Tags",
         ]
         assert headers == expected
@@ -339,7 +339,7 @@ class TestXlsxSummarySheet:
         ws = wb["Summary"]
         headers = [cell.value for cell in ws[1]]
         expected = [
-            "Account ID", "DDI Objects", "DDI Tokens", "Active IPs",
+            "Account ID", "DDI Objects", "DDI Tokens", "Address Records",
             "IP Tokens", "Managed Assets", "Asset Tokens", "Total Tokens",
         ]
         assert headers == expected
