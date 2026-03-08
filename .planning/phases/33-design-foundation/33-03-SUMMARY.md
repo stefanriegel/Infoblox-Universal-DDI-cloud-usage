@@ -68,7 +68,7 @@ completed: 2026-03-08
 - **Duration:** ~12 min
 - **Started:** 2026-03-08T14:19:17Z
 - **Completed:** 2026-03-08T14:32:00Z
-- **Tasks:** 2/2 completed (Task 3 is checkpoint:human-verify)
+- **Tasks:** 3/3 completed (Task 3 checkpoint:human-verify approved by human)
 - **Files modified:** 8 modified, 1 deleted
 
 ## Accomplishments
@@ -87,7 +87,9 @@ Each task was committed atomically:
 1. **Task 1: Swap CSS in base.html, purge :root from app.css, delete pico.min.css** - `fff6c78` (feat)
 2. **Task 2: Replace --pico-* references in templates and fix role="button" links** - `14e4141` (feat)
 
-**Plan metadata:** (to be committed after checkpoint approval)
+3. **Fix: Correct header class to site-header** - `e83090c` (fix) — post-checkpoint header class fix
+
+**Checkpoint approved:** Human visual verification passed (approved 2026-03-08).
 
 ## Files Created/Modified
 
@@ -126,9 +128,16 @@ Each task was committed atomically:
 - **Verification:** Visual styling of download CTA preserved; no CSS orphan selectors
 - **Committed in:** 14e4141 (Task 2 commit)
 
+**3. [Rule 1 - Bug] Header class "container" prevented dark nav background from spanning full width**
+- **Found during:** Task 3 (post-checkpoint human-verify)
+- **Issue:** `<header class="container">` constrained the header to the layout max-width, so the dark navy background did not extend edge-to-edge. The .site-header CSS rule expected a full-width element.
+- **Fix:** Changed to `<header class="site-header"><div class="container">...</div></header>` so .site-header spans full viewport and inner content is constrained.
+- **Files modified:** `src/cloud_usage/dashboard/templates/base.html`
+- **Committed in:** e83090c (fix, post-checkpoint approval)
+
 ---
 
-**Total deviations:** 2 auto-fixed (both Rule 1 - Bug)
+**Total deviations:** 3 auto-fixed (all Rule 1 - Bug)
 **Impact on plan:** Both fixes required for correctness. No scope creep.
 
 ## Issues Encountered
@@ -139,8 +148,8 @@ Pre-existing import errors in `tests/test_integration_aws.py`, `tests/test_integ
 
 - PicoCSS is gone. design-system.css is the sole base stylesheet. All --ib-* tokens resolve from it.
 - .btn pattern is established and documented in app.css comment.
-- Pending: Task 3 human-verify checkpoint (browser visual smoke test).
-- After checkpoint approval: phases 34–37 can proceed to use the design system.
+- Task 3 checkpoint approved: human visual smoke test passed in browser.
+- Phases 34–37 can now proceed to use the design system fully.
 
 ## Self-Check: PASSED
 
@@ -150,6 +159,7 @@ Pre-existing import errors in `tests/test_integration_aws.py`, `tests/test_integ
 - design-system.css: FOUND
 - Commit fff6c78: FOUND
 - Commit 14e4141: FOUND
+- Commit e83090c: FOUND (header fix, post-checkpoint)
 
 ---
 *Phase: 33-design-foundation*
