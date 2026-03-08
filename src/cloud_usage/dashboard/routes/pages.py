@@ -25,6 +25,74 @@ from cloud_usage.dashboard.routes.partials import (
 
 router = APIRouter()
 
+# ---------------------------------------------------------------------------
+# DDI display name mapping — applied at summary computation time only.
+# r.resource_type is never mutated; this dict is used only when building the
+# resource_type_breakdown dict inside _compute_summary().
+# ---------------------------------------------------------------------------
+DDI_DISPLAY_NAMES: dict[str, str] = {
+    # AWS — pre-v1.7
+    "vpc": "VPC",
+    "subnet": "Subnet",
+    "vpn-gateway": "VPN Gateway",
+    "transit-gateway": "Transit Gateway",
+    "dhcp-option-set": "DHCP Option Set",
+    "route53-zone": "Route53 Hosted Zone",
+    "route53-record": "Route53 Record",
+    # AWS — v1.7
+    "aws-internet-gateway": "Internet Gateway",
+    "aws-customer-gateway": "Customer Gateway",
+    "aws-route-table": "Route Table",
+    "aws-resolver-endpoint": "Route53 Resolver Endpoint",
+    "aws-resolver-rule": "Route53 Resolver Rule",
+    "aws-resolver-rule-association": "Route53 Resolver Rule Association",
+    "aws-route53-health-check": "Route53 Health Check",
+    "aws-route53-traffic-policy": "Route53 Traffic Policy",
+    "aws-route53-traffic-policy-instance": "Route53 Traffic Policy Instance",
+    "aws-ipam": "VPC IPAM",
+    "aws-ipam-scope": "IPAM Scope",
+    "aws-ipam-pool": "IPAM Pool",
+    "aws-ipam-resource-discovery": "IPAM Resource Discovery",
+    "aws-ipam-resource-discovery-association": "IPAM Resource Discovery Association",
+    "aws-direct-connect-gateway": "Direct Connect Gateway",
+    # Azure — pre-v1.7
+    "azure-vnet": "Virtual Network",
+    "azure-subnet": "Subnet",
+    "azure-dhcp-config": "DHCP Configuration",
+    "azure-dns-zone": "DNS Zone",
+    "azure-dns-record": "DNS Record",
+    "azure-private-dns-zone": "Private DNS Zone",
+    "azure-private-dns-record": "Private DNS Record",
+    "azure-lb": "Load Balancer",
+    "azure-app-gateway": "Application Gateway",
+    "azure-firewall": "Azure Firewall",
+    "azure-nat-gateway": "NAT Gateway",
+    "azure-vnet-peering": "VNet Peering",
+    "azure-bastion": "Azure Bastion",
+    # Azure — v1.7
+    "azure-private-endpoint": "Private Endpoint",
+    "azure-express-route": "ExpressRoute Circuit",
+    "azure-vnet-gateway": "VNet Gateway",
+    "azure-private-link-service": "Private Link Service",
+    "azure-virtual-wan": "Virtual WAN",
+    "azure-route-table": "Route Table",
+    "azure-vwan-hub": "Virtual WAN Hub",
+    "azure-tenant": "Azure Tenant",
+    # GCP — pre-v1.7
+    "gcp-vpc": "VPC Network",
+    "gcp-subnet": "Subnet",
+    "gcp-dns-zone": "Cloud DNS Zone",
+    "gcp-dns-record": "Cloud DNS Record",
+    # GCP — v1.7
+    "gcp-reserved-ip": "Reserved IP Address",
+    "gcp-router-nat": "Cloud NAT",
+    "gcp-target-vpn-gateway": "Target VPN Gateway",
+    # AD
+    "ad-dns-zone": "AD DNS Zone",
+    "ad-dns-record": "AD DNS Record",
+    "ad-dhcp-scope": "AD DHCP Scope",
+}
+
 
 def _get_tab_context(request: Request, active_tab: str) -> dict:
     """Build template context for tab rendering.
@@ -144,7 +212,11 @@ def _compute_summary(resources: list) -> dict:
             if r.counted and r.category in ("ddi", "ip", "asset"):
                 rt = r.resource_type
                 if rt not in breakdown:
-                    breakdown[rt] = {"count": 0, "category": r.category}
+                    breakdown[rt] = {
+                        "count": 0,
+                        "category": r.category,
+                        "display_name": DDI_DISPLAY_NAMES.get(rt, rt),
+                    }
                 breakdown[rt]["count"] += 1
 
         per_account_details.append({
