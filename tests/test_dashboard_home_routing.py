@@ -15,7 +15,6 @@ Requirements covered:
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 from cloud_usage.dashboard.app import create_app
 
@@ -44,21 +43,18 @@ def test_home_cards_contain_entry_links() -> None:
     assert 'href="/ad"' in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 34: /cloud route not yet implemented")
 def test_cloud_route_returns_200() -> None:
     with TestClient(app) as client:
         response = client.get("/cloud")
     assert response.status_code == 200
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 34: /nios route not yet implemented")
 def test_nios_route_returns_200() -> None:
     with TestClient(app) as client:
         response = client.get("/nios")
     assert response.status_code == 200
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 34: /ad route not yet implemented")
 def test_ad_route_returns_200() -> None:
     with TestClient(app) as client:
         response = client.get("/ad")

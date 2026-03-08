@@ -298,6 +298,30 @@ async def index(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(request, "home.html", {"request": request})
 
 
+@router.get("/cloud", response_class=HTMLResponse)
+async def cloud_calculator(request: Request) -> HTMLResponse:
+    """Render the Cloud Calculator at /cloud."""
+    templates = request.app.state.templates
+    context = _get_tab_context(request, "progress")
+    return templates.TemplateResponse(request, "base.html", context)
+
+
+@router.get("/nios", response_class=HTMLResponse)
+async def nios_calculator(request: Request) -> HTMLResponse:
+    """Render the NIOS Calculator at /nios."""
+    templates = request.app.state.templates
+    context = _get_tab_context(request, "nios")
+    return templates.TemplateResponse(request, "base.html", context)
+
+
+@router.get("/ad", response_class=HTMLResponse)
+async def ad_calculator(request: Request) -> HTMLResponse:
+    """Render the AD Calculator at /ad."""
+    templates = request.app.state.templates
+    context = _get_tab_context(request, "ad")
+    return templates.TemplateResponse(request, "base.html", context)
+
+
 @router.get("/tab/progress", response_class=HTMLResponse)
 async def tab_progress(request: Request) -> HTMLResponse:
     """Render the Progress tab content for HTMX swap.
