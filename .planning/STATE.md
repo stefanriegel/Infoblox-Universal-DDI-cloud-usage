@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Multi-Tool Suite UX
 status: executing
-stopped_at: Completed 37-03-PLAN.md
-last_updated: "2026-03-08T18:49:14.621Z"
+stopped_at: Completed 37-04-PLAN.md
+last_updated: "2026-03-08T18:56:43.023Z"
 last_activity: 2026-03-08 — 34-01 xfail test scaffold complete (HOME-01, HOME-02, ROUTE-01, ROUTE-02, DESIGN-02)
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 16
-  completed_plans: 14
+  completed_plans: 15
   percent: 96
 ---
 
@@ -78,6 +78,7 @@ None.
 | Phase 37-cloud-provider-switcher P01 | 5 | 1 tasks | 1 files |
 | Phase 37-cloud-provider-switcher P02 | 5 | 1 tasks | 2 files |
 | Phase 37-cloud-provider-switcher P03 | 8 | 2 tasks | 3 files |
+| Phase 37-cloud-provider-switcher P04 | 15 | 2 tasks | 4 files |
 
 ## Decisions
 
@@ -101,6 +102,8 @@ None.
 - [Phase 37-cloud-provider-switcher]: 37-02: xfail markers removed from test_three_provider_managers_on_app_state and test_provider_scan_state_independent — assertions satisfied by implementation, strict=True XPASS = pytest failure (same precedent as 34-01, 36-01)
 - [Phase 37-cloud-provider-switcher]: 37-03: xfail markers removed from test_css_has_provider_pill_styles and test_base_html_has_provider_pills — assertions now satisfied by implementation, strict=True XPASS = pytest failure
 - [Phase 37-cloud-provider-switcher]: 37-03: tab-container else branch preserves /tab/{active_tab} guard for NIOS/AD calculators — backward-compatible
+- [Phase 37-cloud-provider-switcher]: 37-04: TestClient with lifespan context required for per-provider route tests — lifespan registers scan managers on app.state
+- [Phase 37-cloud-provider-switcher]: 37-04: tab_bar.html backward compatible via base='' when tab_base undefined; NIOS/AD links remain hardcoded
 
 ## Session Log
 
@@ -109,6 +112,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T18:49:14.618Z
-Stopped at: Completed 37-03-PLAN.md
+Last session: 2026-03-08T18:56:43.021Z
+Stopped at: Completed 37-04-PLAN.md
 Resume file: None
