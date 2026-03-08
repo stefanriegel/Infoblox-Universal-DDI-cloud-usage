@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Multi-Tool Suite UX
 status: executing
-stopped_at: Completed 36-03-PLAN.md
-last_updated: "2026-03-08T17:20:18.921Z"
+stopped_at: Completed 37-01-PLAN.md
+last_updated: "2026-03-08T18:33:55.910Z"
 last_activity: 2026-03-08 — 34-01 xfail test scaffold complete (HOME-01, HOME-02, ROUTE-01, ROUTE-02, DESIGN-02)
 progress:
   total_phases: 5
   completed_phases: 4
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 16
+  completed_plans: 12
   percent: 96
 ---
 
@@ -75,6 +75,7 @@ None.
 | Phase 36-calculator-visual-redesign P01 | 3 | 1 tasks | 1 files |
 | Phase 36-calculator-visual-redesign P02 | 11 | 2 tasks | 4 files |
 | Phase 36-calculator-visual-redesign P03 | 5min | 3 tasks | 5 files |
+| Phase 37-cloud-provider-switcher P01 | 5 | 1 tasks | 1 files |
 
 ## Decisions
 
@@ -93,6 +94,8 @@ None.
 - [Phase 36-calculator-visual-redesign]: completion-card intentionally has no colored left border — results screens are accent-neutral per locked Phase 36 decision
 - [Phase 36-calculator-visual-redesign]: xfail markers removed from three DESIGN-05 tests after implementation satisfies assertions (strict=True XPASS = pytest failure)
 - [Phase 36-calculator-visual-redesign]: summary.html Per-Account Breakdown renamed to Account Attribution per CONTEXT.md spec
+- [Phase 37-cloud-provider-switcher]: 37-01: test_invalid_provider_returns_404 uses strict=False — 404 already satisfied pre-implementation; identical precedent to 34-01
+- [Phase 37-cloud-provider-switcher]: 37-01: All other 13 stubs use strict=True — none of their assertions satisfied without implementation
 
 ## Session Log
 
@@ -101,6 +104,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T17:20:18.919Z
-Stopped at: Completed 36-03-PLAN.md
+Last session: 2026-03-08T18:33:55.908Z
+Stopped at: Completed 37-01-PLAN.md
 Resume file: None

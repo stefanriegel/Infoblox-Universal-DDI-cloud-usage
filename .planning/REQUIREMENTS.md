@@ -19,8 +19,8 @@ Requirements for the Multi-Tool Suite UX milestone. Restructures the dashboard a
 
 ### Cloud Calculator
 
-- [ ] **CLOUD-08**: Cloud Calculator displays a persistent provider selector (AWS / Azure / GCP) throughout the wizard, progress, and results screens
-- [ ] **CLOUD-09**: Switching provider in the persistent selector updates the active flow without navigating back to Home
+- [x] **CLOUD-08**: Cloud Calculator displays a persistent provider selector (AWS / Azure / GCP) throughout the wizard, progress, and results screens
+- [x] **CLOUD-09**: Switching provider in the persistent selector updates the active flow without navigating back to Home
 
 ### Design System
 
@@ -69,8 +69,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DESIGN-03 | Phase 36 | Complete |
 | DESIGN-04 | Phase 36 | Complete |
 | DESIGN-05 | Phase 36 | Complete |
-| CLOUD-08 | Phase 37 | Pending |
-| CLOUD-09 | Phase 37 | Pending |
+| CLOUD-08 | Phase 37 | Complete |
+| CLOUD-09 | Phase 37 | Complete |
 
 **Coverage:**
 - v1.9 requirements: 13 total
