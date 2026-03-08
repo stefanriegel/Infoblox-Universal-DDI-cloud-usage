@@ -169,7 +169,10 @@ Plans:
   1. Every Cloud, NIOS, and AD calculator page displays a breadcrumb reading "Home > [Calculator Name]" at the top of the page
   2. Clicking "Home" in the breadcrumb navigates the user to `/`
   3. The breadcrumb is visible on all wizard steps, progress screens, and results screens within each calculator
-**Plans**: TBD
+**Plans**: 2 plans
+Plans:
+- [ ] 35-01-PLAN.md — Wave 1: xfail test scaffold for breadcrumb behaviors
+- [ ] 35-02-PLAN.md — Wave 2: calculator_name injection, base.html breadcrumb block, app.css rules
 
 ### Phase 36: Calculator Visual Redesign
 **Goal**: Each calculator has a distinct visual accent and polished card-based layouts for wizard steps and results screens, all within the shared design system
@@ -229,7 +232,7 @@ Plans:
 | 31. DNS Zones Panels | v1.8 | 3/3 | Complete | 2026-03-08 |
 | 32. Attribution Display Names | v1.8 | 2/2 | Complete | 2026-03-08 |
 | 33. Design Foundation | 3/3 | Complete    | 2026-03-08 | - |
-| 34. Home Screen + Routing | 3/3 | Complete   | 2026-03-08 | - |
-| 35. Navigation + Breadcrumb | v1.9 | 0/? | Not started | - |
+| 34. Home Screen + Routing | 3/3 | Complete    | 2026-03-08 | - |
+| 35. Navigation + Breadcrumb | v1.9 | 0/2 | Not started | - |
 | 36. Calculator Visual Redesign | v1.9 | 0/? | Not started | - |
 | 37. Cloud Provider Switcher | v1.9 | 0/? | Not started | - |
