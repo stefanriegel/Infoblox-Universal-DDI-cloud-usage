@@ -1,76 +1,54 @@
 # Requirements: Universal DDI Cloud Usage Estimator
 
-**Defined:** 2026-03-03
+**Defined:** 2026-03-07
 **Core Value:** Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
 
-## v1.7 Requirements
+## v1.8 Requirements
 
-Requirements for the Reference Parity milestone. Each maps to roadmap phases.
+Requirements for the Dashboard Analytics milestone. Each maps to roadmap phases.
 
-### Microsoft AD
+### AD Dashboard
 
-- [x] **AD-01**: User can scan Microsoft AD via WinRM/PowerShell with `--ad-servers` flag
-- [x] **AD-02**: Tool collects DNS zones and resource records from AD (DDI + IP counts via `Get-DnsServerZone`/`Get-DnsServerResourceRecord`)
-- [x] **AD-03**: Tool collects DHCP scopes, leases, and reservations from AD (DDI + IP counts via `Get-DhcpServerv4Scope/Lease/Reservation`)
-- [x] **AD-04**: Tool collects AD Users as Asset count (`Get-ADUser -Filter *`)
-- [x] **AD-05**: User can specify AD services to scan (dns, dhcp, user) via `--ad-services` flag
-- [x] **AD-06**: User can choose auth mode: Kerberos (default) or NTLM (user+pass) via `--ad-auth-mode`
-- [x] **AD-07**: User can autodiscover all domain controllers from a seed DC via `--ad-autodiscover`/`--ad-discovery-server`
-- [x] **AD-08**: AD results appear in XLS report with same token formula as cloud providers
+- [x] **AD-09**: User can initiate AD analysis from dashboard via connection wizard (host, port, auth mode, domain, services scope)
+- [x] **AD-10**: User sees per-DC SSE autodiscovery progress (step counter + elapsed time)
+- [x] **AD-11**: User sees AD results screen with DNS zone count, DHCP scope count, AD user count, token formula derivation, and download CTA
+- [x] **AD-12**: User can retry AD analysis from error state
 
-### IP Methodology
+### DNS Zones
 
-- [x] **METH-01**: AWS IP count uses NIC/network interface objects (not unique IP address dedup)
-- [x] **METH-02**: Azure IP count uses NIC objects (not unique IP address dedup)
-- [x] **METH-03**: GCP IP count uses network interface config objects (not unique IP address dedup)
-- [x] **METH-04**: Standalone ENIs, EIPs, NAT GW IPs excluded from AWS IP count (matching reference)
+- [ ] **DNS-01**: User sees Top 5 Cloud DNS zones by record count on Summary tab
+- [ ] **DNS-02**: User sees Top 5 AD DNS zones by record count on AD complete screen
+- [ ] **DNS-03**: User sees Top 5 NIOS DNS zones by record count on NIOS complete screen (requires extending NIOS parse pipeline to accumulate per-zone record counts)
 
-### AWS DDI Gaps
+### Attribution
 
-- [x] **AWSG-01**: Route53 Resolver endpoints counted as DDI objects
-- [x] **AWSG-02**: Route53 Resolver rules and rule associations counted as DDI objects
-- [x] **AWSG-03**: AWS IPAM pools, scopes, and allocations counted as DDI objects
-- [x] **AWSG-04**: Internet Gateways and Customer Gateways counted as DDI objects
-- [x] **AWSG-05**: Route Tables counted as DDI objects
-- [x] **AWSG-06**: Direct Connect Gateways counted as DDI objects
-- [x] **AWSG-07**: Route53 Health Checks and Traffic Policies counted as DDI objects
-
-### Azure DDI Gaps
-
-- [x] **AZUG-01**: Virtual Network Gateways (VPN and ExpressRoute) counted as DDI objects
-- [x] **AZUG-02**: Private Link Services counted as DDI objects
-- [x] **AZUG-03**: Virtual WANs counted as DDI objects
-- [x] **AZUG-04**: Route Tables counted as DDI objects
-- [x] **AZUG-05**: Azure Tenants counted as DDI objects
-
-### GCP DDI Gaps
-
-- [x] **GCPG-01**: Compute Addresses (reserved static IPs) counted as DDI objects
-- [x] **GCPG-02**: GKE CIDR Ranges (control plane/pod/service) counted as DDI objects
-- [x] **GCPG-03**: Router NAT Mapping Infos counted as DDI objects
-- [x] **GCPG-04**: Target VPN Gateways (legacy) counted as DDI objects
+- [ ] **ATTR-01**: User sees human-readable display names for v1.7 DDI types in per-account attribution table breakdown
 
 ## Future Requirements
 
-### Microsoft AD (deferred)
+### DNS Zones (v1.9+)
 
-- **AD-09**: Dashboard tab for AD with connection wizard and results display
-- **AD-10**: AD autodiscovery progress and results surfaced in web dashboard
+- **DNS-04**: NIOS per-zone record count accumulator exposed in XLS report
+- **DNS-05**: Cross-scope zone overlap detection (same zone name in Cloud + AD)
 
-### Cloud DDI (deferred)
+### AD Dashboard (v1.9+)
 
-- **CLOUD-EXT-01**: Per-account breakdown for new DDI types in attribution table
+- **AD-13**: Per-DC connection status display during AD autodiscovery (individual DC success/fail badges)
+
+### Attribution (v1.9+)
+
+- **ATTR-02**: DDI formula annotation per type in breakdown rows (count ÷ 25 = X.X tokens inline)
+- **ATTR-03**: Functional grouping of v1.7 DDI types within breakdown (Route53 Resolver / IPAM / Networking)
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| AD live directory browsing | Tool is a token estimator, not a directory explorer |
-| AD write operations | Read-only; no modification of AD objects |
-| AD Group Policy Objects | Not a DDI object type in UDDI spec |
-| AD Certificate Services | Not a DDI object type in UDDI spec |
-| Real-time IP dedup for AD | Point-in-time estimation; AD DNS/DHCP objects represent network objects |
-| Dashboard AD wizard (v1.7) | CLI-first for AD; dashboard tab deferred to future milestone |
+| NIOS DNS zones in XLS report | Point-in-time analysis tool; report format locked to existing 5-sheet structure |
+| Real-time token impact preview | Requires re-running full pipeline on every toggle; too expensive for large datasets |
+| Charts / visualizations | Text tables sufficient for enterprise audit context; consistent with existing design |
+| Cross-scope zone overlap detection | High complexity; no immediate pre-sales demand; v1.9+ |
+| Per-DC connection status SSE | High complexity; requires collector refactoring; not needed for core AD dashboard v1.8 |
 
 ## Traceability
 
@@ -78,40 +56,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AD-01 | Phase 29 | Complete |
-| AD-02 | Phase 29 | Complete |
-| AD-03 | Phase 29 | Complete |
-| AD-04 | Phase 29 | Complete |
-| AD-05 | Phase 29 | Complete |
-| AD-06 | Phase 29 | Complete |
-| AD-07 | Phase 29 | Complete |
-| AD-08 | Phase 29 | Complete |
-| METH-01 | Phase 25 | Complete |
-| METH-02 | Phase 25 | Complete |
-| METH-03 | Phase 25 | Complete |
-| METH-04 | Phase 25 | Complete |
-| AWSG-01 | Phase 26 | Complete |
-| AWSG-02 | Phase 26 | Complete |
-| AWSG-03 | Phase 26 | Complete |
-| AWSG-04 | Phase 26 | Complete |
-| AWSG-05 | Phase 26 | Complete |
-| AWSG-06 | Phase 26 | Complete |
-| AWSG-07 | Phase 26 | Complete |
-| AZUG-01 | Phase 27 | Complete |
-| AZUG-02 | Phase 27 | Complete |
-| AZUG-03 | Phase 27 | Complete |
-| AZUG-04 | Phase 27 | Complete |
-| AZUG-05 | Phase 27 | Complete |
-| GCPG-01 | Phase 28 | Complete |
-| GCPG-02 | Phase 28 | Complete |
-| GCPG-03 | Phase 28 | Complete |
-| GCPG-04 | Phase 28 | Complete |
+| AD-09 | Phase 30 | Complete |
+| AD-10 | Phase 30 | Complete |
+| AD-11 | Phase 30 | Complete |
+| AD-12 | Phase 30 | Complete |
+| DNS-01 | Phase 31 | Pending |
+| DNS-02 | Phase 31 | Pending |
+| DNS-03 | Phase 31 | Pending |
+| ATTR-01 | Phase 32 | Pending |
 
 **Coverage:**
-- v1.7 requirements: 28 total
-- Mapped to phases: 28
-- Unmapped: 0
+- v1.8 requirements: 8 total
+- Mapped to phases: 8
+- Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-03-03*
-*Last updated: 2026-03-03 after roadmap creation (v1.7)*
+*Requirements defined: 2026-03-07*
+*Last updated: 2026-03-07 — traceability confirmed during roadmap creation*

@@ -1,189 +1,84 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.7
-milestone_name: Reference Parity
-status: completed
-stopped_at: Completed 29-04-PLAN.md — AD CLI wiring; 9 TestAdCli GREEN; all 8 AD requirements fulfilled; Phase 29 COMPLETE
-last_updated: "2026-03-07T19:30:08.875Z"
-last_activity: "2026-03-07 — Completed 29-04: AD CLI wiring + categorizer DDI types; 2 tasks, 3 files, 8 min"
+milestone: v1.8
+milestone_name: Dashboard Analytics
+status: in_progress
+stopped_at: "Completed 30-ad-dashboard 30-01-PLAN.md"
+last_updated: "2026-03-08T10:48:00Z"
+last_activity: 2026-03-08 — Phase 30 Plan 01 complete (Wave 0 test scaffold)
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 19
-  completed_plans: 19
-  percent: 100
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 4
+  completed_plans: 1
+  percent: 8
 ---
 
 # Session State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-03 after v1.7 milestone started)
+See: .planning/PROJECT.md (updated 2026-03-07 after v1.7 milestone complete)
 
 **Core value:** Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
-**Current focus:** COMPLETE — v1.7 Reference Parity milestone finished (all 5 phases, 28 requirements)
+**Current focus:** v1.8 Dashboard Analytics — Phase 30: AD Dashboard
 
 ## Current Position
 
-Phase: 29 of 29 (Microsoft AD Core) — COMPLETE (4/4 plans done)
-Plan: 04 complete (29-04-PLAN.md) — AD CLI wiring: DDI_TYPES + parse_args() + _run_ad_cli(); 9 TestAdCli GREEN; Phase 29 COMPLETE
-Status: ALL PHASES COMPLETE — v1.7 Reference Parity milestone DONE
-Last activity: 2026-03-07 — Completed 29-04: AD CLI wiring + categorizer DDI types; 2 tasks, 3 files, 8 min
+Phase: 30 of 32 (AD Dashboard)
+Plan: 01 of 04 complete
+Status: In progress
+Last activity: 2026-03-08 — Plan 30-01 complete; Wave 0 test scaffold created
 
-Progress: [██████████] 100%
+Progress: [█░░░░░░░░░] 8%
 
 ## Performance Metrics
 
-**Velocity:**
-- Total plans completed: 4 (this milestone)
-- Average duration: 5.3 min
-- Total execution time: 21 min
-
-| Phase | Plan | Duration | Tasks | Files |
-|-------|------|----------|-------|-------|
-| 25 | 01 | 4 min | 3 | 5 |
-| 25 | 02 | 3 min | 2 | 4 |
-| 25 | 03 | 6 min | 2 | 3 |
-| 25 | 04 | 8 min | 2 | 7 |
-| Phase 26 P01 | 2 | 2 tasks | 2 files |
-| Phase 26 P02 | 5 | 2 tasks | 1 files |
-| Phase 26 P03 | 4 min | 2 tasks | 2 files |
-| Phase 26 P04 | 2min | 2 tasks | 3 files |
-| Phase 26 P05 | 12min | 2 tasks | 2 files |
-| Phase 27 P01 | 2 | 2 tasks | 2 files |
-| Phase 27 P02 | 5 | 2 tasks | 2 files |
-| Phase 27 P03 | 5 | 2 tasks | 2 files |
-| Phase 28 P01 | 2 min | 2 tasks | 3 files |
-| Phase 28 P02 | 5 | 2 tasks | 4 files |
-| Phase 28 P03 | 13 min | 2 tasks | 3 files |
-| Phase 29 P01 | 6 min | 1 tasks | 3 files |
-| Phase 29 P02 | 7 min | 2 tasks | 4 files |
-| Phase 29 P02 | 7 min | 2 tasks | 4 files |
-| Phase 29 P03 | 6 min | 1 tasks | 2 files |
-| Phase 29 P04 | 8 | 2 tasks | 3 files |
+**Velocity (v1.7 reference):**
+- Total plans completed: 19 (v1.7)
+- Average duration: ~5 min/plan
+- Total execution time: ~95 min (v1.7)
 
 ## Accumulated Context
 
 ### Patterns (carry forward)
 
-- IIFE scripts in Jinja2 templates: scoped DOM logic, no globals, `data-col`/`data-value` for sort attributes
-- `per_provider_details` (ddi/ips/assets/tokens) for formula display — always available from `_compute_summary()`
-- Sort IIFE pattern: `querySelectorAll('tr.acct-row')` + `nextElementSibling` for detail row adjacency
-- Section-scoped test assertions: slice relevant section from `response.text` before counting formula strings
-- Template-only features: check what `_compute_summary()` already computes before adding backend work
-- HX-Redirect pattern: return `Response(content="", status_code=200, headers={"HX-Redirect": "/tab/progress"})` — HTMX follows as full-page navigate, no hx-on JS needed
+- HTMX SSE progress pattern: `NiosScanManager.set_progress()` + `GET /api/nios/progress` partial — reuse this for AD tab SSE (Phase 30)
+- HTMX wizard navigation: `HX-Redirect` response header for full-page navigate between wizard steps
+- IIFE scripts in Jinja2 templates: scoped DOM logic, no globals, `data-col`/`data-value` for sort
+- Template-only features: check `_compute_summary()` output before adding backend work
+- TDD RED gate pattern: module-level imports in test files trigger ImportError at collection time (Phases 26–29)
 
-### Key v1.7 Decisions
+### Key v1.8 Constraints
 
-- IP counting methodology: align with reference — count NIC/config objects (not unique IP addresses); remove standalone ENI/EIP/NAT GW IP counting from AWS
-- Microsoft AD: full implementation matching reference `microsoft_ad.py` — DNS + DHCP + Users + Autodiscovery; CLI-only for v1.7 (dashboard tab deferred)
-- Phase ordering: METH fix first (Phase 25) as it is foundational to correct IP counts in all providers; cloud DDI gap phases (26-28) can run in any order after 25; AD (Phase 29) is independent but placed last as it is a full new provider
-
-### Key Phase 29 Decisions
-
-- Module-level imports (not per-method pytest.raises) used for RED gate — entire file fails collection, matching Phase 28 pattern (plan 29-01)
-- run_ad_analysis() returns tuple (resources, errors) — inferred from resilience model requiring error return (plan 29-01)
-- ad-user sentinel IP ['0.0.0.0'] forces asset categorization through existing pipeline without modifying categorizer (plan 29-01)
-- ad-dhcp-ip resource type included as optional shape for DHCP lease/reservation IPs — runner tests tolerate both shapes (plan 29-01)
-- TestAdDdiTypesInCategorizer uses class (not standalone function) for consistency with Phase 27/28 patterns (plan 29-01)
-- _collect_dns/_collect_dhcp/_collect_users all take (self, session) — session is the WinRM session object built by _build_session() (plan 29-01)
-- record_keys used as _collect_dns return key (plan spec said supported_record_entries but 29-01 tests use record_keys) — auto-aligned (plan 29-02)
-- run_ad_analysis() stub added to __init__.py in 29-02 (not deferred to 29-03) — TestAllDcsFail imports at module level (plan 29-02)
-- collect_all() returns list of result dicts; injects server key if missing from mocked _collect_server returns (plan 29-02)
-- run_ad_analysis uses sys.modules lookup at call time for MicrosoftAdCollector/write_xlsx_report so test patches at cloud_usage.providers.ad.X work (plan 29-03)
-- run_ad_analysis returns (resources, errors) and only calls write_xlsx_report when output_path is not None (plan 29-03)
-- _aggregate_results() handles both set and dict containers for zone_keys/record_keys/lease_keys/user_keys (real collector vs mock data) (plan 29-03)
-- IP extracted from record dedup key 4th segment: JSON parse first (real), raw string fallback (mock) (plan 29-03)
-- AD branch in main() is non-exclusive: calls _run_ad_cli, then continues to cloud scan if --aws/--azure/--gcp set; exits only when no cloud flags present (plan 29-04)
-- Port selection in _run_ad_cli: args.ad_winrm_port or (5986 if args.ad_winrm_ssl else 5985) — explicit flag always wins (plan 29-04)
-- NTLM-without-credentials caught at AdOptions.__post_init__ ValueError; bubbles up to _run_ad_cli -> stderr + return 1 (plan 29-04)
-- All-DCs-failed guard: empty resources + non-empty errors -> return 1 from _run_ad_cli (plan 29-04)
-
-### Key Phase 28 Decisions
-
-- collect_gcp_gke_cidr_ranges imported at module level in token_free test — causes ImportError at collection time (stronger RED gate than in-method import) (plan 28-01)
-- gcp-reserved-ip already in DDI_TYPES as asset type; GCPG-01 RED test asserts ip_addresses==[] on collector, not DDI_TYPES membership (plan 28-01)
-- TestCollectGcpReservedIpsDdiOnly placed alongside existing TestCollectGcpReservedIps to group by collector module (plan 28-01)
-- collect_gcp_reserved_ips: ip_addresses=[] (DDI-only); address string removed from collector output; details dict retains address_type/status/purpose for audit display (plan 28-02)
-- RoutersClient and TargetVpnGatewaysClient use aggregated_list(project=project_id) not aggregated_list(request=Request(...)) — no AggregatedListRoutersRequest class needed (plan 28-02)
-- GKE CIDR emission uses getattr chain for nested proto fields to safely handle missing private_cluster_config or ip_allocation_policy (plan 28-02)
-- gcp-reserved-ip in DDI_TYPES causes category=ddi even with ip_addresses populated; stale TDD RED test updated to assert ddi (plan 28-03)
-- Router NAT and Target VPN Gateway wired under compute_enabled block alongside Reserved IPs; GKE CIDR Ranges under container_enabled block alongside GKE Clusters (plan 28-03)
-
-### Key Phase 27 Decisions
-
-- collect_azure_tenants imported from hybrid_networking to trigger ImportError RED state; final module location confirmed in plan 27-02 (plan 27-01)
-- azure-vnet-gateway replaces azure-vpn-gateway in AZUG-01; existing test updated with ExpressRoute gateway_type mock and ip 10.0.0.5 (plan 27-01)
-- azure-vpn-gateway was never in DDI_TYPES — confirmed with not-in assertion that passes immediately (plan 27-01)
-- collect_azure_vpn_gateways function name kept unchanged (only resource_type changed azure-vpn-gateway -> azure-vnet-gateway) for minimal import churn (plan 27-02)
-- SubscriptionClient import corrected to azure.mgmt.subscription (was azure.mgmt.resource causing silent None via _try_create) (plan 27-02)
-- collect_azure_tenants placed in hybrid_networking.py; takes subscription_client not network_client; region hardcoded to global (plan 27-02)
-- Tenant deduplication via _tenants_collected instance bool on AzureDiscoveryProvider; skips re-collection on subsequent subscriptions to avoid inflated DDI count (plan 27-03)
-
-### Key Phase 26 Decisions (so far)
-
-- collect_route_tables counts ALL route tables including auto-created main route table — no filtering, matches reference implementation (plan 26-02)
-- collect_customer_gateways uses direct API call — describe_customer_gateways does not support get_paginator() (plan 26-02)
-- DDI-only collectors set ip_addresses=[] regardless of API response — no IP address concept in reference counting model (plan 26-02)
-- Resolver functions use 3-arg signature (resolver_client, account_id, region) — route53resolver is per-region, distinct from global route53 (plan 26-03)
-- collect_traffic_policies uses page.get('TrafficPolicySummaries') — real AWS API key, not 'TrafficPolicies' (plan 26-03)
-- IPAM tests rewritten from @mock_aws/create_ipam to MagicMock — moto 5.1.21 does not implement create_ipam (plan 26-04)
-- Direct Connect API uses camelCase response keys (directConnectGateways, directConnectGatewayId) — distinct from EC2 PascalCase (plan 26-04)
-- Global collectors (IPAM, Direct Connect, Route53 Health Checks/Traffic Policies) placed ONCE per account before per-region loop (plan 26-05)
-- IPAM uses ec2_global client (us-east-1), Route53 Resolver uses route53resolver client per-region, Direct Connect uses dx_client at us-east-1 (plan 26-05)
+- AD Dashboard (Phase 30) follows the NIOS tab pattern exactly — wizard → progress (SSE) → results screen → retry on error
+- DNS-03 (NIOS top zones) requires extending the NIOS parse pipeline to accumulate per-zone record counts — this is the only backend work in Phase 31
+- DNS-01 (Cloud) and DNS-02 (AD) are in-memory aggregation from already-collected data — template-first candidates
+- ATTR-01 (Phase 32) is display-layer only — a DDI type string → display name mapping consumed by the attribution breakdown template
 
 ### Known Technical Debt (carry forward)
 
-- DTC-V01/V02: DTC XML `__type` strings spec-derived, unverified against real DTC backup (v1.2 carry-over)
-- REF-01: GCP 87-project production validation deferred — no live GCP environment available (v1.0 carry-over)
-- Python 3.9 venv causes 8 pre-existing test failures on CLI `main()` version guard — known, non-blocking
+- DTC-V01/V02: DTC XML `__type` strings spec-derived, unverified against real DTC backup (v1.2)
+- REF-01: GCP 87-project production validation deferred — no live environment (v1.0)
+- AD-LIVE: AD provider untested against live WinRM — mocks only
+- NYQ-V17: Phases 25–29 Nyquist VALIDATION.md files incomplete
 
-### Key Phase 25 Decisions
+### Blockers
 
-- count_nics_per_account returns same dict shape as deduplicate_ips_per_vpc for drop-in compatibility
-- DDI-category resources always contribute 0 regardless of ip_addresses or NIC count
-- Azure unattached NICs (vm_id=None) contribute 0 — only VM-attached NICs count
-- TestFoldEnisIntoParents removed — ENIs become DDI in Phase 25, folding is no longer needed
-- ENI/EIP/NAT GW reclassified as DDI (not asset) — fold_enis_into_parents() removed entirely (plan 25-02)
-- ip_addresses fields left populated on reclassified resources for audit/Detail sheet display (plan 25-02)
-- nic_ip_count stored in details dict at collection time so ip_counter.py reads from CloudResource.details without re-iterating raw API data (plan 25-03)
-- GCP ifaces list pre-computed before IP extraction loop to avoid double iteration over network_interfaces (plan 25-03)
-- deduplicate_ips_per_vpc() retained as deprecated in ip_counter.py — not deleted, marked for reference (plan 25-04)
-- azure-nic branch in _get_nic_count() kept for defensive completeness even though azure-nic is DDI and filtered before reaching it (plan 25-04)
-- data-col="ips" JS sort attributes preserved in summary.html when label updated to "Address Records" (plan 25-04)
-
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 6 | Speed enhancement for large NIOS backup analysis | 2026-03-03 | c1de86a | [6-speed-enhancement-for-large-nios-backup-](./quick/6-speed-enhancement-for-large-nios-backup-/) |
+None.
 
 ## Session Log
 
-- 2026-03-07: Phase 29 plan 04 complete — AD CLI wiring GREEN: DDI_TYPES + parse_args() 12 flags + _run_ad_cli() + non-exclusive main() branch; 9 TestAdCli pass; Phase 29 COMPLETE; v1.7 milestone DONE (2 tasks, 3 files, 8 min)
-- 2026-03-07: Phase 29 plan 03 complete — AD runner GREEN: run_ad_analysis(), cross-DC aggregation, CloudResource conversion; 16 test_ad_runner.py tests pass; sys.modules patchability pattern (1 task, 2 files, 6 min)
-- 2026-03-07: Phase 29 plan 02 complete — AD provider package GREEN: constants/options/collector; 22 test_ad_collector.py tests pass; WinRMError, lazy winrm import, DC failure isolation (2 tasks, 4 files, 7 min)
-- 2026-03-07: Phase 29 plan 01 complete — TDD RED gate: 38 failing tests in 3 files; AD-01..08 contract defined via ModuleNotFoundError+AssertionError; MicrosoftAdCollector, AdOptions, run_ad_analysis() contracts set (1 task, 3 files, 6 min)
-- 2026-03-07: Phase 28 plan 03 complete — provider wiring + 6 DDI types in categorizer; Phase 28 (GCP DDI Gaps) COMPLETE; GCPG-01..04 fulfilled (2 tasks, 3 files, 13 min)
-- 2026-03-07: Phase 28 plan 02 complete — 4 GCP DDI collectors GREEN; ip_addresses=[] fix, router_nats, target_vpn_gateways, gke_cidr_ranges; 56 tests pass (2 tasks, 4 files, 5 min)
-- 2026-03-07: Phase 28 plan 01 complete — TDD RED gate: 13 new failing tests in 3 files; GCPG-01..04 covered; ImportError/AssertionError confirmed (2 tasks, 3 files, 2 min)
-- 2026-03-07: Phase 27 plan 03 complete — provider wiring + 5 DDI types in categorizer; Phase 27 (Azure DDI Gaps) COMPLETE; AZUG-01..05 fulfilled (2 tasks, 2 files, 5 min)
-- 2026-03-07: Phase 27 plan 02 complete — 5 Azure DDI collectors GREEN (1 rewritten, 4 new); SubscriptionClient import fixed (2 tasks, 2 files, 5 min)
-- 2026-03-07: Phase 27 plan 01 complete — TDD RED gate: 4 new test classes + categorizer assertion for AZUG-01..05; ImportError/AssertionError confirmed (2 tasks, 2 files, 2 min)
-- 2026-03-04: Phase 26 plan 05 complete — provider wiring: 15 DDI types in categorizer, 13 new _safe_collect() calls in provider; all AWSG-01..07 GREEN
-- 2026-03-04: Phase 26 (AWS DDI Gaps) COMPLETE — all 5 plans done
-- 2026-03-04: Phase 26 plan 04 complete — IPAM (5 collectors) and Direct Connect Gateway collector; AWSG-03/06 GREEN
-- 2026-03-04: Phase 26 plan 03 complete — Route53 Resolver + health check/traffic policy collectors; AWSG-01/02/07 GREEN
-- 2026-03-04: Phase 26 plan 02 complete — EC2 DDI collectors: collect_internet_gateways, collect_customer_gateways, collect_route_tables; AWSG-04/05 GREEN
-- 2026-03-04: Phase 26 plan 01 complete — TDD RED gate for AWSG-01..07; 15 new types, 13 new collector tests, 1 new categorizer test
-- 2026-03-03: Phase 25 (IP Methodology Fix) complete — all 4 plans done, METH-01 through METH-04 fulfilled
-- 2026-03-03: v1.7 roadmap created — 5 phases (25–29), 28/28 requirements mapped, files written
-- 2026-03-03: Milestone v1.7 Reference Parity started — defining requirements
-- 2026-03-03: Phase 24 (v1.6 Wizard Navigation Fix) complete
-- 2026-03-03: v1.5 milestone archived
+- 2026-03-08: Plan 30-01 complete — Wave 0 AD dashboard test scaffold (tests/test_dashboard_ad.py, 7 classes, 20 methods)
+- 2026-03-07: v1.8 roadmap created — 3 phases (30–32), 8/8 requirements mapped, files written
+
+## Decisions
+
+- Wave 0 gate: ad_manager imported at module level — ImportError at collection is intended behavior until Plan 02 lands
+- set_last_options() chosen as AdScanManager method for retry pre-fill storage
 
 ## Session Continuity
 
-Last session: 2026-03-07T19:30:08.872Z
-Stopped at: Completed 29-04-PLAN.md — AD CLI wiring; 9 TestAdCli GREEN; all 8 AD requirements fulfilled; Phase 29 COMPLETE
-Resume file: None
+Last session: 2026-03-08T10:48:00Z
+Stopped at: Completed 30-ad-dashboard 30-01-PLAN.md
+Resume file: .planning/phases/30-ad-dashboard/30-02-PLAN.md

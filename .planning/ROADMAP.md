@@ -185,6 +185,6 @@ Plans:
 | 27. Azure DDI Gaps | v1.7 | 3/3 | Complete | 2026-03-07 |
 | 28. GCP DDI Gaps | v1.7 | 3/3 | Complete | 2026-03-07 |
 | 29. Microsoft AD Core | v1.7 | 4/4 | Complete | 2026-03-07 |
-| 30. AD Dashboard | v1.8 | 0/TBD | Not started | - |
+| 30. AD Dashboard | 1/4 | In Progress|  | - |
 | 31. DNS Zones Panels | v1.8 | 0/TBD | Not started | - |
 | 32. Attribution Display Names | v1.8 | 0/TBD | Not started | - |
