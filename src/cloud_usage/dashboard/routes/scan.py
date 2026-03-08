@@ -1082,3 +1082,139 @@ async def scan_cancel(request: Request) -> JSONResponse:
     scan_manager.cancel()
 
     return JSONResponse({"status": "cancelled"})
+
+
+# -- Per-Provider Scan Routes (Phase 37) --
+
+_VALID_CLOUD_PROVIDERS = frozenset({"aws", "azure", "gcp"})
+
+
+@router.post("/api/scan/{provider}/start")
+async def cloud_provider_scan_start(request: Request, provider: str) -> Response:
+    """Start a scan scoped to a single cloud provider (Phase 37).
+
+    Reads from the per-provider ScanManager registered in app.state by Plan 02.
+    Forces ScanConfig.providers to [provider] so the pipeline only discovers
+    resources for the selected provider.
+
+    Returns HX-Redirect to /cloud/{provider}/tab/progress so HTMX navigates
+    to the correct per-provider progress tab.
+
+    Args:
+        request: The incoming HTTP request.
+        provider: Cloud provider slug -- must be one of aws, azure, gcp.
+
+    Returns:
+        200 with HX-Redirect header on success, 404 for unknown provider,
+        409 if a scan for this provider is already running.
+    """
+    if provider not in _VALID_CLOUD_PROVIDERS:
+        return HTMLResponse("Not found", status_code=404)
+
+    scan_manager = getattr(request.app.state, f"{provider}_scan_manager")
+    event_bridge = getattr(request.app.state, f"{provider}_event_bridge")
+
+    if not scan_manager.can_start():
+        return JSONResponse(
+            {"error": f"{provider} scan already running"},
+            status_code=409,
+        )
+
+    form = await request.form()
+
+    # Accounts selection -- provider-scoped
+    accts = form.getlist(f"accounts_{provider}")
+    include_accounts: dict[str, list[str] | None] = {
+        provider: list(accts) if accts else None
+    }
+
+    # ScanConfig is locked to the single provider -- never multi-provider
+    config = ScanConfig(
+        providers=[provider],
+        include_accounts=include_accounts,
+        exclude_accounts={},
+    )
+
+    scan_manager.save_scan_config(config)
+    scan_manager.start(config)
+
+    loop = asyncio.get_running_loop()
+    loop.run_in_executor(None, _run_scan_pipeline, scan_manager, config, event_bridge)
+
+    return Response(
+        content="",
+        status_code=200,
+        headers={"HX-Redirect": f"/cloud/{provider}/tab/progress"},
+    )
+
+
+@router.get("/cloud/{provider}/wizard", response_class=HTMLResponse)
+async def cloud_provider_wizard(request: Request, provider: str) -> HTMLResponse:
+    """Render the per-provider cloud wizard (Phase 37).
+
+    Handles /cloud/aws/wizard, /cloud/azure/wizard, and /cloud/gcp/wizard.
+    Runs auth check for the single selected provider. If authentication
+    already passes, skips straight to the accounts step (step 2 of 3).
+    If authentication is required, shows step1_auth for this provider only.
+
+    Step 2 (multi-provider picker) is removed from this flow -- the persistent
+    provider selector strip in base.html is the provider picker.
+
+    Args:
+        request: The incoming HTTP request.
+        provider: Cloud provider slug -- must be one of aws, azure, gcp.
+
+    Returns:
+        Rendered wizard step partial for HTMX swap into #tab-container.
+    """
+    if provider not in _VALID_CLOUD_PROVIDERS:
+        return HTMLResponse("Not found", status_code=404)
+
+    templates = request.app.state.templates
+
+    # 3-step wizard: auth (conditional) -> accounts -> review
+    step_ctx = {"wizard_step": 1, "wizard_total_steps": 3}
+
+    # Run auth check for this provider only
+    auth_results = await asyncio.to_thread(_run_auth_check)
+    provider_auth = {k: v for k, v in auth_results.items() if k == provider}
+    all_passed = all(r.get("success", False) for r in provider_auth.values())
+
+    if all_passed and provider_auth:
+        # Auth already valid -- skip to accounts step (step 2 of 3)
+        scan_manager = getattr(request.app.state, f"{provider}_scan_manager")
+        saved_config = scan_manager.load_scan_config()
+        saved_includes = saved_config.include_accounts if saved_config else {}
+        accounts = await asyncio.to_thread(_enumerate_accounts, [provider])
+        return templates.TemplateResponse(
+            request,
+            "partials/wizard/step3_accounts.html",
+            {
+                "request": request,
+                "wizard_step": 2,
+                "wizard_total_steps": 3,
+                "selected_providers": [provider],
+                "accounts": accounts,
+                "saved_includes": saved_includes,
+                "provider": provider,
+                "tab_base": f"/cloud/{provider}",
+                "calc_theme": "calc-cloud",
+                "active_provider": provider,
+            },
+        )
+
+    # Auth required -- show step1_auth for this provider only
+    return templates.TemplateResponse(
+        request,
+        "partials/wizard/step1_auth.html",
+        {
+            "request": request,
+            **step_ctx,
+            "auth_results": provider_auth,
+            "providers": [provider],
+            "provider": provider,
+            "tab_base": f"/cloud/{provider}",
+            "calc_theme": "calc-cloud",
+            "active_provider": provider,
+        },
+    )
