@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Multi-Tool Suite UX
 status: executing
-stopped_at: Completed 36-02-PLAN.md
-last_updated: "2026-03-08T17:13:30.573Z"
+stopped_at: Completed 36-03-PLAN.md
+last_updated: "2026-03-08T17:20:18.921Z"
 last_activity: 2026-03-08 — 34-01 xfail test scaffold complete (HOME-01, HOME-02, ROUTE-01, ROUTE-02, DESIGN-02)
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 11
-  completed_plans: 10
+  completed_plans: 11
   percent: 96
 ---
 
@@ -74,6 +74,7 @@ None.
 | 7 | Fix 3 pre-existing test failures: GCP SDK missing-packages test, and two output header column name mismatches | 2026-03-08 | 7956c30 | [7-fix-3-pre-existing-test-failures-gcp-sdk](./quick/7-fix-3-pre-existing-test-failures-gcp-sdk/) |
 | Phase 36-calculator-visual-redesign P01 | 3 | 1 tasks | 1 files |
 | Phase 36-calculator-visual-redesign P02 | 11 | 2 tasks | 4 files |
+| Phase 36-calculator-visual-redesign P03 | 5min | 3 tasks | 5 files |
 
 ## Decisions
 
@@ -89,6 +90,9 @@ None.
 - [Phase 36-calculator-visual-redesign]: 36-01: Template file tests (DESIGN-05) read HTML via Path.read_text() — no wizard-state mock needed for string presence checks
 - [Phase 36-calculator-visual-redesign]: 36-01: All 11 stubs use strict=True — none of the assertions are satisfied pre-implementation (no pre-passing assertions unlike 34-01)
 - [Phase 36-calculator-visual-redesign]: calc_theme injected after calculator_name in each handler; --calc-accent fallback in :root; wizard checkmark via ::after pseudo-element; xfail markers removed on implementation
+- [Phase 36-calculator-visual-redesign]: completion-card intentionally has no colored left border — results screens are accent-neutral per locked Phase 36 decision
+- [Phase 36-calculator-visual-redesign]: xfail markers removed from three DESIGN-05 tests after implementation satisfies assertions (strict=True XPASS = pytest failure)
+- [Phase 36-calculator-visual-redesign]: summary.html Per-Account Breakdown renamed to Account Attribution per CONTEXT.md spec
 
 ## Session Log
 
@@ -97,6 +101,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T17:13:30.570Z
-Stopped at: Completed 36-02-PLAN.md
+Last session: 2026-03-08T17:20:18.919Z
+Stopped at: Completed 36-03-PLAN.md
 Resume file: None

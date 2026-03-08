@@ -125,7 +125,7 @@ Archive: `.planning/milestones/v1.8-ROADMAP.md`
 - [x] **Phase 33: Design Foundation** — Replace PicoCSS with custom Infoblox brand CSS design system (completed 2026-03-08)
 - [x] **Phase 34: Home Screen + Routing** — Home selector screen at `/` with calculator cards and dedicated routes (completed 2026-03-08)
 - [x] **Phase 35: Navigation + Breadcrumb** — Breadcrumb nav on all calculator pages linking back to Home (completed 2026-03-08)
-- [ ] **Phase 36: Calculator Visual Redesign** — Apply design system accents and card layouts to all three calculators
+- [x] **Phase 36: Calculator Visual Redesign** — Apply design system accents and card layouts to all three calculators (completed 2026-03-08)
 - [ ] **Phase 37: Cloud Provider Switcher** — Persistent provider selector throughout the Cloud Calculator flow
 
 ## Phase Details
@@ -238,5 +238,5 @@ Plans:
 | 33. Design Foundation | 3/3 | Complete    | 2026-03-08 | - |
 | 34. Home Screen + Routing | 3/3 | Complete    | 2026-03-08 | - |
 | 35. Navigation + Breadcrumb | 2/2 | Complete    | 2026-03-08 | - |
-| 36. Calculator Visual Redesign | 2/3 | In Progress|  | - |
+| 36. Calculator Visual Redesign | 3/3 | Complete   | 2026-03-08 | - |
 | 37. Cloud Provider Switcher | v1.9 | 0/? | Not started | - |
