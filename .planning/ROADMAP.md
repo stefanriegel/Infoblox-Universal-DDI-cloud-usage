@@ -182,7 +182,11 @@ Plans:
   1. Cloud Calculator uses blue (`#0066CC`) as its accent color, NIOS uses green (`#00C389`), and AD uses purple (`#8B5CF6`) — visually distinguishable on the wizard and results screens
   2. Wizard step indicators show numbered steps with clear active and complete visual states (not plain text)
   3. Results and complete screens display key metrics (token totals, formula derivations, attribution tables) in visually separated cards
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 36-01-PLAN.md — Wave 1: xfail test scaffold (DESIGN-03, DESIGN-04, DESIGN-05)
+- [ ] 36-02-PLAN.md — Wave 2: accent system — calc_theme injection, body class, wizard selectors
+- [ ] 36-03-PLAN.md — Wave 3: card layouts — NIOS/AD completion-card, Cloud summary section headers
 
 ### Phase 37: Cloud Provider Switcher
 **Goal**: Users can switch between AWS, Azure, and GCP within the Cloud Calculator without returning to the home screen
@@ -233,6 +237,6 @@ Plans:
 | 32. Attribution Display Names | v1.8 | 2/2 | Complete | 2026-03-08 |
 | 33. Design Foundation | 3/3 | Complete    | 2026-03-08 | - |
 | 34. Home Screen + Routing | 3/3 | Complete    | 2026-03-08 | - |
-| 35. Navigation + Breadcrumb | 2/2 | Complete   | 2026-03-08 | - |
-| 36. Calculator Visual Redesign | v1.9 | 0/? | Not started | - |
+| 35. Navigation + Breadcrumb | 2/2 | Complete    | 2026-03-08 | - |
+| 36. Calculator Visual Redesign | v1.9 | 0/3 | Not started | - |
 | 37. Cloud Provider Switcher | v1.9 | 0/? | Not started | - |
