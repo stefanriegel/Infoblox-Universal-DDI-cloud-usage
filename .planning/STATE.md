@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Dashboard Analytics
 status: completed
-stopped_at: Completed 32-attribution-display-names 32-01-PLAN.md
-last_updated: "2026-03-08T12:40:00.000Z"
-last_activity: 2026-03-08 — Plan 32-01 complete; Wave 0 xfail scaffold for ATTR-01; 5 attribution tests (xpassed)
+stopped_at: Completed 32-attribution-display-names 32-02-PLAN.md
+last_updated: "2026-03-08T12:56:08.067Z"
+last_activity: 2026-03-08 — Plan 32-01 complete; Wave 0 xfail scaffold for ATTR-01; 5/5 tests collected as xpassed
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 8
-  completed_plans: 8
+  completed_phases: 3
+  total_plans: 10
+  completed_plans: 10
   percent: 100
 ---
 
@@ -97,9 +97,11 @@ None.
 - [Phase 31-03]: Stream-intercept accumulator: wrap filter_objects output with _accumulate_dns_zones() generator — zone counts accumulated during single count_objects() pass, no second parse pass
 - [Phase 31-03]: top_dns_zones kwarg added as final optional keyword to NiosScanManager.set_complete() with None default — existing callers unaffected
 - [Phase 32-01]: Wave 0 xfail imports deferred inside test bodies — prevents collection-time ImportError; strict=False so XPASS is acceptable when implementation pre-exists
+- [Phase 32-02]: DDI_DISPLAY_NAMES applied only at summary computation time — CloudResource.resource_type never mutated, canonical identity preserved
+- [Phase 32-02]: dict.get(rt, rt) fallback pattern: unknown future DDI types degrade to raw string without error — safe extensibility
 
 ## Session Continuity
 
-Last session: 2026-03-08T12:24:49.562Z
-Stopped at: Completed 31-dns-zones-panels 31-03-PLAN.md
+Last session: 2026-03-08T12:56:03.157Z
+Stopped at: Completed 32-attribution-display-names 32-02-PLAN.md
 Resume file: None

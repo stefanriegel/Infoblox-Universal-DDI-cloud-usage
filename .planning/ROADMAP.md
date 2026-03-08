@@ -112,7 +112,7 @@ Archive: `.planning/milestones/v1.7-ROADMAP.md`
 
 - [x] **Phase 30: AD Dashboard** - Connection wizard, autodiscovery progress, results screen, and retry flow for the AD tab (completed 2026-03-08)
 - [x] **Phase 31: DNS Zones Panels** - Top 5 DNS zones by record count on Cloud Summary, AD complete, and NIOS complete screens (completed 2026-03-08)
-- [ ] **Phase 32: Attribution Display Names** - Human-readable display names for v1.7 DDI types in per-account breakdown rows
+- [x] **Phase 32: Attribution Display Names** - Human-readable display names for v1.7 DDI types in per-account breakdown rows (completed 2026-03-08)
 
 ## Phase Details
 
@@ -194,4 +194,4 @@ Plans:
 | 29. Microsoft AD Core | v1.7 | 4/4 | Complete | 2026-03-07 |
 | 30. AD Dashboard | v1.8 | 5/5 | Complete | 2026-03-08 |
 | 31. DNS Zones Panels | 3/3 | Complete    | 2026-03-08 | - |
-| 32. Attribution Display Names | 1/2 | In Progress|  | - |
+| 32. Attribution Display Names | 2/2 | Complete   | 2026-03-08 | - |
