@@ -34,12 +34,31 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 - ✓ Per-provider formula summary cards (DDI ÷ 25 / IPs ÷ 13 / Assets ÷ 3 inline) on cloud Results tab — v1.5 (Phase 23)
 - ✓ Client-side sortable per-account attribution table (Tokens descending default, no server round-trip) — v1.5 (Phase 23)
 - ✓ Collapsible resource-type breakdown rows via native `<details>/<summary>` — v1.5 (Phase 23)
+- ✓ IP counting methodology aligned with reference (NIC/config objects, not unique IP dedup; standalone ENIs/EIPs/NAT GW excluded from AWS) — v1.7 (Phase 25)
+- ✓ AWS DDI types expanded: Route53 Resolver endpoints/rules/associations, IPAM pools/scopes/allocations, Internet/Customer Gateways, Route Tables, Direct Connect Gateways, Health Checks, Traffic Policies (15 new types) — v1.7 (Phase 26)
+- ✓ Azure DDI types expanded: VNet Gateways (VPN+ExpressRoute), Private Link Services, Virtual WANs, Route Tables, Tenants (5 new types) — v1.7 (Phase 27)
+- ✓ GCP DDI types expanded: Compute Addresses, GKE CIDR Ranges (control plane/pod/service), Router NAT Mapping Infos, Target VPN Gateways (6 new types) — v1.7 (Phase 28)
+- ✓ Microsoft AD provider via WinRM/PowerShell: DNS zones/records, DHCP scopes/leases/reservations, AD Users, Kerberos/NTLM auth, DC autodiscovery, XLS report — v1.7 (Phase 29)
+
+## Current Milestone: v1.8 Dashboard Analytics
+
+**Goal:** Complete the AD dashboard experience and add cross-source analytics depth with DNS zone breakdowns and expanded DDI type attribution.
+
+**Target features:**
+- AD Dashboard Tab: connection wizard, autodiscovery progress, and results display
+- Top 5 DNS Zones panel per scope (NIOS, Cloud, AD)
+- Per-account breakdown for new v1.7 DDI types in attribution table
+
+### Validated
+
+- ✓ Dashboard tab for AD with connection wizard and results display (AD-09) — v1.8 (Phase 30)
+- ✓ AD autodiscovery progress and results surfaced in web dashboard (AD-10) — v1.8 (Phase 30)
+- ✓ Top 5 DNS Zones panel per scope (NIOS, Cloud, AD) — token consumption breakdown — v1.8 (Phase 31)
+- ✓ Human-readable display names for all DDI resource types in breakdown (ATTR-01) — v1.8 (Phase 32)
 
 ### Active
 
-<!-- v1.6 TBD — define via /gsd:new-milestone -->
-
-(no active requirements — define next milestone with `/gsd:new-milestone`)
+(none — v1.8 milestone complete)
 
 ### Out of Scope
 
@@ -56,20 +75,24 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 
 ## Context
 
-### Current State (after v1.5)
+### Current State (after v1.7)
 
-- **v1.5 shipped 2026-03-03** — Results Navigation: per-provider formula cards on Results tab, sortable attribution table (Tokens desc default), collapsible resource-type breakdown rows (CLOUD-06, CLOUD-07, ANA-07)
-- **v1.4 shipped 2026-03-03** — Audit Depth: cloud per-account attribution table with formula derivation + resource-type breakdown (CLOUD-01–05); NIOS object family breakdown on complete screen with DDI-adjusted counts (ANA-01–06)
-- **v1.3 shipped 2026-03-03** — Enhanced WebUI Experience: progress steps, formula derivation, member attribution table, wizard UX improvements
-- **v1.2 shipped 2026-03-02** — DTC/LBDN DDI support; 26 NIOS object families now recognized
+- **v1.7 shipped 2026-03-07** — Reference Parity: IP methodology aligned with reference (NIC counting), 26 new DDI types across AWS/Azure/GCP, full Microsoft AD provider via WinRM/PowerShell (AD-01–08)
+- **v1.6 shipped 2026-03-03** — Wizard Navigation Fix
+- **v1.5 shipped 2026-03-03** — Results Navigation: per-provider formula cards, sortable attribution table, collapsible resource-type rows
+- **v1.4 shipped 2026-03-03** — Audit Depth: cloud per-account attribution + NIOS object family breakdown
+- **v1.3 shipped 2026-03-03** — Enhanced WebUI Experience: progress steps, formula derivation, member attribution
+- **v1.2 shipped 2026-03-02** — DTC/LBDN DDI support; 26 NIOS object families recognized
 - **v1.1 shipped 2026-03-02** — NIOS Grid backup analysis fully integrated
 - **v1.0 shipped 2026-02-26** — Cloud Discovery MVP (AWS, Azure, GCP)
+- Microsoft AD package: `src/cloud_usage/providers/ad/` — WinRM/PowerShell collector, run_ad_analysis() pipeline, 12 CLI flags
 - NIOS package: `src/cloud_usage/nios/` — ~2,500 lines of Python, 211+ tests passing
-- Dashboard: `src/cloud_usage/dashboard/` — FastAPI routes + HTMX templates, SSE progress, NIOS wizard, sortable attribution tables with collapsible rows
-- Full stack: FastAPI + HTMX dashboard, CLI, 3 cloud providers, NIOS analysis
-- Total codebase: ~16,700+ LOC Python (+ HTML templates)
+- Dashboard: `src/cloud_usage/dashboard/` — FastAPI routes + HTMX templates, SSE progress, NIOS wizard, sortable attribution tables
+- Full stack: FastAPI + HTMX dashboard, CLI, 3 cloud providers + Microsoft AD, NIOS analysis
+- DDI_TYPES: 26+ new type strings added in v1.7 (15 AWS, 5 Azure, 6 GCP) — categorizer covers full reference set
+- Total codebase: ~28,000+ LOC Python (estimate post v1.7; +11,738 lines in v1.7 alone)
 - Validated reference backup: ZF Friedrichshafen — 2.5M objects, 304,730 unique Active IPs (4-source dedup confirmed)
-- Tech stack: Python 3.9+ (guarded), FastAPI, lxml, xlsxwriter, pyyaml, moto (tests)
+- Tech stack: Python 3.9+ (guarded), FastAPI, lxml, xlsxwriter, pyyaml, pywinrm, moto (tests)
 - Platform validated: macOS (primary dev), CI matrix for Windows 11/WSL
 
 ### Enterprise Context
@@ -94,6 +117,8 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 - NIOS DHCP Range/Exclusion Range objects: included in DDI count as per UDDI spec; no customer validation yet
 - DTC-V01/V02: DTC XML `__type` strings are spec-derived, unverified — empirical confirmation against a real DTC-containing customer backup still pending
 - NIOS running-state on page-load path shows static indeterminate bar (design-bounded edge case — primary HTMX wizard path satisfies PROG-01/02/03)
+- NYQ-V17: Phases 25–29 Nyquist VALIDATION.md files incomplete (status: draft / missing) — post-execution validation not finalized; functional tests pass
+- AD-LIVE: Microsoft AD provider untested against live WinRM environment — integration tested via mocks only
 
 ## Constraints
 
@@ -128,6 +153,12 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 | `data-col`/`data-value` attributes for sort key + raw value | Sort IIFE reads raw integers from `data-value` (not rendered text) — no need to strip formula fractions; `parseFloat` works cleanly | ✓ Good — reusable pattern for any future sortable table |
 | Detail rows adjacent via `nextElementSibling` re-append after sort | After sorting `acct-row` elements, re-append the immediately following `acct-detail-row` sibling — preserves account↔breakdown adjacency through DOM reorder | ✓ Good — no CSS tricks required; robust to dynamic row counts |
 | IIFE sort script embedded in Jinja2 template (not external JS file) | Keeps sort logic co-located with the table it controls; no globals, no load-order dependency; no build pipeline needed | ✓ Good — consistent with existing Select All IIFE pattern from v1.3 |
+| NIC/interface object counting (not unique IP dedup) | Reference implementation counts network interface objects — deduping unique IP strings undercounts multi-homed NICs and overcounts shared IPs | ✓ Good — v1.7 aligns all three cloud providers with reference; count_nics_per_account() replaces deduplicate_ips_per_vpc() |
+| Exclude standalone ENIs/EIPs/NAT GW IPs from AWS IP count | These are not EC2 instance network interfaces — including them overcounts deployments with many elastic IPs | ✓ Good — matches reference exclusion list; ENI/EIP/NAT GW reclassified as DDI types only |
+| Microsoft AD as isolated providers/ad/ package (not shared with cloud) | AD data model (WinRM/PowerShell, cross-DC dedup, DNS/DHCP/Users) is fundamentally different from cloud REST APIs; sharing creates coupling risk | ✓ Good — zero impact on existing cloud providers during Phase 29 |
+| WinRM/pywinrm for AD connectivity (not LDAP) | pywinrm allows PowerShell remoting which can run the same Get-DnsServerZone/Get-DhcpServerv4Scope cmdlets as the reference; LDAP would require re-implementing counting logic | ✓ Good — cmdlet output maps directly to reference counts |
+| Cross-DC deduplication in _aggregate_results() (not at collector level) | Individual DCs may return overlapping DNS zones and DHCP scopes in a forest; dedup must happen after all DCs are collected | ✓ Good — dedup by zone name / scope_id / SID prevents double-counting in multi-DC scans |
+| DDI_DISPLAY_NAMES applied at summary computation (not on CloudResource) | Mutating resource_type would corrupt canonical identity used for categorization — display name is presentation-only, computed at render time | ✓ Good — dict.get(rt, rt) fallback safely handles future unknown types |
 
 ---
-*Last updated: 2026-03-03 after v1.5 milestone*
+*Last updated: 2026-03-08 after Phase 32 — v1.8 milestone complete*

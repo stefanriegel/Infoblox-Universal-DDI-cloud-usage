@@ -10,7 +10,8 @@
 - ✅ **v1.5 Results Navigation** — Phase 23 (shipped 2026-03-03)
 - ✅ **v1.6 Wizard Navigation Fix** — Phase 24 (shipped 2026-03-03)
 - ✅ **v1.7 Reference Parity** — Phases 25–29 (shipped 2026-03-07)
-- 🚧 **v1.8 Dashboard Analytics** — Phases 30–32 (in progress)
+- ✅ **v1.8 Dashboard Analytics** — Phases 30–32 (shipped 2026-03-08)
+- 🚧 **v1.9 Multi-Tool Suite UX** — Phases 33–37 (in progress)
 
 ## Phases
 
@@ -106,57 +107,85 @@ Archive: `.planning/milestones/v1.7-ROADMAP.md`
 
 </details>
 
-### v1.8 Dashboard Analytics (In Progress)
+<details>
+<summary>✅ v1.8 Dashboard Analytics (Phases 30–32) — SHIPPED 2026-03-08</summary>
 
-**Milestone Goal:** Complete the AD dashboard experience and add cross-source DNS zone analytics and expanded DDI type attribution display names.
+- [x] Phase 30: AD Dashboard (5/5 plans) — completed 2026-03-08
+- [x] Phase 31: DNS Zones Panels (3/3 plans) — completed 2026-03-08
+- [x] Phase 32: Attribution Display Names (2/2 plans) — completed 2026-03-08
 
-- [x] **Phase 30: AD Dashboard** - Connection wizard, autodiscovery progress, results screen, and retry flow for the AD tab (completed 2026-03-08)
-- [x] **Phase 31: DNS Zones Panels** - Top 5 DNS zones by record count on Cloud Summary, AD complete, and NIOS complete screens (completed 2026-03-08)
-- [x] **Phase 32: Attribution Display Names** - Human-readable display names for v1.7 DDI types in per-account breakdown rows (completed 2026-03-08)
+Archive: `.planning/milestones/v1.8-ROADMAP.md`
+
+</details>
+
+### 🚧 v1.9 Multi-Tool Suite UX (In Progress)
+
+**Milestone Goal:** Restructure the dashboard as a home-screen-first multi-tool suite with self-contained calculator flows and a full visual redesign using the Infoblox brand design system.
+
+- [ ] **Phase 33: Design Foundation** — Replace PicoCSS with custom Infoblox brand CSS design system
+- [ ] **Phase 34: Home Screen + Routing** — Home selector screen at `/` with calculator cards and dedicated routes
+- [ ] **Phase 35: Navigation + Breadcrumb** — Breadcrumb nav on all calculator pages linking back to Home
+- [ ] **Phase 36: Calculator Visual Redesign** — Apply design system accents and card layouts to all three calculators
+- [ ] **Phase 37: Cloud Provider Switcher** — Persistent provider selector throughout the Cloud Calculator flow
 
 ## Phase Details
 
-### Phase 30: AD Dashboard
-**Goal**: Users can run an AD analysis entirely from the dashboard — connecting via wizard, watching per-DC autodiscovery progress, reviewing counts and token derivation on the results screen, and recovering from errors with a retry button
-**Depends on**: Phase 29 (AD provider is fully functional; this phase surfaces it in the web UI)
-**Requirements**: AD-09, AD-10, AD-11, AD-12
+### Phase 33: Design Foundation
+**Goal**: The entire dashboard renders using a custom Infoblox-brand CSS design system instead of PicoCSS
+**Depends on**: Phase 32 (v1.8 complete)
+**Requirements**: DESIGN-01
 **Success Criteria** (what must be TRUE):
-  1. User can open the AD tab, fill in host/port/auth/domain/services fields in a connection wizard, and submit to start an analysis
-  2. User sees a progress screen that updates per DC via SSE — each update shows a step counter and elapsed time
-  3. User sees a results screen that displays DNS zone count, DHCP scope count, AD user count, the token formula derivation (DDI÷25), and a download CTA for the XLS report
-  4. When an AD analysis fails, user sees an error state and a retry button that returns them to the wizard to re-submit
-**Plans**: 4 plans
-Plans:
-- [ ] 30-01-PLAN.md — Wave 0: AD dashboard test scaffold (all test classes)
-- [ ] 30-02-PLAN.md — Wave 1: AdScanManager service + routes/ad.py route handlers
-- [ ] 30-03-PLAN.md — Wave 1: AD Jinja2 templates (pages/ad.html + 3 partials)
-- [ ] 30-04-PLAN.md — Wave 2: Integration wiring (app.py lifespan + pages.py tab route + tab_bar.html)
-
-### Phase 31: DNS Zones Panels
-**Goal**: Users can see which DNS zones are the heaviest token consumers across every analysis source — Cloud, AD, and NIOS — as a Top 5 list by record count on each source's results screen
-**Depends on**: Phase 30 (AD results screen exists to host DNS-02 panel; independent of Phase 30 for DNS-01 and DNS-03)
-**Requirements**: DNS-01, DNS-02, DNS-03
-**Success Criteria** (what must be TRUE):
-  1. The cloud Summary tab displays a Top 5 DNS zones panel listing zone names and record counts sourced from the current cloud scan
-  2. The AD complete screen displays a Top 5 AD DNS zones panel listing zone names and record counts from the completed AD analysis
-  3. The NIOS complete screen displays a Top 5 NIOS DNS zones panel listing zone names and record counts, requiring per-zone record count accumulation in the NIOS parse pipeline
+  1. PicoCSS is removed from all templates; no PicoCSS classes or variables remain
+  2. Pages render with `#0066CC` primary blue, `#1A1A2E` dark navy, `#00C389` accent green, and `#F8F9FA` page background applied via custom CSS variables
+  3. Inter font is loaded and applied as the base typeface across all pages
+  4. All existing calculator flows (Cloud, NIOS, AD) remain functional with the new CSS in place
 **Plans**: 3 plans
 Plans:
-- [ ] 31-01-PLAN.md — Wave 1: Wave 0 test scaffold (all 7 DNS zone test classes)
-- [ ] 31-02-PLAN.md — Wave 2: DNS-01 Cloud + DNS-02 AD panels (pages.py, ad_manager.py, ad.py, summary.html, ad/complete.html)
-- [ ] 31-03-PLAN.md — Wave 3: DNS-03 NIOS pipeline extension + complete screen panel (nios_manager.py, nios.py, pages.py, nios/complete.html)
+- [ ] 33-01-PLAN.md — Wave 0 test scaffold (xfail stubs for DESIGN-01)
+- [ ] 33-02-PLAN.md — design-system.css + Inter variable font delivery
+- [ ] 33-03-PLAN.md — CSS swap in base.html, app.css cleanup, --pico-* template fixes
 
-### Phase 32: Attribution Display Names
-**Goal**: Users reading the per-account attribution breakdown on the cloud Summary tab see human-readable display names for the v1.7 DDI types rather than raw internal type strings
-**Depends on**: Nothing (independent of Phases 30–31; touches only display layer)
-**Requirements**: ATTR-01
+### Phase 34: Home Screen + Routing
+**Goal**: Users land on a home selector screen at `/` with three calculator cards, and each calculator is served at its own dedicated URL
+**Depends on**: Phase 33
+**Requirements**: HOME-01, HOME-02, ROUTE-01, ROUTE-02, DESIGN-02
 **Success Criteria** (what must be TRUE):
-  1. Every v1.7 DDI type string (aws-route53-resolver-endpoint, azure-vnet-gateway, gcp-reserved-ip, etc.) is rendered as a readable label in the breakdown rows (e.g., "Route53 Resolver Endpoint", "VNet Gateway", "Reserved IP Address")
-  2. Existing pre-v1.7 DDI types are unaffected and continue to render as before
-**Plans**: 2 plans
-Plans:
-- [ ] 32-01-PLAN.md — Wave 0: Attribution test scaffold (xfail stubs for ATTR-01)
-- [ ] 32-02-PLAN.md — Wave 1: DDI_DISPLAY_NAMES dict + _compute_summary() display_name key + summary.html substitution
+  1. Visiting `/` shows a page titled "Infoblox UDDI Token Calculator" with three cards: Cloud, NIOS, and AD
+  2. Each card displays the calculator name, a brief description, and an entry button
+  3. Clicking a card entry button navigates to `/cloud`, `/nios`, or `/ad` respectively
+  4. Cloud Calculator is served at `/cloud`, NIOS Calculator at `/nios`, AD Calculator at `/ad`
+  5. Home screen cards use white background, `#E5E7EB` border, rounded corners, and subtle shadow matching the Infoblox card style
+**Plans**: TBD
+
+### Phase 35: Navigation + Breadcrumb
+**Goal**: All calculator pages show a breadcrumb trail that lets users return to the home screen
+**Depends on**: Phase 34
+**Requirements**: NAV-01, NAV-02
+**Success Criteria** (what must be TRUE):
+  1. Every Cloud, NIOS, and AD calculator page displays a breadcrumb reading "Home > [Calculator Name]" at the top of the page
+  2. Clicking "Home" in the breadcrumb navigates the user to `/`
+  3. The breadcrumb is visible on all wizard steps, progress screens, and results screens within each calculator
+**Plans**: TBD
+
+### Phase 36: Calculator Visual Redesign
+**Goal**: Each calculator has a distinct visual accent and polished card-based layouts for wizard steps and results screens, all within the shared design system
+**Depends on**: Phase 35
+**Requirements**: DESIGN-03, DESIGN-04, DESIGN-05
+**Success Criteria** (what must be TRUE):
+  1. Cloud Calculator uses blue (`#0066CC`) as its accent color, NIOS uses green (`#00C389`), and AD uses purple (`#8B5CF6`) — visually distinguishable on the wizard and results screens
+  2. Wizard step indicators show numbered steps with clear active and complete visual states (not plain text)
+  3. Results and complete screens display key metrics (token totals, formula derivations, attribution tables) in visually separated cards
+**Plans**: TBD
+
+### Phase 37: Cloud Provider Switcher
+**Goal**: Users can switch between AWS, Azure, and GCP within the Cloud Calculator without returning to the home screen
+**Depends on**: Phase 36
+**Requirements**: CLOUD-08, CLOUD-09
+**Success Criteria** (what must be TRUE):
+  1. The Cloud Calculator displays a persistent provider selector (AWS / Azure / GCP tabs or buttons) on the wizard, progress, and results screens
+  2. Switching provider in the selector updates the active cloud flow without navigating away from `/cloud`
+  3. The active provider is visually highlighted in the selector at all times
+**Plans**: TBD
 
 ## Progress
 
@@ -193,5 +222,10 @@ Plans:
 | 28. GCP DDI Gaps | v1.7 | 3/3 | Complete | 2026-03-07 |
 | 29. Microsoft AD Core | v1.7 | 4/4 | Complete | 2026-03-07 |
 | 30. AD Dashboard | v1.8 | 5/5 | Complete | 2026-03-08 |
-| 31. DNS Zones Panels | 3/3 | Complete    | 2026-03-08 | - |
-| 32. Attribution Display Names | 2/2 | Complete   | 2026-03-08 | - |
+| 31. DNS Zones Panels | v1.8 | 3/3 | Complete | 2026-03-08 |
+| 32. Attribution Display Names | v1.8 | 2/2 | Complete | 2026-03-08 |
+| 33. Design Foundation | v1.9 | 0/3 | In progress | - |
+| 34. Home Screen + Routing | v1.9 | 0/? | Not started | - |
+| 35. Navigation + Breadcrumb | v1.9 | 0/? | Not started | - |
+| 36. Calculator Visual Redesign | v1.9 | 0/? | Not started | - |
+| 37. Cloud Provider Switcher | v1.9 | 0/? | Not started | - |
