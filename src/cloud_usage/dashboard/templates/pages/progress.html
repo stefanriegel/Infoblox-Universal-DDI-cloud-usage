@@ -20,7 +20,7 @@
         {# Completion event triggers page refresh to show done state #}
         <div sse-swap="scan_complete" hx-swap="none"
              hx-trigger="sse:scan_complete"
-             hx-get="/tab/progress" hx-target="#tab-container">
+             hx-get="{% if tab_base is defined %}{{ tab_base }}/tab/progress{% else %}/tab/progress{% endif %}" hx-target="#tab-container">
         </div>
       </div>
 
