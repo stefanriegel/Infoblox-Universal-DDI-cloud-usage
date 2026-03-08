@@ -126,7 +126,7 @@ Archive: `.planning/milestones/v1.8-ROADMAP.md`
 - [x] **Phase 34: Home Screen + Routing** — Home selector screen at `/` with calculator cards and dedicated routes (completed 2026-03-08)
 - [x] **Phase 35: Navigation + Breadcrumb** — Breadcrumb nav on all calculator pages linking back to Home (completed 2026-03-08)
 - [x] **Phase 36: Calculator Visual Redesign** — Apply design system accents and card layouts to all three calculators (completed 2026-03-08)
-- [ ] **Phase 37: Cloud Provider Switcher** — Persistent provider selector throughout the Cloud Calculator flow
+- [x] **Phase 37: Cloud Provider Switcher** — Persistent provider selector throughout the Cloud Calculator flow (completed 2026-03-08)
 
 ## Phase Details
 
@@ -245,4 +245,4 @@ Plans:
 | 34. Home Screen + Routing | 3/3 | Complete    | 2026-03-08 | - |
 | 35. Navigation + Breadcrumb | 2/2 | Complete    | 2026-03-08 | - |
 | 36. Calculator Visual Redesign | 3/3 | Complete    | 2026-03-08 | - |
-| 37. Cloud Provider Switcher | 4/5 | In Progress|  | - |
+| 37. Cloud Provider Switcher | 5/5 | Complete   | 2026-03-08 | - |
