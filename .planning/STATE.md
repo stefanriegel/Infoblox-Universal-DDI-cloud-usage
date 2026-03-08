@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Multi-Tool Suite UX
 status: executing
-stopped_at: Completed 35-02 — breadcrumb nav implementation (NAV-01, NAV-02)
-last_updated: "2026-03-08T15:55:46.539Z"
+stopped_at: Completed 36-01-PLAN.md
+last_updated: "2026-03-08T17:00:39.261Z"
 last_activity: 2026-03-08 — 34-01 xfail test scaffold complete (HOME-01, HOME-02, ROUTE-01, ROUTE-02, DESIGN-02)
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 8
-  completed_plans: 8
+  total_plans: 11
+  completed_plans: 9
   percent: 96
 ---
 
@@ -67,6 +67,13 @@ Progress: [██████████] 96/54 plans (96%)
 
 None.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 7 | Fix 3 pre-existing test failures: GCP SDK missing-packages test, and two output header column name mismatches | 2026-03-08 | 7956c30 | [7-fix-3-pre-existing-test-failures-gcp-sdk](./quick/7-fix-3-pre-existing-test-failures-gcp-sdk/) |
+| Phase 36-calculator-visual-redesign P01 | 3 | 1 tasks | 1 files |
+
 ## Decisions
 
 - 34-01: Used xfail(strict=False) for test_index_returns_200_with_title — assertion currently passes (root still serves UDDI Estimator), so strict=True would break suite; strict=False accepted as XPASS until Plan 02 changes root route
@@ -78,6 +85,8 @@ None.
 - [Phase 35-navigation-breadcrumb]: 35-01: test_home_has_no_breadcrumb uses strict=False because the negative assertion is already satisfied pre-implementation — identical precedent to 34-01 xfail decision
 - [Phase 35]: 35-02: Plain <a href='/'> on breadcrumb Home link — no hx-* attributes; full-page navigation back to home is correct, HTMX must not be used on this link
 - [Phase 35]: 35-02: calculator_name injected after _get_tab_context() call in each handler; helper not modified to keep it generic across all callers
+- [Phase 36-calculator-visual-redesign]: 36-01: Template file tests (DESIGN-05) read HTML via Path.read_text() — no wizard-state mock needed for string presence checks
+- [Phase 36-calculator-visual-redesign]: 36-01: All 11 stubs use strict=True — none of the assertions are satisfied pre-implementation (no pre-passing assertions unlike 34-01)
 
 ## Session Log
 
@@ -86,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T15:55:46.537Z
-Stopped at: Completed 35-02 — breadcrumb nav implementation (NAV-01, NAV-02)
+Last session: 2026-03-08T17:00:39.259Z
+Stopped at: Completed 36-01-PLAN.md
 Resume file: None

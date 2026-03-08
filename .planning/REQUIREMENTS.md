@@ -26,9 +26,9 @@ Requirements for the Multi-Tool Suite UX milestone. Restructures the dashboard a
 
 - [x] **DESIGN-01**: Replace PicoCSS with a custom CSS design system implementing Infoblox brand tokens — `#0066CC` primary blue, `#1A1A2E` dark navy, `#00C389` accent green, `#F8F9FA` page background, Inter font
 - [x] **DESIGN-02**: Home screen uses a polished card layout (white cards, `#E5E7EB` border, rounded corners, subtle shadow) matching the reference Infoblox design language
-- [ ] **DESIGN-03**: Each calculator has a distinct visual accent color (Cloud: blue `#0066CC`, NIOS: green `#00C389`, AD: purple `#8B5CF6`) within the shared design system
-- [ ] **DESIGN-04**: Wizard steps display numbered step indicators with clear visual progression (step counter, active/complete state)
-- [ ] **DESIGN-05**: Results/complete screens use a card-based layout with visual separation of key metrics (token totals, formula derivations, attribution tables)
+- [x] **DESIGN-03**: Each calculator has a distinct visual accent color (Cloud: blue `#0066CC`, NIOS: green `#00C389`, AD: purple `#8B5CF6`) within the shared design system
+- [x] **DESIGN-04**: Wizard steps display numbered step indicators with clear visual progression (step counter, active/complete state)
+- [x] **DESIGN-05**: Results/complete screens use a card-based layout with visual separation of key metrics (token totals, formula derivations, attribution tables)
 
 ### Routes
 
@@ -66,9 +66,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DESIGN-02 | Phase 34 | Complete |
 | NAV-01 | Phase 35 | Complete |
 | NAV-02 | Phase 35 | Complete |
-| DESIGN-03 | Phase 36 | Pending |
-| DESIGN-04 | Phase 36 | Pending |
-| DESIGN-05 | Phase 36 | Pending |
+| DESIGN-03 | Phase 36 | Complete |
+| DESIGN-04 | Phase 36 | Complete |
+| DESIGN-05 | Phase 36 | Complete |
 | CLOUD-08 | Phase 37 | Pending |
 | CLOUD-09 | Phase 37 | Pending |
 
