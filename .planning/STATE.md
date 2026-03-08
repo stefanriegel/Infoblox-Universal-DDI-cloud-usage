@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Dashboard Analytics
 status: executing
-stopped_at: Completed 30-ad-dashboard 30-03-PLAN.md
-last_updated: "2026-03-08T11:10:00.000Z"
-last_activity: 2026-03-08 — Plan 30-03 complete; four AD dashboard templates created
+stopped_at: Completed 30-ad-dashboard 30-04-PLAN.md
+last_updated: "2026-03-08T11:23:00.000Z"
+last_activity: 2026-03-08 — Plan 30-04 complete; AD tab wired into pages.py and tab_bar.html
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
-  percent: 24
+  completed_plans: 4
+  percent: 33
 ---
 
 # Session State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-07 after v1.7 milestone complete)
 ## Current Position
 
 Phase: 30 of 32 (AD Dashboard)
-Plan: 03 of 04 complete
-Status: In progress
-Last activity: 2026-03-08 — Plan 30-03 complete; four AD dashboard Jinja2 templates created
+Plan: 04 of 04 complete — Phase 30 DONE
+Status: Phase 30 complete, ready for Phase 31
+Last activity: 2026-03-08 — Plan 30-04 complete; AD tab wired (pages.py + tab_bar.html), all 20 tests green
 
-Progress: [███░░░░░░░] 24%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ None.
 
 ## Session Log
 
+- 2026-03-08: Plan 30-04 complete — ad_state added to _get_tab_context(), tab_ad() route added, AD Analysis tab in tab_bar.html; 20/20 tests green; Phase 30 COMPLETE
 - 2026-03-08: Plan 30-03 complete — four AD Jinja2 templates (pages/ad.html, wizard.html, progress_display.html, complete.html); all Jinja2-validated
 - 2026-03-08: Plan 30-02 complete — AdScanManager state machine + routes/ad.py (3 endpoints) + app.py wiring; 12/12 tests green
 - 2026-03-08: Plan 30-01 complete — Wave 0 AD dashboard test scaffold (tests/test_dashboard_ad.py, 7 classes, 20 methods)
@@ -82,9 +83,11 @@ None.
 - [Phase 30]: partials/ad/progress_display.html handles indeterminate (total=0) and determinate progress bars
 - [Phase 30-03]: Credentials (username/password) never pre-filled on retry — only domain, port, auth_mode restored from last_options
 - [Phase 30-03]: Token card uses primary scenario-card class; DDI/IP formula lines shown conditionally when count > 0
+- [Phase 30-04]: ad_state added to _get_tab_context() (not just tab_ad()) so tab_bar.html badge works on every page render
+- [Phase 30-04]: app.py was already fully wired from Plan 30-02 — no edits required in this plan
 
 ## Session Continuity
 
-Last session: 2026-03-08T11:10:00.000Z
-Stopped at: Completed 30-ad-dashboard 30-03-PLAN.md
-Resume file: .planning/phases/30-ad-dashboard/30-04-PLAN.md
+Last session: 2026-03-08T11:23:00.000Z
+Stopped at: Completed 30-ad-dashboard 30-04-PLAN.md (Phase 30 COMPLETE)
+Resume file: .planning/phases/31-dns-dashboard/ (next phase)

@@ -110,7 +110,7 @@ Archive: `.planning/milestones/v1.7-ROADMAP.md`
 
 **Milestone Goal:** Complete the AD dashboard experience and add cross-source DNS zone analytics and expanded DDI type attribution display names.
 
-- [ ] **Phase 30: AD Dashboard** - Connection wizard, autodiscovery progress, results screen, and retry flow for the AD tab
+- [x] **Phase 30: AD Dashboard** - Connection wizard, autodiscovery progress, results screen, and retry flow for the AD tab (completed 2026-03-08)
 - [ ] **Phase 31: DNS Zones Panels** - Top 5 DNS zones by record count on Cloud Summary, AD complete, and NIOS complete screens
 - [ ] **Phase 32: Attribution Display Names** - Human-readable display names for v1.7 DDI types in per-account breakdown rows
 
@@ -185,6 +185,6 @@ Plans:
 | 27. Azure DDI Gaps | v1.7 | 3/3 | Complete | 2026-03-07 |
 | 28. GCP DDI Gaps | v1.7 | 3/3 | Complete | 2026-03-07 |
 | 29. Microsoft AD Core | v1.7 | 4/4 | Complete | 2026-03-07 |
-| 30. AD Dashboard | 3/4 | In Progress|  | - |
+| 30. AD Dashboard | 4/4 | Complete   | 2026-03-08 | - |
 | 31. DNS Zones Panels | v1.8 | 0/TBD | Not started | - |
 | 32. Attribution Display Names | v1.8 | 0/TBD | Not started | - |
