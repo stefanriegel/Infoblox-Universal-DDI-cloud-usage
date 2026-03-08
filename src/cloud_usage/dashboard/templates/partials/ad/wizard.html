@@ -11,7 +11,7 @@
     {# --- Autodiscover checkbox --- #}
     <label>
       <input type="checkbox"
-             name="ad_autodiscover"
+             name="autodiscover"
              id="ad-autodiscover"
              {{ 'checked' if last_options and last_options.autodiscover else '' }}>
       Auto-discover DCs from forest
@@ -19,7 +19,7 @@
 
     {# --- DC host(s) / Seed server textarea --- #}
     <label id="ad-dc-label" for="ad-servers-input">DC host(s)</label>
-    <textarea name="ad_servers"
+    <textarea name="servers"
               id="ad-servers-input"
               required
               placeholder="e.g. dc1.corp.com, dc2.corp.com">{{ last_options.servers | join(', ') if last_options and not last_options.autodiscover else (last_options.discovery_server if last_options and last_options.autodiscover else '') }}</textarea>
@@ -32,11 +32,11 @@
            id="ad-domain-input"
            required
            placeholder="e.g. corp.com"
-           value="{{ last_options.domain if last_options else '' }}">
+           value="">
 
     {# --- Auth mode --- #}
     <label for="ad-auth-mode">Authentication Mode</label>
-    <select name="ad_auth_mode" id="ad-auth-mode">
+    <select name="auth_mode" id="ad-auth-mode">
       <option value="kerberos" {{ '' if last_options and last_options.auth_mode == 'ntlm' else 'selected' }}>Kerberos</option>
       <option value="ntlm" {{ 'selected' if last_options and last_options.auth_mode == 'ntlm' else '' }}>NTLM</option>
     </select>
@@ -79,7 +79,7 @@
 
       <label for="ad-port-input">WinRM Port</label>
       <input type="number"
-             name="ad_port"
+             name="winrm_port"
              id="ad-port-input"
              value="{{ last_options.winrm_port if last_options else 5985 }}"
              min="1"
@@ -87,7 +87,7 @@
 
       <label>
         <input type="checkbox"
-               name="ad_ssl"
+               name="winrm_ssl"
                id="ad-ssl">
         Use SSL (HTTPS transport)
       </label>
