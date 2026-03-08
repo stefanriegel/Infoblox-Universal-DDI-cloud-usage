@@ -388,3 +388,38 @@ nav.tab-bar a:hover {
     color: #fff;
     border-color: var(--ib-blue);
 }
+
+/* ─── Home Screen ─────────────────────────────────────────────────── */
+
+.calculator-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-top: 2rem;
+}
+
+.calculator-card {
+    background: #fff;
+    border: 1px solid var(--ib-card-border);
+    border-radius: 8px;
+    padding: 2rem 1.5rem;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.calculator-card h2 {
+    margin: 0;
+}
+
+.calculator-card p {
+    margin: 0;
+    color: var(--ib-gray-600, #6B7280);
+    flex: 1;
+}
+
+.calculator-card .btn {
+    align-self: flex-start;
+    margin-top: auto;
+}
