@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Dashboard Analytics
 status: completed
-stopped_at: Completed 31-dns-zones-panels 31-01-PLAN.md
-last_updated: "2026-03-08T12:01:11.755Z"
-last_activity: 2026-03-08 — Plan 30-04 complete; AD tab wired (pages.py + tab_bar.html), all 20 tests green
+stopped_at: Completed 31-dns-zones-panels 31-02-PLAN.md
+last_updated: "2026-03-08T12:10:34Z"
+last_activity: 2026-03-08 — Plan 31-02 complete; DNS-01 Cloud zones panel + DNS-02 AD zones panel; 56 tests green
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
-  percent: 33
+  completed_plans: 7
+  percent: 44
 ---
 
 # Session State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-07 after v1.7 milestone complete)
 
 ## Current Position
 
-Phase: 30 of 32 (AD Dashboard)
-Plan: 04 of 04 complete — Phase 30 DONE
-Status: Phase 30 complete, ready for Phase 31
-Last activity: 2026-03-08 — Plan 30-04 complete; AD tab wired (pages.py + tab_bar.html), all 20 tests green
+Phase: 31 of 32 (DNS Zones Panels)
+Plan: 02 of 03 complete — Plan 31-02 DONE
+Status: DNS-01 and DNS-02 panels live; Plan 31-03 (NIOS) next
+Last activity: 2026-03-08 — Plan 31-02 complete; Cloud and AD DNS zones panels; 56 tests green
 
-Progress: [███░░░░░░░] 33%
+Progress: [████░░░░░░] 44%
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ None.
 
 ## Session Log
 
+- 2026-03-08: Plan 31-02 complete — _compute_top_cloud_dns_zones() in pages.py, AdScanManager.top_dns_zones property, DNS zone panels in summary.html and complete.html; DNS-01 + DNS-02 tests green; 56/56 tests pass
 - 2026-03-08: Plan 30-04 complete — ad_state added to _get_tab_context(), tab_ad() route added, AD Analysis tab in tab_bar.html; 20/20 tests green; Phase 30 COMPLETE
 - 2026-03-08: Plan 30-03 complete — four AD Jinja2 templates (pages/ad.html, wizard.html, progress_display.html, complete.html); all Jinja2-validated
 - 2026-03-08: Plan 30-02 complete — AdScanManager state machine + routes/ad.py (3 endpoints) + app.py wiring; 12/12 tests green
@@ -77,6 +78,9 @@ None.
 
 ## Decisions
 
+- [Phase 31-02]: GCP DNS zone record counts computed by counting gcp-dns-record resources, matched via details['zone_name'] internal name — no join needed
+- [Phase 31-02]: top_dns_zones kwarg added as final optional keyword to set_complete() with None default — existing callers unaffected
+- [Phase 31-02]: DNS panel style (section > p > div > table) established as reusable pattern for Plan 03 NIOS panel
 - Wave 0 gate: ad_manager imported at module level — ImportError at collection is intended behavior until Plan 02 lands
 - set_last_options() chosen as AdScanManager method for retry pre-fill storage
 - [Phase 30]: SSE generator uses asyncio.wait() with 1s poll for TestClient disconnect compatibility
@@ -91,6 +95,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T12:01:11.753Z
-Stopped at: Completed 31-dns-zones-panels 31-01-PLAN.md
+Last session: 2026-03-08T12:10:34Z
+Stopped at: Completed 31-dns-zones-panels 31-02-PLAN.md
 Resume file: None
