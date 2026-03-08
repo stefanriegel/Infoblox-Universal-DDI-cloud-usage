@@ -68,13 +68,14 @@ class TestAppFactory:
             response = client.get("/static/htmx.min.js")
             assert response.status_code == 200
 
-    def test_static_pico_css_served(self) -> None:
-        """GET /static/pico.min.css returns 200."""
+    @pytest.mark.xfail(strict=False, reason="Wave 0 scaffold — design-system.css not yet created")
+    def test_static_design_system_css_served(self) -> None:
+        """GET /static/design-system.css returns 200."""
         from fastapi.testclient import TestClient
 
         app = create_app()
         with TestClient(app) as client:
-            response = client.get("/static/pico.min.css")
+            response = client.get("/static/design-system.css")
             assert response.status_code == 200
 
     def test_static_sse_js_served(self) -> None:
