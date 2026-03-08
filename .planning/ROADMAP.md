@@ -194,4 +194,4 @@ Plans:
 | 29. Microsoft AD Core | v1.7 | 4/4 | Complete | 2026-03-07 |
 | 30. AD Dashboard | v1.8 | 5/5 | Complete | 2026-03-08 |
 | 31. DNS Zones Panels | 3/3 | Complete    | 2026-03-08 | - |
-| 32. Attribution Display Names | v1.8 | 0/TBD | Not started | - |
+| 32. Attribution Display Names | 1/2 | In Progress|  | - |

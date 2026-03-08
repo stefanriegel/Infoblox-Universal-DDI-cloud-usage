@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Dashboard Analytics
 status: completed
-stopped_at: Completed 31-dns-zones-panels 31-03-PLAN.md
-last_updated: "2026-03-08T12:24:49.563Z"
-last_activity: 2026-03-08 — Plan 31-03 complete; NIOS DNS zones panel + pipeline accumulator; 22/22 DNS zone tests green
+stopped_at: Completed 32-attribution-display-names 32-01-PLAN.md
+last_updated: "2026-03-08T12:40:00.000Z"
+last_activity: 2026-03-08 — Plan 32-01 complete; Wave 0 xfail scaffold for ATTR-01; 5 attribution tests (xpassed)
 progress:
   total_phases: 3
-  completed_phases: 3
+  completed_phases: 2
   total_plans: 8
   completed_plans: 8
   percent: 100
@@ -25,10 +25,10 @@ See: .planning/PROJECT.md (updated 2026-03-07 after v1.7 milestone complete)
 
 ## Current Position
 
-Phase: 31 of 32 (DNS Zones Panels) — COMPLETE
-Plan: 03 of 03 complete — Plan 31-03 DONE
-Status: DNS-01, DNS-02, DNS-03 all implemented; Phase 31 COMPLETE; Phase 32 next
-Last activity: 2026-03-08 — Plan 31-03 complete; NIOS pipeline zone accumulator + complete screen panel; 22/22 DNS zone tests green
+Phase: 32 of 32 (Attribution Display Names) — IN PROGRESS
+Plan: 01 of 01 complete — Plan 32-01 DONE
+Status: Wave 0 xfail scaffold created; DDI_DISPLAY_NAMES contract established; Phase 32 Plan 01 COMPLETE
+Last activity: 2026-03-08 — Plan 32-01 complete; Wave 0 xfail scaffold for ATTR-01; 5/5 tests collected as xpassed
 
 Progress: [██████████] 100%
 
@@ -69,6 +69,7 @@ None.
 
 ## Session Log
 
+- 2026-03-08: Plan 32-01 complete — Wave 0 xfail scaffold for ATTR-01; tests/test_dashboard_attribution.py (5 tests, 2 classes); DDI_DISPLAY_NAMES contract established
 - 2026-03-08: Plan 31-03 complete — _DNS_RECORD_FAMILIES, _accumulate_dns_zones() stream interceptor, NiosScanManager.top_dns_zones, NIOS complete screen DNS panel; 22/22 DNS zone tests green; Phase 31 COMPLETE
 - 2026-03-08: Plan 31-02 complete — _compute_top_cloud_dns_zones() in pages.py, AdScanManager.top_dns_zones property, DNS zone panels in summary.html and complete.html; DNS-01 + DNS-02 tests green; 56/56 tests pass
 - 2026-03-08: Plan 30-04 complete — ad_state added to _get_tab_context(), tab_ad() route added, AD Analysis tab in tab_bar.html; 20/20 tests green; Phase 30 COMPLETE
@@ -95,6 +96,7 @@ None.
 - [Phase 31]: xfail(strict=False) chosen so XPASS stubs don't break suite — Wave 0 Ellipsis bodies are truthy
 - [Phase 31-03]: Stream-intercept accumulator: wrap filter_objects output with _accumulate_dns_zones() generator — zone counts accumulated during single count_objects() pass, no second parse pass
 - [Phase 31-03]: top_dns_zones kwarg added as final optional keyword to NiosScanManager.set_complete() with None default — existing callers unaffected
+- [Phase 32-01]: Wave 0 xfail imports deferred inside test bodies — prevents collection-time ImportError; strict=False so XPASS is acceptable when implementation pre-exists
 
 ## Session Continuity
 

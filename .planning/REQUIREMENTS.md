@@ -16,13 +16,13 @@ Requirements for the Dashboard Analytics milestone. Each maps to roadmap phases.
 
 ### DNS Zones
 
-- [ ] **DNS-01**: User sees Top 5 Cloud DNS zones by record count on Summary tab
-- [ ] **DNS-02**: User sees Top 5 AD DNS zones by record count on AD complete screen
-- [ ] **DNS-03**: User sees Top 5 NIOS DNS zones by record count on NIOS complete screen (requires extending NIOS parse pipeline to accumulate per-zone record counts)
+- [x] **DNS-01**: User sees Top 5 Cloud DNS zones by record count on Summary tab
+- [x] **DNS-02**: User sees Top 5 AD DNS zones by record count on AD complete screen
+- [x] **DNS-03**: User sees Top 5 NIOS DNS zones by record count on NIOS complete screen (requires extending NIOS parse pipeline to accumulate per-zone record counts)
 
 ### Attribution
 
-- [ ] **ATTR-01**: User sees human-readable display names for v1.7 DDI types in per-account attribution table breakdown
+- [x] **ATTR-01**: User sees human-readable display names for v1.7 DDI types in per-account attribution table breakdown
 
 ## Future Requirements
 
@@ -60,10 +60,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AD-10 | Phase 30 | Complete |
 | AD-11 | Phase 30 | Complete |
 | AD-12 | Phase 30 | Complete |
-| DNS-01 | Phase 31 | Pending |
-| DNS-02 | Phase 31 | Pending |
-| DNS-03 | Phase 31 | Pending |
-| ATTR-01 | Phase 32 | Pending |
+| DNS-01 | Phase 31 | Complete |
+| DNS-02 | Phase 31 | Complete |
+| DNS-03 | Phase 31 | Complete |
+| ATTR-01 | Phase 32 | Complete |
 
 **Coverage:**
 - v1.8 requirements: 8 total
