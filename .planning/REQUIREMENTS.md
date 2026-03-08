@@ -1,54 +1,56 @@
 # Requirements: Universal DDI Cloud Usage Estimator
 
-**Defined:** 2026-03-07
+**Defined:** 2026-03-08
 **Core Value:** Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid — customers must trust the numbers and understand exactly how they were derived.
 
-## v1.8 Requirements
+## v1.9 Requirements
 
-Requirements for the Dashboard Analytics milestone. Each maps to roadmap phases.
+Requirements for the Multi-Tool Suite UX milestone. Restructures the dashboard as a home-screen-first multi-tool experience with a full visual redesign using the Infoblox brand design system.
 
-### AD Dashboard
+### Home Screen
 
-- [x] **AD-09**: User can initiate AD analysis from dashboard via connection wizard (host, port, auth mode, domain, services scope)
-- [x] **AD-10**: User sees per-DC SSE autodiscovery progress (step counter + elapsed time)
-- [x] **AD-11**: User sees AD results screen with DNS zone count, DHCP scope count, AD user count, token formula derivation, and download CTA
-- [x] **AD-12**: User can retry AD analysis from error state
+- [ ] **HOME-01**: User sees a home screen at `/` titled "Infoblox UDDI Token Calculator" with three named calculator cards (Cloud, NIOS, AD)
+- [ ] **HOME-02**: Each calculator card shows the calculator name, a brief description, and an entry button that navigates to its dedicated URL (`/cloud`, `/nios`, `/ad`)
 
-### DNS Zones
+### Navigation
 
-- [x] **DNS-01**: User sees Top 5 Cloud DNS zones by record count on Summary tab
-- [x] **DNS-02**: User sees Top 5 AD DNS zones by record count on AD complete screen
-- [x] **DNS-03**: User sees Top 5 NIOS DNS zones by record count on NIOS complete screen (requires extending NIOS parse pipeline to accumulate per-zone record counts)
+- [ ] **NAV-01**: All calculator pages display a breadcrumb "Home > [Calculator Name]" at the top of the page
+- [ ] **NAV-02**: Clicking "Home" in the breadcrumb navigates the user back to `/`
 
-### Attribution
+### Cloud Calculator
 
-- [x] **ATTR-01**: User sees human-readable display names for v1.7 DDI types in per-account attribution table breakdown
+- [ ] **CLOUD-08**: Cloud Calculator displays a persistent provider selector (AWS / Azure / GCP) throughout the wizard, progress, and results screens
+- [ ] **CLOUD-09**: Switching provider in the persistent selector updates the active flow without navigating back to Home
+
+### Design System
+
+- [x] **DESIGN-01**: Replace PicoCSS with a custom CSS design system implementing Infoblox brand tokens — `#0066CC` primary blue, `#1A1A2E` dark navy, `#00C389` accent green, `#F8F9FA` page background, Inter font
+- [ ] **DESIGN-02**: Home screen uses a polished card layout (white cards, `#E5E7EB` border, rounded corners, subtle shadow) matching the reference Infoblox design language
+- [ ] **DESIGN-03**: Each calculator has a distinct visual accent color (Cloud: blue `#0066CC`, NIOS: green `#00C389`, AD: purple `#8B5CF6`) within the shared design system
+- [ ] **DESIGN-04**: Wizard steps display numbered step indicators with clear visual progression (step counter, active/complete state)
+- [ ] **DESIGN-05**: Results/complete screens use a card-based layout with visual separation of key metrics (token totals, formula derivations, attribution tables)
+
+### Routes
+
+- [ ] **ROUTE-01**: Cloud Calculator served at `/cloud`, NIOS Calculator at `/nios`, AD Calculator at `/ad`
+- [ ] **ROUTE-02**: Root `/` serves the home selector screen (current behavior at root removed)
 
 ## Future Requirements
 
-### DNS Zones (v1.9+)
+### Possible v2.0 Additions
 
-- **DNS-04**: NIOS per-zone record count accumulator exposed in XLS report
-- **DNS-05**: Cross-scope zone overlap detection (same zone name in Cloud + AD)
-
-### AD Dashboard (v1.9+)
-
-- **AD-13**: Per-DC connection status display during AD autodiscovery (individual DC success/fail badges)
-
-### Attribution (v1.9+)
-
-- **ATTR-02**: DDI formula annotation per type in breakdown rows (count ÷ 25 = X.X tokens inline)
-- **ATTR-03**: Functional grouping of v1.7 DDI types within breakdown (Route53 Resolver / IPAM / Networking)
+- **CROSS-01**: Cross-calculator combined summary view (aggregated tokens from all three sources run in one session)
+- **CROSS-02**: Session persistence — remember last-used provider and calculator state across browser refresh
+- **DARK-01**: Dark mode toggle using the design system dark variant
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| NIOS DNS zones in XLS report | Point-in-time analysis tool; report format locked to existing 5-sheet structure |
-| Real-time token impact preview | Requires re-running full pipeline on every toggle; too expensive for large datasets |
-| Charts / visualizations | Text tables sufficient for enterprise audit context; consistent with existing design |
-| Cross-scope zone overlap detection | High complexity; no immediate pre-sales demand; v1.9+ |
-| Per-DC connection status SSE | High complexity; requires collector refactoring; not needed for core AD dashboard v1.8 |
+| Mobile-first responsive redesign | Desktop/laptop only by design; enterprise tool not used on mobile |
+| React / Tailwind migration | Python-only constraint (FastAPI + HTML for auditability); no npm build pipeline |
+| Dark mode | Deferred to future — light mode sufficient for pre-sales enterprise context |
+| Per-calculator authentication | No auth model in this tool — local execution, no user accounts |
 
 ## Traceability
 
@@ -56,20 +58,25 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AD-09 | Phase 30 | Complete |
-| AD-10 | Phase 30 | Complete |
-| AD-11 | Phase 30 | Complete |
-| AD-12 | Phase 30 | Complete |
-| DNS-01 | Phase 31 | Complete |
-| DNS-02 | Phase 31 | Complete |
-| DNS-03 | Phase 31 | Complete |
-| ATTR-01 | Phase 32 | Complete |
+| DESIGN-01 | Phase 33 | Complete |
+| HOME-01 | Phase 34 | Pending |
+| HOME-02 | Phase 34 | Pending |
+| ROUTE-01 | Phase 34 | Pending |
+| ROUTE-02 | Phase 34 | Pending |
+| DESIGN-02 | Phase 34 | Pending |
+| NAV-01 | Phase 35 | Pending |
+| NAV-02 | Phase 35 | Pending |
+| DESIGN-03 | Phase 36 | Pending |
+| DESIGN-04 | Phase 36 | Pending |
+| DESIGN-05 | Phase 36 | Pending |
+| CLOUD-08 | Phase 37 | Pending |
+| CLOUD-09 | Phase 37 | Pending |
 
 **Coverage:**
-- v1.8 requirements: 8 total
-- Mapped to phases: 8
+- v1.9 requirements: 13 total
+- Mapped to phases: 13
 - Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-03-07*
-*Last updated: 2026-03-07 — traceability confirmed during roadmap creation*
+*Requirements defined: 2026-03-08*
+*Last updated: 2026-03-08 — traceability updated after roadmap creation*

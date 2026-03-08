@@ -224,7 +224,7 @@ Plans:
 | 30. AD Dashboard | v1.8 | 5/5 | Complete | 2026-03-08 |
 | 31. DNS Zones Panels | v1.8 | 3/3 | Complete | 2026-03-08 |
 | 32. Attribution Display Names | v1.8 | 2/2 | Complete | 2026-03-08 |
-| 33. Design Foundation | v1.9 | 0/3 | In progress | - |
+| 33. Design Foundation | 1/3 | In Progress|  | - |
 | 34. Home Screen + Routing | v1.9 | 0/? | Not started | - |
 | 35. Navigation + Breadcrumb | v1.9 | 0/? | Not started | - |
 | 36. Calculator Visual Redesign | v1.9 | 0/? | Not started | - |
