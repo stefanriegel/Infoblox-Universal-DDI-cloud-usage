@@ -293,19 +293,9 @@ def _compute_top_cloud_dns_zones(resources: list) -> list:
 
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
-    """Render the base dashboard page with Progress tab as default.
-
-    The base.html template loads the Progress tab via HTMX on page load.
-
-    Args:
-        request: The incoming HTTP request.
-
-    Returns:
-        Rendered base.html template with initial tab load trigger.
-    """
+    """Render the home selector screen."""
     templates = request.app.state.templates
-    context = _get_tab_context(request, "progress")
-    return templates.TemplateResponse(request, "base.html", context)
+    return templates.TemplateResponse(request, "home.html", {"request": request})
 
 
 @router.get("/tab/progress", response_class=HTMLResponse)

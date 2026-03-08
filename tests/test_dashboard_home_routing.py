@@ -22,7 +22,6 @@ from cloud_usage.dashboard.app import create_app
 app = create_app()
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 34: home screen not yet implemented")
 def test_home_returns_200_with_title() -> None:
     with TestClient(app) as client:
         response = client.get("/")
@@ -30,7 +29,6 @@ def test_home_returns_200_with_title() -> None:
     assert "Infoblox UDDI Token Calculator" in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 34: home screen not yet implemented")
 def test_home_contains_three_calculator_cards() -> None:
     with TestClient(app) as client:
         response = client.get("/")
@@ -38,7 +36,6 @@ def test_home_contains_three_calculator_cards() -> None:
     assert response.text.count('class="calculator-card"') == 3
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 34: home screen not yet implemented")
 def test_home_cards_contain_entry_links() -> None:
     with TestClient(app) as client:
         response = client.get("/")
@@ -68,14 +65,12 @@ def test_ad_route_returns_200() -> None:
     assert response.status_code == 200
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 34: home screen not yet implemented")
 def test_root_is_home_not_tab_dashboard() -> None:
     with TestClient(app) as client:
         response = client.get("/")
     assert 'hx-get="/tab/progress"' not in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 34: home screen not yet implemented")
 def test_home_uses_calculator_card_class() -> None:
     with TestClient(app) as client:
         response = client.get("/")

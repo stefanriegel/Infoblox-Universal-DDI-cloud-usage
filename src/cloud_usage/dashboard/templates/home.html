@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infoblox UDDI Token Calculator</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='design-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
+</head>
+<body>
+    <header class="site-header">
+        <div class="container">
+            <nav>
+                <ul><li><strong>Infoblox UDDI Token Calculator</strong></li></ul>
+            </nav>
+        </div>
+    </header>
+    <main class="container">
+        <h1>Select a Calculator</h1>
+        <div class="calculator-cards">
+            <div class="calculator-card">
+                <h2>Cloud</h2>
+                <p>Estimate UDDI tokens from AWS, Azure, and GCP cloud resources.</p>
+                <a href="/cloud" class="btn">Open Cloud Calculator</a>
+            </div>
+            <div class="calculator-card">
+                <h2>NIOS</h2>
+                <p>Estimate UDDI tokens from a NIOS Grid backup file.</p>
+                <a href="/nios" class="btn">Open NIOS Calculator</a>
+            </div>
+            <div class="calculator-card">
+                <h2>Active Directory</h2>
+                <p>Estimate UDDI tokens from Microsoft Active Directory.</p>
+                <a href="/ad" class="btn">Open AD Calculator</a>
+            </div>
+        </div>
+    </main>
+    <script src="{{ url_for('static', path='htmx.min.js') }}"></script>
+</body>
+</html>
