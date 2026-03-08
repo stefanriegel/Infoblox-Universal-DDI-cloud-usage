@@ -25,6 +25,8 @@ from cloud_usage.dashboard.routes.partials import (
 
 router = APIRouter()
 
+VALID_CLOUD_PROVIDERS = frozenset({"aws", "azure", "gcp"})
+
 # ---------------------------------------------------------------------------
 # DDI display name mapping — applied at summary computation time only.
 # r.resource_type is never mutated; this dict is used only when building the
@@ -138,6 +140,42 @@ def _get_tab_context(request: Request, active_tab: str) -> dict:
         "total_providers": len(providers),
         "nios_state": nios_state,
         "ad_state": ad_state,
+    }
+
+
+def _get_provider_tab_context(
+    request: Request,
+    active_tab: str,
+    provider: str,
+    scan_manager,
+) -> dict:
+    """Build template context for a per-provider cloud tab (Phase 37)."""
+    state = scan_manager.state.value
+    resources = scan_manager.resources
+    resource_count = len(resources)
+    providers_list: list[dict] = []
+    total_resources = 0
+    progress_data = getattr(scan_manager, "_progress_data", {})
+    for _prov_name, prov_data in progress_data.items():
+        providers_list.append(prov_data)
+        total_resources += prov_data.get("resources", 0)
+    nios_manager = request.app.state.nios_manager
+    ad_manager = request.app.state.ad_manager
+    return {
+        "request": request,
+        "active_tab": active_tab,
+        "active_provider": provider,
+        "provider": provider,
+        "tab_base": f"/cloud/{provider}",
+        "scan_state": state,
+        "resource_count": resource_count,
+        "providers": providers_list,
+        "total_resources": total_resources,
+        "total_providers": len(providers_list),
+        "nios_state": nios_manager.state.value,
+        "ad_state": ad_manager.state.value,
+        "calculator_name": "Cloud Calculator",
+        "calc_theme": "calc-cloud",
     }
 
 
@@ -300,12 +338,30 @@ async def index(request: Request) -> HTMLResponse:
 
 @router.get("/cloud", response_class=HTMLResponse)
 async def cloud_calculator(request: Request) -> HTMLResponse:
-    """Render the Cloud Calculator at /cloud."""
+    """Render the Cloud Calculator at /cloud. Defaults to AWS provider."""
     templates = request.app.state.templates
-    context = _get_tab_context(request, "progress")
-    context["calculator_name"] = "Cloud Calculator"
-    context["calc_theme"] = "calc-cloud"
+    scan_manager = request.app.state.aws_scan_manager
+    context = _get_provider_tab_context(request, "progress", "aws", scan_manager)
     return templates.TemplateResponse(request, "base.html", context)
+
+
+@router.get("/cloud/{provider}/tab/{tab_name}", response_class=HTMLResponse)
+async def cloud_provider_tab(
+    request: Request, provider: str, tab_name: str
+) -> HTMLResponse:
+    """Render per-provider Cloud Calculator tab for HTMX swap."""
+    if provider not in VALID_CLOUD_PROVIDERS:
+        return HTMLResponse("Not found", status_code=404)
+    scan_manager = getattr(request.app.state, f"{provider}_scan_manager")
+    templates = request.app.state.templates
+    context = _get_provider_tab_context(request, tab_name, provider, scan_manager)
+    template_map = {
+        "progress": "pages/progress.html",
+        "results": "pages/results.html",
+        "summary": "pages/summary.html",
+    }
+    template = template_map.get(tab_name, "pages/progress.html")
+    return templates.TemplateResponse(request, template, context)
 
 
 @router.get("/nios", response_class=HTMLResponse)

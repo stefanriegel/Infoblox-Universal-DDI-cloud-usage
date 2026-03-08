@@ -14,11 +14,11 @@ from cloud_usage.dashboard.app import create_app
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-08: provider selector not yet in /cloud response")
 def test_cloud_page_has_provider_selector() -> None:
     """GET /cloud response must contain 'provider-selector' element."""
-    client = TestClient(create_app())
-    response = client.get("/cloud")
+    app = create_app()
+    with TestClient(app) as client:
+        response = client.get("/cloud")
     assert response.status_code == 200
     assert "provider-selector" in response.text
 
@@ -38,11 +38,11 @@ def test_css_has_provider_pill_styles() -> None:
     assert ".provider-pill.active" in content
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-08: active pill highlight not yet rendered in /cloud response")
 def test_cloud_default_aws_pill_active() -> None:
     """GET /cloud response must contain 'provider-pill' with 'active' highlight."""
-    client = TestClient(create_app())
-    response = client.get("/cloud")
+    app = create_app()
+    with TestClient(app) as client:
+        response = client.get("/cloud")
     assert response.status_code == 200
     assert "provider-pill" in response.text
     assert "active" in response.text
@@ -53,36 +53,36 @@ def test_cloud_default_aws_pill_active() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-09: /cloud/aws/tab/progress route not yet added")
 def test_aws_tab_progress_returns_200() -> None:
     """GET /cloud/aws/tab/progress must return 200 with tab-container content."""
-    client = TestClient(create_app())
-    response = client.get("/cloud/aws/tab/progress")
+    app = create_app()
+    with TestClient(app) as client:
+        response = client.get("/cloud/aws/tab/progress")
     assert response.status_code == 200
     assert "tab-container" in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-09: /cloud/azure/tab/progress route not yet added")
 def test_azure_tab_progress_returns_200() -> None:
     """GET /cloud/azure/tab/progress must return 200."""
-    client = TestClient(create_app())
-    response = client.get("/cloud/azure/tab/progress")
+    app = create_app()
+    with TestClient(app) as client:
+        response = client.get("/cloud/azure/tab/progress")
     assert response.status_code == 200
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-09: /cloud/gcp/tab/progress route not yet added")
 def test_gcp_tab_progress_returns_200() -> None:
     """GET /cloud/gcp/tab/progress must return 200."""
-    client = TestClient(create_app())
-    response = client.get("/cloud/gcp/tab/progress")
+    app = create_app()
+    with TestClient(app) as client:
+        response = client.get("/cloud/gcp/tab/progress")
     assert response.status_code == 200
 
 
-@pytest.mark.xfail(strict=False, reason="CLOUD-09: invalid provider 404 already satisfied pre-implementation; strict=False accepted as XPASS until per-provider routing lands")
 def test_invalid_provider_returns_404() -> None:
     """GET /cloud/invalid/tab/progress must return 404."""
-    client = TestClient(create_app())
-    response = client.get("/cloud/invalid/tab/progress")
+    app = create_app()
+    with TestClient(app) as client:
+        response = client.get("/cloud/invalid/tab/progress")
     assert response.status_code == 404
 
 
