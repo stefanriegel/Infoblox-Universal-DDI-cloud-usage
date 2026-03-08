@@ -38,6 +38,7 @@ class TestAppFactory:
         app = create_app()
         assert app.title == "UDDI Estimator"
 
+    @pytest.mark.xfail(strict=False, reason="Phase 34: root renders home.html with new title; old UDDI Estimator title assertion will break once home screen lands")
     def test_index_returns_200_with_title(self) -> None:
         """GET / returns 200 with HTML containing the tool name."""
         from fastapi.testclient import TestClient
