@@ -304,6 +304,7 @@ async def cloud_calculator(request: Request) -> HTMLResponse:
     templates = request.app.state.templates
     context = _get_tab_context(request, "progress")
     context["calculator_name"] = "Cloud Calculator"
+    context["calc_theme"] = "calc-cloud"
     return templates.TemplateResponse(request, "base.html", context)
 
 
@@ -313,6 +314,7 @@ async def nios_calculator(request: Request) -> HTMLResponse:
     templates = request.app.state.templates
     context = _get_tab_context(request, "nios")
     context["calculator_name"] = "NIOS Calculator"
+    context["calc_theme"] = "calc-nios"
     return templates.TemplateResponse(request, "base.html", context)
 
 
@@ -322,6 +324,7 @@ async def ad_calculator(request: Request) -> HTMLResponse:
     templates = request.app.state.templates
     context = _get_tab_context(request, "ad")
     context["calculator_name"] = "AD Calculator"
+    context["calc_theme"] = "calc-ad"
     return templates.TemplateResponse(request, "base.html", context)
 
 

@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', path='design-system.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
 </head>
-<body>
+<body class="{{ calc_theme | default('') }}">
     <header class="site-header">
         <div class="container">
             <nav>

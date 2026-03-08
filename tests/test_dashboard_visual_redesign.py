@@ -28,7 +28,6 @@ app = create_app()
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 36 Plan 02/03 not yet implemented")
 def test_cloud_body_has_calc_cloud_class() -> None:
     """GET /cloud response body must contain class=\"calc-cloud\" on the body element."""
     with TestClient(app) as client:
@@ -37,7 +36,6 @@ def test_cloud_body_has_calc_cloud_class() -> None:
     assert 'class="calc-cloud"' in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 36 Plan 02/03 not yet implemented")
 def test_nios_body_has_calc_nios_class() -> None:
     """GET /nios response body must contain class=\"calc-nios\" on the body element."""
     with TestClient(app) as client:
@@ -46,7 +44,6 @@ def test_nios_body_has_calc_nios_class() -> None:
     assert 'class="calc-nios"' in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 36 Plan 02/03 not yet implemented")
 def test_ad_body_has_calc_ad_class() -> None:
     """GET /ad response body must contain class=\"calc-ad\" on the body element."""
     with TestClient(app) as client:
