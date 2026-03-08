@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Multi-Tool Suite UX
 status: executing
-stopped_at: Completed 34-02 — home.html, card CSS, GET / swapped to home screen
-last_updated: "2026-03-08T15:22:00.704Z"
+stopped_at: Completed 34-03 — /cloud /nios /ad routes, base.html conditional HTMX tab load
+last_updated: "2026-03-08T15:27:42.319Z"
 last_activity: 2026-03-08 — 34-01 xfail test scaffold complete (HOME-01, HOME-02, ROUTE-01, ROUTE-02, DESIGN-02)
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 96
 ---
 
@@ -72,6 +72,9 @@ None.
 - 34-01: Used xfail(strict=False) for test_index_returns_200_with_title — assertion currently passes (root still serves UDDI Estimator), so strict=True would break suite; strict=False accepted as XPASS until Plan 02 changes root route
 - [Phase 34-home-screen-routing]: 34-02: home.html self-contained (no base.html extends) to avoid hx-get=/tab/progress auto-trigger on home screen
 - [Phase 34-home-screen-routing]: 34-02: --ib-card-border: #E5E7EB added as separate token from --ib-gray-200 — DESIGN-02 mandates exact value
+- [Phase 34-home-screen-routing]: 34-03: base.html uses active_tab (existing context key) for conditional HTMX initial tab load — no new context variable needed
+- [Phase 34-home-screen-routing]: 34-03: /cloud uses active_tab=progress (not cloud) — progress is existing tab key for Cloud Calculator initial state
+- [Phase 34-home-screen-routing]: 34-03: xfail markers removed on implementation (strict=True XPASS = pytest failure)
 
 ## Session Log
 
@@ -80,6 +83,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T15:22:00.699Z
-Stopped at: Completed 34-02 — home.html, card CSS, GET / swapped to home screen
+Last session: 2026-03-08T15:27:42.317Z
+Stopped at: Completed 34-03 — /cloud /nios /ad routes, base.html conditional HTMX tab load
 Resume file: None
