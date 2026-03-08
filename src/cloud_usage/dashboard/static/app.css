@@ -2,6 +2,16 @@
    Design tokens (--ib-* variables) are defined in design-system.css root block.
    This file contains dashboard-specific component styles only. */
 
+/* ===== Calc-accent fallback ===== */
+:root {
+    --calc-accent: var(--ib-blue);  /* fallback when no calc-* body class is present */
+}
+
+/* Per-Calculator Themes */
+.calc-cloud { --calc-accent: #0066CC; }
+.calc-nios  { --calc-accent: #00C389; }
+.calc-ad    { --calc-accent: #8B5CF6; }
+
 /* ===== General body ===== */
 body {
     background: var(--ib-gray-100);
@@ -358,12 +368,12 @@ nav.tab-bar a:hover {
 }
 
 .wizard-steps li.active {
-    color: var(--ib-blue);
+    color: var(--calc-accent);
     font-weight: 600;
 }
 
 .wizard-steps li.completed {
-    color: var(--ib-blue);
+    color: var(--calc-accent);
 }
 
 .wizard-steps .step-number {
@@ -378,15 +388,27 @@ nav.tab-bar a:hover {
 }
 
 .wizard-steps li.active .step-number {
-    background: var(--ib-blue);
+    background: var(--calc-accent);
     color: #fff;
-    border-color: var(--ib-blue);
+    border-color: var(--calc-accent);
 }
 
 .wizard-steps li.completed .step-number {
-    background: var(--ib-blue);
+    background: var(--calc-accent);
+    color: transparent;
+    border-color: var(--calc-accent);
+    position: relative;
+    font-size: 0;
+}
+
+.wizard-steps li.completed .step-number::after {
+    content: '\2713';
     color: #fff;
-    border-color: var(--ib-blue);
+    font-size: 0.85rem;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
 /* ─── Home Screen ─────────────────────────────────────────────────── */

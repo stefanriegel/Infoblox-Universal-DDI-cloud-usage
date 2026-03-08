@@ -52,7 +52,6 @@ def test_ad_body_has_calc_ad_class() -> None:
     assert 'class="calc-ad"' in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 36 Plan 02/03 not yet implemented")
 def test_app_css_has_calc_cloud_accent() -> None:
     """GET /static/app.css must define .calc-cloud rule with #0066CC accent colour."""
     with TestClient(app) as client:
@@ -62,7 +61,6 @@ def test_app_css_has_calc_cloud_accent() -> None:
     assert "#0066CC" in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 36 Plan 02/03 not yet implemented")
 def test_app_css_has_calc_nios_accent() -> None:
     """GET /static/app.css must define .calc-nios rule with #00C389 accent colour."""
     with TestClient(app) as client:
@@ -72,7 +70,6 @@ def test_app_css_has_calc_nios_accent() -> None:
     assert "#00C389" in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 36 Plan 02/03 not yet implemented")
 def test_app_css_has_calc_ad_accent() -> None:
     """GET /static/app.css must define .calc-ad rule with #8B5CF6 accent colour."""
     with TestClient(app) as client:
@@ -87,7 +84,6 @@ def test_app_css_has_calc_ad_accent() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 36 Plan 02/03 not yet implemented")
 def test_app_css_wizard_completed_uses_calc_accent() -> None:
     """GET /static/app.css must use var(--calc-accent) CSS custom property."""
     with TestClient(app) as client:
@@ -96,7 +92,6 @@ def test_app_css_wizard_completed_uses_calc_accent() -> None:
     assert "var(--calc-accent)" in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 36 Plan 02/03 not yet implemented")
 def test_app_css_wizard_completed_has_checkmark() -> None:
     r"""GET /static/app.css must contain the Unicode checkmark escape \2713."""
     with TestClient(app) as client:
