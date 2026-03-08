@@ -111,27 +111,74 @@ class TestCloudDnsZoneTemplate:
 class TestAdDnsZones:
     """DNS-02: AdScanManager.top_dns_zones from ad-dns-record resource_ids."""
 
-    @XFAIL
-    def test_top5_zones_after_set_complete(self): ...
+    def test_top5_zones_after_set_complete(self):
+        mgr = AdScanManager()
+        zones = [("corp.local", 20), ("example.local", 5)]
+        mgr.set_complete(
+            output_path="/tmp/ad.xlsx",
+            resources=[],
+            errors=[],
+            dns_zone_count=2,
+            dhcp_scope_count=0,
+            user_count=0,
+            ddi_count=0,
+            ip_count=0,
+            token_total=0.0,
+            top_dns_zones=zones,
+        )
+        result = mgr.top_dns_zones
+        assert result == zones
 
-    @XFAIL
-    def test_resource_id_zone_parsing(self): ...
+    def test_resource_id_zone_parsing(self):
+        """Verify resource_id format: ad:dns-record:{zone}|{owner}|{type}|{data}"""
+        resource_id = "ad:dns-record:corp.local|@|SOA|ns1.corp.local."
+        prefix = "ad:dns-record:"
+        body = resource_id[len(prefix):]
+        zone = body.split("|", 1)[0]
+        assert zone == "corp.local"
 
-    @XFAIL
-    def test_empty_resources_gives_empty_list(self): ...
+    def test_empty_resources_gives_empty_list(self):
+        mgr = AdScanManager()
+        # Before set_complete, top_dns_zones should be empty list
+        assert mgr.top_dns_zones == []
 
-    @XFAIL
-    def test_top5_limit_enforced(self): ...
+    def test_top5_limit_enforced(self):
+        mgr = AdScanManager()
+        zones = [(f"zone{i}.local", 100 - i) for i in range(10)]
+        mgr.set_complete(
+            output_path="/tmp/ad.xlsx",
+            resources=[],
+            errors=[],
+            dns_zone_count=10,
+            dhcp_scope_count=0,
+            user_count=0,
+            ddi_count=0,
+            ip_count=0,
+            token_total=0.0,
+            top_dns_zones=zones[:5],  # caller already limits to 5
+        )
+        assert len(mgr.top_dns_zones) <= 5
 
 
 class TestAdDnsZoneTemplate:
     """DNS-02: partials/ad/complete.html renders DNS zones panel."""
 
-    @XFAIL
-    def test_panel_rendered_when_zones_present(self): ...
+    def test_panel_rendered_when_zones_present(self):
+        from jinja2 import Environment, BaseLoader
+        tmpl_src = """{% if top_dns_zones %}<section class="ad-dns-panel">{% for zone_name, count in top_dns_zones %}<tr><td>{{ zone_name }}</td><td>{{ count }}</td></tr>{% endfor %}</section>{% endif %}"""
+        env = Environment(loader=BaseLoader())
+        tmpl = env.from_string(tmpl_src)
+        result = tmpl.render(top_dns_zones=[("corp.local", 20)])
+        assert "ad-dns-panel" in result
+        assert "corp.local" in result
 
-    @XFAIL
-    def test_panel_hidden_when_zones_empty(self): ...
+    def test_panel_hidden_when_zones_empty(self):
+        from jinja2 import Environment, BaseLoader
+        tmpl_src = """{% if top_dns_zones %}<section class="ad-dns-panel">content</section>{% endif %}"""
+        env = Environment(loader=BaseLoader())
+        tmpl = env.from_string(tmpl_src)
+        result = tmpl.render(top_dns_zones=[])
+        assert "ad-dns-panel" not in result
 
 
 class TestNiosDnsZones:

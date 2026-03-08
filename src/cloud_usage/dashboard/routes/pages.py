@@ -435,5 +435,6 @@ async def tab_ad(request: Request) -> HTMLResponse:
         "download_filename": download_filename,
         "error": error,
         "last_options": last_options,
+        "top_dns_zones": ad_manager.top_dns_zones,
     })
     return templates.TemplateResponse(request, "pages/ad.html", context)

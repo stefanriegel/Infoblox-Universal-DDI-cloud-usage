@@ -86,12 +86,24 @@ def _run_ad_pipeline(
         ad_event_bridge.emit("ad_progress", ad_manager.current_progress)
 
         # Compute counts from resources
+        from collections import Counter
         dns_zone_count = sum(1 for r in resources if r.resource_type == "ad-dns-zone")
         dhcp_scope_count = sum(1 for r in resources if r.resource_type == "ad-dhcp-scope")
         user_count = sum(1 for r in resources if r.resource_type == "ad-user")
         ddi_count = sum(1 for r in resources if r.counted and r.category == "ddi")
         ip_count = sum(1 for r in resources if r.counted and r.category in ("ip", "asset"))
         token_result = calculate_tokens(ddi_count, ip_count, 0)
+
+        # Extract per-zone record counts from ad-dns-record resource_ids
+        # resource_id format: "ad:dns-record:{zone}|{owner}|{type}|{data}"
+        _zone_record_counts: Counter = Counter()
+        for _r in resources:
+            if _r.resource_type == "ad-dns-record":
+                body = _r.resource_id[len("ad:dns-record:"):]
+                zone = body.split("|", 1)[0]
+                if zone:
+                    _zone_record_counts[zone] += 1
+        top_dns_zones = _zone_record_counts.most_common(5)
 
         ad_manager.set_complete(
             output_path=output_path,
@@ -103,6 +115,7 @@ def _run_ad_pipeline(
             ddi_count=ddi_count,
             ip_count=ip_count,
             token_total=token_result["total_tokens"],
+            top_dns_zones=top_dns_zones,
         )
         logger.info("AD analysis complete: %s", output_path)
 

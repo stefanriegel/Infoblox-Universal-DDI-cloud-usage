@@ -67,6 +67,7 @@ class AdScanManager:
         self._ddi_count: int = 0
         self._ip_count: int = 0
         self._token_total: float = 0.0
+        self._top_dns_zones: list = []
         self._current_progress: dict = {
             "step": 0,
             "total": 0,      # 0 = indeterminate — DC count unknown at start
@@ -140,6 +141,12 @@ class AdScanManager:
         with self._lock:
             return self._token_total
 
+    @property
+    def top_dns_zones(self) -> list:
+        """Top 5 AD DNS zones by record count. Thread-safe read."""
+        with self._lock:
+            return list(self._top_dns_zones)
+
     def can_start(self) -> bool:
         """True when not RUNNING. Thread-safe.
 
@@ -199,6 +206,7 @@ class AdScanManager:
         ddi_count: int,
         ip_count: int,
         token_total: float,
+        top_dns_zones: list | None = None,
     ) -> None:
         """Transition to COMPLETE with output path and AD-specific counts. Thread-safe.
 
@@ -212,6 +220,7 @@ class AdScanManager:
             ddi_count: Number of DDI-counted resources (category=="ddi").
             ip_count: Number of IP-counted resources (category in "ip"/"asset").
             token_total: Total token estimate from calculate_tokens().
+            top_dns_zones: Top 5 DNS zones as list of (zone_name, count) tuples. Defaults to None.
         """
         with self._lock:
             self._state = AdState.COMPLETE
@@ -222,6 +231,7 @@ class AdScanManager:
             self._ddi_count = ddi_count
             self._ip_count = ip_count
             self._token_total = token_total
+            self._top_dns_zones = top_dns_zones or []
 
     def set_error(self, error: str) -> None:
         """Transition to ERROR with message. Thread-safe.
