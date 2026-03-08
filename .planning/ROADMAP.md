@@ -238,5 +238,5 @@ Plans:
 | 33. Design Foundation | 3/3 | Complete    | 2026-03-08 | - |
 | 34. Home Screen + Routing | 3/3 | Complete    | 2026-03-08 | - |
 | 35. Navigation + Breadcrumb | 2/2 | Complete    | 2026-03-08 | - |
-| 36. Calculator Visual Redesign | 1/3 | In Progress|  | - |
+| 36. Calculator Visual Redesign | 2/3 | In Progress|  | - |
 | 37. Cloud Provider Switcher | v1.9 | 0/? | Not started | - |
