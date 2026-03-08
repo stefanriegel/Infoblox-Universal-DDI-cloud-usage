@@ -56,6 +56,10 @@ def _get_tab_context(request: Request, active_tab: str) -> dict:
     nios_manager = request.app.state.nios_manager
     nios_state = nios_manager.state.value
 
+    # Add AD analysis state for tab bar badge (SC-5)
+    ad_manager = request.app.state.ad_manager
+    ad_state = ad_manager.state.value
+
     return {
         "request": request,
         "active_tab": active_tab,
@@ -65,6 +69,7 @@ def _get_tab_context(request: Request, active_tab: str) -> dict:
         "total_resources": total_resources,
         "total_providers": len(providers),
         "nios_state": nios_state,
+        "ad_state": ad_state,
     }
 
 
@@ -341,3 +346,50 @@ async def tab_nios(request: Request) -> HTMLResponse:
     return templates.TemplateResponse(
         request, "pages/nios.html", context
     )
+
+
+@router.get("/tab/ad", response_class=HTMLResponse)
+async def tab_ad(request: Request) -> HTMLResponse:
+    """Render the AD Analysis tab content for HTMX swap.
+
+    State-driven: idle shows connection wizard, running shows spinner,
+    complete shows summary card + download, error shows error + wizard.
+
+    Args:
+        request: The incoming HTTP request.
+
+    Returns:
+        Rendered pages/ad.html template.
+    """
+    import os
+
+    templates = request.app.state.templates
+    ad_manager = request.app.state.ad_manager
+
+    ad_state = ad_manager.state.value
+    error = ad_manager.error
+    last_options = ad_manager.last_options
+    dns_zone_count = ad_manager.dns_zone_count
+    dhcp_scope_count = ad_manager.dhcp_scope_count
+    user_count = ad_manager.user_count
+    ddi_count = ad_manager.ddi_count
+    ip_count = ad_manager.ip_count
+    token_total = ad_manager.token_total
+
+    # Build download filename from output_path if complete
+    download_filename = os.path.basename(ad_manager.output_path) if ad_manager.output_path else None
+
+    context = _get_tab_context(request, "ad")
+    context.update({
+        "ad_state": ad_state,
+        "dns_zone_count": dns_zone_count,
+        "dhcp_scope_count": dhcp_scope_count,
+        "user_count": user_count,
+        "ddi_count": ddi_count,
+        "ip_count": ip_count,
+        "token_total": token_total,
+        "download_filename": download_filename,
+        "error": error,
+        "last_options": last_options,
+    })
+    return templates.TemplateResponse(request, "pages/ad.html", context)
