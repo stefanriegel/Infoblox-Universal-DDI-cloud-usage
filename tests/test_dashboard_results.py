@@ -446,7 +446,7 @@ class TestSummaryTabWithData:
     def test_summary_shows_account_breakdown(self, client_with_data) -> None:
         """Summary shows per-account breakdown table."""
         response = client_with_data.get("/tab/summary")
-        assert "Per-Account Breakdown" in response.text
+        assert "Account Attribution" in response.text
         assert "111111111111" in response.text
         assert "sub-001" in response.text
 
