@@ -15,6 +15,16 @@
             </nav>
         </div>
     </header>
+    {% if calculator_name %}
+    <nav class="breadcrumb-nav" aria-label="breadcrumb">
+        <div class="container">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/">Home</a></li>
+                <li class="breadcrumb-item breadcrumb-current" aria-current="page">{{ calculator_name }}</li>
+            </ol>
+        </div>
+    </nav>
+    {% endif %}
     <main class="container" id="main-content">
         {% block content %}
         <div id="tab-container"

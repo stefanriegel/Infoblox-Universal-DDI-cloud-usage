@@ -423,3 +423,41 @@ nav.tab-bar a:hover {
     align-self: flex-start;
     margin-top: auto;
 }
+
+/* ===== Breadcrumb navigation ===== */
+.breadcrumb-nav {
+    background: var(--ib-gray-100);
+    border-bottom: 1px solid var(--ib-gray-200);
+    padding: 0.5rem 0;
+}
+
+.breadcrumb {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    gap: 0;
+    align-items: center;
+    font-size: 0.875rem;
+}
+
+.breadcrumb-item + .breadcrumb-item::before {
+    content: ">";
+    padding: 0 0.5rem;
+    color: var(--ib-gray-600);
+}
+
+.breadcrumb-item a {
+    color: var(--ib-blue);
+    text-decoration: none;
+}
+
+.breadcrumb-item a:hover {
+    text-decoration: underline;
+    color: var(--ib-blue-dark);
+}
+
+.breadcrumb-current {
+    color: var(--ib-gray-600);
+    font-weight: 500;
+}

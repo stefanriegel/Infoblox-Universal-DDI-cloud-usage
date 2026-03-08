@@ -1,9 +1,5 @@
 """
-Test stubs for Phase 35: Navigation + Breadcrumb.
-
-All tests are marked xfail(strict=True) — they represent behaviors that will
-be implemented in Plan 02. Once implementation lands, xfail markers are removed
-and tests turn green.
+Tests for Phase 35: Navigation + Breadcrumb.
 
 Requirements covered:
   NAV-01: All calculator pages display a breadcrumb "Home > [Calculator Name]"
@@ -29,7 +25,6 @@ from cloud_usage.dashboard.app import create_app
 app = create_app()
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 35 Plan 02 not yet implemented")
 def test_cloud_page_has_breadcrumb_home_link() -> None:
     with TestClient(app) as client:
         response = client.get("/cloud")
@@ -38,7 +33,6 @@ def test_cloud_page_has_breadcrumb_home_link() -> None:
     assert "Home" in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 35 Plan 02 not yet implemented")
 def test_nios_page_has_breadcrumb_home_link() -> None:
     with TestClient(app) as client:
         response = client.get("/nios")
@@ -47,7 +41,6 @@ def test_nios_page_has_breadcrumb_home_link() -> None:
     assert "Home" in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 35 Plan 02 not yet implemented")
 def test_ad_page_has_breadcrumb_home_link() -> None:
     with TestClient(app) as client:
         response = client.get("/ad")
@@ -56,7 +49,6 @@ def test_ad_page_has_breadcrumb_home_link() -> None:
     assert "Home" in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 35 Plan 02 not yet implemented")
 def test_cloud_page_breadcrumb_shows_calculator_name() -> None:
     with TestClient(app) as client:
         response = client.get("/cloud")
@@ -64,7 +56,6 @@ def test_cloud_page_breadcrumb_shows_calculator_name() -> None:
     assert "Cloud Calculator" in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 35 Plan 02 not yet implemented")
 def test_nios_page_has_breadcrumb() -> None:
     with TestClient(app) as client:
         response = client.get("/nios")
@@ -72,7 +63,6 @@ def test_nios_page_has_breadcrumb() -> None:
     assert "NIOS Calculator" in response.text
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 35 Plan 02 not yet implemented")
 def test_ad_page_has_breadcrumb() -> None:
     with TestClient(app) as client:
         response = client.get("/ad")
@@ -80,7 +70,6 @@ def test_ad_page_has_breadcrumb() -> None:
     assert "AD Calculator" in response.text
 
 
-@pytest.mark.xfail(strict=False, reason="Phase 35 Plan 02 not yet implemented — home page already has no breadcrumb-nav, so this passes now and after implementation")
 def test_home_has_no_breadcrumb() -> None:
     with TestClient(app) as client:
         response = client.get("/")
