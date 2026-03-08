@@ -48,5 +48,19 @@
         {% endif %}
       </a>
     </li>
+    <li>
+      <a hx-get="/tab/ad" hx-target="#tab-container" hx-push-url="false"
+         role="tab" aria-selected="{{ 'true' if active_tab == 'ad' else 'false' }}"
+         class="{{ 'tab-active' if active_tab == 'ad' else '' }}">
+        AD Analysis
+        {% if ad_state == 'running' %}
+          <span class="badge badge-warning">running...</span>
+        {% elif ad_state == 'complete' %}
+          <span class="badge badge-success">done</span>
+        {% elif ad_state == 'error' %}
+          <span class="badge badge-error">error</span>
+        {% endif %}
+      </a>
+    </li>
   </ul>
 </nav>
