@@ -140,7 +140,11 @@ Plans:
   1. The cloud Summary tab displays a Top 5 DNS zones panel listing zone names and record counts sourced from the current cloud scan
   2. The AD complete screen displays a Top 5 AD DNS zones panel listing zone names and record counts from the completed AD analysis
   3. The NIOS complete screen displays a Top 5 NIOS DNS zones panel listing zone names and record counts, requiring per-zone record count accumulation in the NIOS parse pipeline
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 31-01-PLAN.md — Wave 1: Wave 0 test scaffold (all 7 DNS zone test classes)
+- [ ] 31-02-PLAN.md — Wave 2: DNS-01 Cloud + DNS-02 AD panels (pages.py, ad_manager.py, ad.py, summary.html, ad/complete.html)
+- [ ] 31-03-PLAN.md — Wave 3: DNS-03 NIOS pipeline extension + complete screen panel (nios_manager.py, nios.py, pages.py, nios/complete.html)
 
 ### Phase 32: Attribution Display Names
 **Goal**: Users reading the per-account attribution breakdown on the cloud Summary tab see human-readable display names for the v1.7 DDI types rather than raw internal type strings
@@ -185,6 +189,6 @@ Plans:
 | 27. Azure DDI Gaps | v1.7 | 3/3 | Complete | 2026-03-07 |
 | 28. GCP DDI Gaps | v1.7 | 3/3 | Complete | 2026-03-07 |
 | 29. Microsoft AD Core | v1.7 | 4/4 | Complete | 2026-03-07 |
-| 30. AD Dashboard | 5/5 | Complete   | 2026-03-08 | - |
-| 31. DNS Zones Panels | v1.8 | 0/TBD | Not started | - |
+| 30. AD Dashboard | v1.8 | 5/5 | Complete | 2026-03-08 |
+| 31. DNS Zones Panels | v1.8 | 0/3 | Not started | - |
 | 32. Attribution Display Names | v1.8 | 0/TBD | Not started | - |
