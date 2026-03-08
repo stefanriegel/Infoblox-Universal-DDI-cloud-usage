@@ -234,6 +234,150 @@
 
 ---
 
+## Milestone: v1.7 — Reference Parity
+
+**Shipped:** 2026-03-07
+**Phases:** 5 (Phases 25–29) | **Plans:** 19 | **Timeline:** 5 days (2026-03-03 → 2026-03-07)
+
+### What Was Built
+
+- **IP methodology fix (Phase 25)** — `count_nics_per_account()` replaces `deduplicate_ips_per_vpc()` across all three cloud providers; AWS now counts EC2 NIC objects (`nic_ip_count`), Azure counts NIC card objects, GCP counts `network_interface_count`; standalone ENIs/EIPs/NAT GW IPs reclassified as DDI-only (not IP count)
+- **AWS DDI expansion (Phase 26)** — 15 new DDI type strings added to `DDI_TYPES`; 13 new `_safe_collect()` calls in `AWSDiscoveryProvider.discover_account()`; covers Route53 Resolver endpoints/rules/associations, IPAM pools/scopes/allocations, Internet/Customer Gateways, Route Tables, Direct Connect Gateways, Health Checks, Traffic Policies
+- **Azure DDI expansion (Phase 27)** — 5 new DDI types; 4 new `_safe_collect()` calls + tenant deduplication guard; covers VNet Gateways (VPN+ExpressRoute), Private Link Services, Virtual WANs, Route Tables, Tenants; fixed stale `SubscriptionClient` import in `client_factory.py`
+- **GCP DDI expansion (Phase 28)** — 6 new DDI type strings; 5 new `_safe_collect()` calls; covers reserved Compute Addresses (DDI-only, no IPs), GKE CIDR ranges (control plane/pod/service), Router NAT configs, Target VPN Gateways; added `RoutersClient`/`TargetVpnGatewaysClient` to `client_factory.py`
+- **Microsoft AD provider (Phase 29)** — `src/cloud_usage/providers/ad/` package: `MicrosoftAdCollector` (WinRM sessions, `Get-DnsServerZone`/`Get-DhcpServerv4Scope`/`Get-ADUser` cmdlets, Kerberos/NTLM auth, DC autodiscovery via `Get-ADForest`); `run_ad_analysis()` pipeline with cross-DC deduplication in `_aggregate_results()`; 12 `--ad-*` CLI flags; XLS report using same UDDI native formula
+
+### What Worked
+
+- **TDD RED/GREEN gate discipline** — Every phase opened with a scaffolding plan (01-PLAN) that wrote failing tests before any implementation. This was enforced across all 5 phases. By Phase 29 the pattern was automatic: test file → RED commit → implementation → GREEN commit.
+- **Isolated providers/ad/ package** — Zero impact on existing cloud providers, NIOS package, or dashboard during Phase 29. The pattern from v1.1 (`nios/` isolation) replicated cleanly. Phase 29 shipped without a single regression test failure outside the AD test suite.
+- **_safe_collect() pattern for DDI expansion** — Phases 26, 27, 28 all used `_safe_collect()` to add new collectors with graceful error handling. Consistent pattern made wiring plans (26-05, 27-03, 28-03) predictable and fast to execute.
+- **Cross-DC deduplication at the runner level** — `_aggregate_results()` in `run_ad_analysis()` deduplicates DNS zones by name and DHCP scopes by `scope_id` after collecting from all DCs. Doing this at the runner (not collector) level means each DC collector stays simple and the aggregation logic is tested independently.
+- **Lazy import pattern for AD CLI branch** — `_run_ad_cli()` uses `from cloud_usage.providers.ad import ...` inside the function body, matching the established `_run_nios_cli()` pattern. No import overhead on non-AD scans.
+
+### What Was Inefficient
+
+- **Nyquist VALIDATION.md files incomplete** — Phases 25–27 have VALIDATION.md files in `status: draft` with `nyquist_compliant: false`; Phases 28–29 have none. Post-execution validation was not finalized. Noted as `NYQ-V17` in technical debt. This has been a recurring pattern but now explicitly tracked.
+- **Phase 26 test scaffolding (26-01) was over-broad** — The initial scaffolding plan added tests for all 7 AWSG requirements in one plan. Some tests required mock infrastructure that wasn't yet established, leading to more iteration than needed. For broad expansion phases, scaffolding tests in parallel with implementation waves (rather than front-loading all 7) would be more efficient.
+- **gsd-tools accomplishment extraction** — Seventh milestone, still "(none recorded)". `milestone complete` CLI returned `accomplishments: []`. This is a documented persistent issue; accomplishments written manually for this entry.
+- **AD live environment untested** — Phase 29 shipped with WinRM/PowerShell mocks only (via `unittest.mock`). No live AD environment available for integration validation. Explicitly tracked as `AD-LIVE` debt.
+
+### Patterns Established
+
+- **providers/{name}/ package structure** — New data source providers follow the pattern: `providers/{name}/__init__.py` (exports), `constants.py` (frozen sets/strings), `options.py` (frozen dataclass with validation), `collector.py` (main collector class), `runner.py` (pipeline function). AD followed this pattern; future providers (e.g., IPAM platforms) should too.
+- **Cross-DC / cross-account deduplication at runner level** — When a provider can return overlapping objects from multiple endpoints (DCs, accounts), dedup happens in the runner's `_aggregate_results()` using a canonical key (zone name, scope_id, SID). Individual collectors stay simple.
+- **DDI-only resource types** — Some resources are DDI objects but not IP sources (standalone ENIs, EIPs, Compute Addresses). These carry `ip_addresses=[]` and `resource_type=` the DDI type. This is now an established pattern; `_safe_collect()` + empty `ip_addresses` is the canonical form.
+- **Staggered DDI expansion pattern** — For each cloud provider DDI expansion: (1) scaffolding tests (01-PLAN), (2) implement collectors (02-PLAN), (3) wire into provider + categorizer (03-PLAN). Three plans = one full DDI gap closure. Reusable for any future DDI gap phase.
+
+### Key Lessons
+
+1. **AD live validation is the v1.7 DTC-V01 equivalent** — Microsoft AD shipped without live WinRM testing, exactly as DTC shipped in v1.2 without a real DTC backup. Both are tracked as explicit technical debt. Pattern: when no live environment is available, ship with mock coverage + a named debt item with a verification trigger condition.
+2. **Nyquist validation needs a post-execution pass** — Phases 25–29 all have incomplete or missing VALIDATION.md files. The pattern is: validation files are created during planning but not updated after execution. A post-execution `/gsd:validate-phase` pass should be a standard milestone-close step.
+3. **DDI expansion phases are now a solved problem** — The three-plan pattern (scaffolding → collectors → wiring) worked identically for AWS, Azure, and GCP DDI gaps. Future DDI expansion phases for any provider can follow this template without redesign.
+4. **Microsoft AD is a third co-equal scope** — Post-v1.7, the tool has three independent estimation scopes: NIOS Grid, Cloud (AWS+Azure+GCP), and Windows AD. These are not mutually exclusive; customers may run any combination. Future UI work (AD dashboard tab, Top 5 DNS Zones panel) must reflect this three-scope architecture.
+
+### Cost Observations
+
+- Sessions: ~8 focused sessions over 5 days
+- Model: claude-sonnet-4-6 (balanced profile) throughout; no opus needed
+- Notable: Phase 29 (Microsoft AD) was the most structurally novel work — new provider type, WinRM/PowerShell protocol, cross-DC aggregation. It shipped cleanly in 4 plans (~1 day) because the providers/ad/ package structure was planned up-front and the isolated package boundary kept blast radius minimal.
+
+---
+
+## Milestone: v1.8 — Dashboard Analytics
+
+**Shipped:** 2026-03-08
+**Phases:** 3 (Phases 30–32) | **Plans:** 10 | **Timeline:** 1 day (2026-03-08)
+
+### What Was Built
+
+- **AD Dashboard tab (Phase 30)** — Full HTMX wizard UI for AD connection (wizard.html), per-DC autodiscovery progress via SSE (progress_display.html), results screen with token formula derivation and download CTA (complete.html), error state with retry; `AdScanManager` thread-safe state machine with background thread execution; `routes/ad.py` (3 endpoints); wired into FastAPI lifespan, `_get_tab_context()`, and `tab_bar.html` badge
+- **Top 5 DNS Zones panels (Phase 31)** — Cloud Summary tab panel (`_compute_top_cloud_dns_zones()` in pages.py, counting `gcp-dns-record` / AWS Route53 / Azure DNS records by zone); AD complete screen panel (Counter-based tally in `_run_ad_pipeline()`); NIOS complete screen panel (stream-intercept accumulator `_accumulate_dns_zones()` in parse pipeline, `NiosScanManager.top_dns_zones`); backward-compatible `set_complete(top_dns_zones=None)` across both managers
+- **DDI display names (Phase 32)** — `DDI_DISPLAY_NAMES: dict[str, str]` with 68 type mappings (AWS/Azure/GCP/AD, pre-v1.7 and v1.7 types); `_compute_summary()` breakdown dict gains `"display_name": DDI_DISPLAY_NAMES.get(rt, rt)` fallback; `summary.html` renders `{{ info.display_name }}` in breakdown rows; `CloudResource.resource_type` never mutated
+
+### What Worked
+
+- **Three-source DNS panel pattern** — The same `top_dns_zones` data structure (list of `(zone_name, count)` tuples) was used identically across all three panels (Cloud, AD, NIOS). Designing the data contract once and reusing it across three screens cost almost nothing.
+- **Backward-compatible manager kwarg pattern** — Adding `top_dns_zones=None` as a final keyword arg to `set_complete()` on both `AdScanManager` and `NiosScanManager` kept all 201+ existing tests passing without any fixture updates. The established pattern made Phase 31 risk-free.
+- **Stream-intercept accumulator for NIOS** — Wrapping `filter_objects()` with `_accumulate_dns_zones()` (a generator that yields through while maintaining a running Counter) avoided a second parse pass on the NIOS backup file. Elegant, zero-memory-overhead, single-pass.
+- **Display-layer separation (Phase 32)** — ATTR-01 touched zero backend models. `DDI_DISPLAY_NAMES.get(rt, rt)` fallback in `_compute_summary()` means unknown future types degrade to raw strings without any error or code change. Correct approach to display concerns.
+- **xfail(strict=False) for Wave 0 scaffold** — Using `strict=False` on xfail stubs allowed tests to pass when implementation pre-existed (Phase 32-01 case) without breaking CI. The contract was established without any awkward fixture gymnastics.
+
+### What Was Inefficient
+
+- **Phase 30 template field name mismatch** — `wizard.html` field names did not match `form.get()` keys in `ad.py` (e.g., `servers` vs `server`, auth field naming). Required an unplanned fix pass. Root cause: template and route were developed by different agents with no shared field name contract. Fix: define field names in the plan, not discovered at render time.
+- **No milestone audit** — v1.8 completed without `/gsd:audit-milestone`. All requirements were verified individually by the verifier agents, but cross-phase integration and E2E flows were not formally audited. The milestone was small enough (3 phases) that this wasn't critical, but the pattern should be maintained for larger milestones.
+- **gsd-tools accomplishment extraction** — Eighth milestone, still `accomplishments: []`. The persistent mismatch between `provides:` SUMMARY.md frontmatter and the tool's expected `one_liner:` field remains unresolved.
+
+### Patterns Established
+
+- **SSE progress with asyncio.wait()** — `_sse_ad_progress()` generator uses `asyncio.wait()` with 1s timeout for compatibility with both real clients (streaming) and `TestClient` (disconnect detection). This is now the established pattern for SSE generators in this codebase; use it for any future streaming endpoint.
+- **Top N panel data contract** — `top_dns_zones: list[tuple[str, int]]` — a list of `(name, count)` tuples sorted descending — is the universal data shape for "Top N" panels. `Counter.most_common(5)` produces it directly. Reuse for any future Top N panel (accounts, resource types, etc.).
+- **Display name mapping at computation time** — `DDI_DISPLAY_NAMES` applied in `_compute_summary()`, never mutating `CloudResource.resource_type`. Display concerns are isolated to the summary dict. Future display-layer features follow the same pattern: add a key to the summary dict, render it in the template.
+
+### Key Lessons
+
+1. **Define shared field name contracts in plans, not discovered in templates** — Phase 30 template/route mismatch could have been avoided by listing the five `<form>` field names explicitly in the plan document. When multiple plans share a data contract, document the contract in the first plan and reference it in subsequent ones.
+2. **Wave 0 xfail imports must be deferred inside test bodies** — Collection-time `ImportError` on module-level imports breaks the suite before any test runs. Deferring imports inside test bodies (Phase 31 lesson, reinforced in Phase 32) is the canonical pattern for Wave 0 scaffolds when the implementation doesn't yet exist.
+3. **Template-first features are the fastest class of work** — Phase 32 (ATTR-01) was a display-layer-only change that shipped 2/2 plans in under 8 minutes of agent time. Whenever a requirement only needs a new key in `_compute_summary()` and a template substitution, that's the same pattern. Always check if the data is already available before adding backend work.
+4. **SSE + TestClient compatibility requires care** — FastAPI `TestClient` doesn't behave identically to a real streaming client on disconnect. Using `asyncio.wait()` with explicit timeout (not `asyncio.sleep()`) and checking `done`/`pending` sets correctly handles both cases. Document this when designing new SSE endpoints.
+
+### Cost Observations
+
+- Sessions: 1 session (~3 hours)
+- Model: claude-sonnet-4-6 (balanced profile) throughout; no opus needed
+- Notable: All 10 plans executed in a single session with full parallel wave execution. v1.8 was the most concentrated milestone — 3 phases of dashboard work shipped in one continuous run. The three-scope architecture (Cloud, NIOS, AD) established in v1.7 was the key enabler; all three scopes had the same DNS panel data shape with zero cross-scope coupling.
+
+---
+
+## Milestone: v1.9 — Multi-Tool Suite UX
+
+**Shipped:** 2026-03-08
+**Phases:** 5 (Phases 33–37) | **Plans:** 16 | **Timeline:** single day (2026-03-08)
+
+### What Was Built
+
+- **Infoblox brand CSS design system** — `design-system.css` (12 sections, ~400 lines) with CSS custom properties (`--ib-*` tokens), self-hosted Inter v4.1 WOFF2 font, replacing PicoCSS's external CDN dependency; all `--pico-*` references purged from 6 templates
+- **Home selector screen** — `home.html` at `/` with three calculator cards (Cloud, NIOS, AD), each with name, description, and entry button; root route swapped from Cloud Calculator to home; cards use `--ib-card-border` token and subtle shadow per DESIGN-02
+- **Dedicated calculator routes** — `/cloud`, `/nios`, `/ad` handlers added to `pages.py`; `base.html` `active_tab` conditional enables per-route initial HTMX tab load; home screen is self-contained (no `base.html` extends) to avoid HTMX side-effects
+- **Breadcrumb navigation** — conditional `Home > [Calculator Name]` breadcrumb in `base.html` using `calculator_name` context injection; plain `<a href="/">` (no HTMX) for correct full-page home navigation; visible across wizard, progress, and results screens
+- **Per-calculator accent system** — `calc_theme` body class (`calc-cloud/nios/ad`) cascades `--calc-accent` CSS variable; wizard completed steps replaced with `::after` checkmark pseudo-element; `.completion-card` and `.section-header` layouts on results screens; 11 tests verified the full accent cascade
+- **Persistent Cloud provider switcher** — AWS/Azure/GCP pill selector in `base.html` conditioned on `calc_theme="calc-cloud"`; three isolated `ScanManager` + `EventBridge` instances on `app.state` via lifespan startup; per-provider tab routes, SSE endpoint, scan start route, and 3-step wizard route all wired; backward-compatible `tab_bar.html` via `tab_base` context variable
+
+### What Worked
+
+- **Test-first wave pattern was highly effective** — Each phase opened with an xfail test scaffold (Wave 0 or Wave 1) before any implementation. This consistently surface the exact assertions needed and removed ambiguity about what "done" looked like. All 5 phases used this pattern; all 16 plans completed with passing tests.
+- **`xfail(strict=True)` convention** — Using strict=True for all pre-implementation stubs creates an automatic enforcement: when implementation satisfies the assertion, the test XPASS-fails unless the xfail marker is removed. This forced cleanup on every implementation plan. Exception pattern (strict=False only when assertion already satisfied pre-implementation) was consistent across all 5 phases.
+- **CSS custom property cascade for accent system** — A single `calc_theme` body class + CSS variable cascade produced all three per-calculator accent variants with zero Python branching. The `--calc-accent` fallback in `:root` kept shared components accent-neutral without extra logic.
+- **Single-day milestone** — All 5 phases and 16 plans completed in one continuous session. The design-first sequencing (Phase 33 before all other phases) and the clear dependency chain (33 → 34 → 35 → 36 → 37) enabled this pace without blocking.
+
+### What Was Inefficient
+
+- **VALIDATION.md stubs not updated post-execution** — All 5 phases have VALIDATION.md files initialized as `draft` stubs during planning; none were updated after Wave 0 test scaffolds executed. Persistent pattern across v1.7, v1.8, v1.9 — `/gsd:validate-phase` should be run as part of the execute-phase commit, not deferred.
+- **ROADMAP.md progress table columns out of sync** — Phases 33–37 rows in the progress table were missing the Milestone column at merge time (left as `| 33. Design Foundation | 3/3 | Complete | 2026-03-08 | - |`). Fixed at milestone close. Root cause: roadmap template for these phases was created before the Milestone column convention was added in earlier milestones.
+- **gsd-tools accomplishment extraction (persistent)** — Same as v1.1–v1.8: `milestone complete` CLI returned "(none recorded)" because SUMMARY.md frontmatter uses `provides:/requires:` not `one_liner:`. Still not fixed after 8 milestones — either update the tool or add `one_liner:` to the executor's SUMMARY.md template.
+
+### Patterns Established
+
+- **Home screen self-contained (no base.html)** — Calculator home screens must not extend `base.html` if `base.html` carries HTMX auto-triggers for calculator tab loads. Home is a static page, not a calculator shell.
+- **Plain anchor for cross-calculator navigation** — Links that navigate between top-level routes (e.g., breadcrumb Home link) use plain `<a href="/">` without any HTMX attributes. HTMX partial swaps are scoped to within a single calculator.
+- **Isolated scan state per cloud provider** — Per-provider `ScanManager` + `EventBridge` instances on `app.state` (not module-level singletons) prevent cross-provider SSE bleed. The lifespan startup registration pattern is the standard for any future multi-instance scan state.
+- **`tab_base` context variable for provider-scoped HTMX** — Templates that need provider-aware HTMX routes receive `tab_base` (e.g., `/cloud/aws`) in context; `{% if tab_base is defined %}` conditionals provide backward-compatible fallback. This pattern enables provider scoping without breaking NIOS/AD tabs.
+
+### Key Lessons
+
+1. **Design-first sequencing compounds** — Phase 33 (CSS variables) enabled all subsequent phases to reference `--calc-accent`, `--ib-*` tokens, and `calc_theme` body classes without backtracking. The one-day sprint was only possible because Phase 33 landed cleanly before Phase 36 needed the accent system.
+2. **Strict xfail markers are a forcing function** — The `strict=True` pattern made test cleanup mandatory. Without it, stale xfail markers accumulate silently as XPASS. The `strict=False` exception (for assertions already satisfied pre-implementation) is the only safe carve-out.
+3. **Run `/gsd:validate-phase` before milestone close** — VALIDATION.md stubs persist as draft in every milestone. Nyquist compliance is a non-blocking concern but the stubs mislead future readers into thinking wave tests were not implemented. Reserve 10 minutes at phase completion to update them.
+
+### Cost Observations
+
+- Sessions: 1 session (single day)
+- Model: claude-sonnet-4-6 (balanced profile) throughout; no opus needed
+- Notable: Phase 37 (Cloud Provider Switcher) was the most complex — 5 plans with isolated scan state, per-provider routes, SSE, and backward-compatible template changes — completed in ~75 minutes. The lifespan-scoped `app.state` pattern and the existing SSE infrastructure from v1.3 were the key enablers.
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -246,6 +390,9 @@
 | v1.3 | 1 day | 3 | WebUI polish — no new data model; all plans were execution-only with clear HTMX + FastAPI patterns |
 | v1.4 | 1 day | 2 | Audit depth — template-only, backend data already available; back-to-back with v1.3 |
 | v1.5 | 1 day | 1 | Results navigation — template + IIFE; fastest milestone; all reqs satisfied in 38 min |
+| v1.7 | 5 days | 5 | Reference parity — 26 new DDI types + Microsoft AD provider; largest methodology change (NIC counting) |
+| v1.8 | 1 day | 3 | Dashboard analytics — AD tab, DNS zone panels, DDI display names; all dashboard-layer; three-scope architecture fully surfaced |
+| v1.9 | 1 day | 5 | Multi-tool suite UX — home screen, breadcrumb, Infoblox brand design system, per-calculator accents, Cloud provider switcher |
 
 ### Cumulative Quality
 
@@ -257,6 +404,9 @@
 | v1.3 | 20+ (Phase 19 dashboard tests) | 188+ | none (Jinja2 template additions only) |
 | v1.4 | 21+ (Phase 21 attribution + Phase 22 breakdown) | 188+ | none (template additions only) |
 | v1.5 | 10 (TestFormulaCards x5 + TestANA07 x1 + TestSortableTable x4) | 188+ | none (template + IIFE additions only) |
+| v1.7 | 100+ (38 RED AD tests + AWS/Azure/GCP DDI tests across 5 phases) | 188+ | pywinrm (runtime, AD only) |
+| v1.8 | ~16 (5 attribution + 7+4 DNS zone tests) | 188+ | none (dashboard-only additions) |
+| v1.9 | ~50 (9 DESIGN-01 + 8 home/routing + 7 breadcrumb + 11 accent/cards + 14 provider switcher) | 188+ | none (dashboard CSS/HTML additions only) |
 
 ### Top Lessons (Verified Across Milestones)
 
@@ -266,3 +416,7 @@
 4. **gsd-tools `milestone complete` accomplishment extraction is broken** — Present across v1.1–v1.5. Tool expects `one_liner:` frontmatter; SUMMARY.md uses `provides:`. Fix either the tool or the template.
 5. **Check template context before adding backend work** — v1.4 (Phases 21–22) and v1.5 (Phase 23) all shipped with zero backend changes because the data was already computed and available. The architectural investment in `_compute_summary()` returning rich per-provider/per-account dicts paid dividends across 5 consecutive phases.
 6. **Close milestones formally before starting the next** — v1.4 was informally shipped before v1.5 started (same day). Retroactive archival works but loses traceability. One-milestone-at-a-time discipline keeps the planning files accurate and the archive links clean.
+7. **Isolated package boundaries scale to new provider types** — The `nios/` isolation pattern from v1.1 replicated directly to `providers/ad/` in v1.7. Zero cross-provider regressions across all milestones. The pattern is proven: new data sources get their own package with clean import boundaries.
+8. **Nyquist validation is a chronic gap** — Post-execution VALIDATION.md files remain incomplete across multiple milestones (v1.7: phases 25–29, v1.9: phases 33–37). Run `/gsd:validate-phase` as a standard step before milestone close, not as an optional follow-up.
+9. **Design-first sequencing enables parallel sprint** — v1.9 shipped 5 phases in one day because Phase 33 (CSS foundation) resolved all token-level dependencies before Phase 36 (accent system) needed them. For any visual milestone, always sequence the design token phase first.
+10. **`strict=True` xfail is a forcing function for cleanup** — Established across all v1.9 phases: strict xfail markers become pytest failures on XPASS, forcing removal at implementation time. The single carve-out (`strict=False` when assertion already satisfied) is the only safe exception.

@@ -1,5 +1,46 @@
 # Milestones
 
+## v1.9 Multi-Tool Suite UX (Shipped: 2026-03-08)
+
+**Phases:** 33–37 (5 phases, 16 plans)
+**Timeline:** 2026-03-08 (single-day sprint)
+**Requirements:** 13/13 (DESIGN-01–05, HOME-01–02, NAV-01–02, ROUTE-01–02, CLOUD-08–09)
+
+**Delivered:**
+Restructured the dashboard as a home-screen-first multi-tool suite — three calculators each at a dedicated URL, unified Infoblox brand design system replacing PicoCSS, persistent provider selector across the Cloud Calculator flow, and breadcrumb navigation throughout all calculator pages.
+
+**Key accomplishments:**
+1. Custom Infoblox brand CSS design system (`design-system.css`, 12 sections) + self-hosted Inter v4.1 WOFF2, fully replacing PicoCSS — brand tokens (`#0066CC`, `#1A1A2E`, `#00C389`, `#F8F9FA`) applied via CSS custom properties (DESIGN-01)
+2. Home selector screen at `/` with three calculator cards (Cloud, NIOS, AD) each with name, description, and entry button — root route now returns home, not Cloud Calculator (HOME-01, HOME-02, ROUTE-01, ROUTE-02)
+3. Conditional "Home > [Calculator Name]" breadcrumb on all calculator pages including wizard steps, progress, and results screens — plain `<a href="/">` with no HTMX for correct full-page navigation (NAV-01, NAV-02)
+4. Per-calculator accent system: Cloud blue `#0066CC`, NIOS green `#00C389`, AD purple `#8B5CF6` — `calc_theme` body class cascades via CSS custom property; wizard completed steps replaced with `::after` checkmark pseudo-element; card layouts on results screens (DESIGN-02–05)
+5. Persistent AWS/Azure/GCP provider pill selector across Cloud Calculator flow — three isolated ScanManager + EventBridge instances on `app.state`; per-provider tab routes `/cloud/{provider}/tab/{tab}`, SSE `/api/sse/progress/{provider}`, scan start `/api/scan/{provider}/start` (CLOUD-08, CLOUD-09)
+
+**Archives:**
+- `.planning/milestones/v1.9-ROADMAP.md`
+- `.planning/milestones/v1.9-REQUIREMENTS.md`
+- `.planning/milestones/v1.9-MILESTONE-AUDIT.md`
+
+---
+
+## v1.8 Dashboard Analytics (Shipped: 2026-03-08)
+
+**Phases completed:** 3 phases, 10 plans, 2 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
+## v1.7 Reference Parity (Shipped: 2026-03-07)
+
+**Phases completed:** 5 phases, 19 plans, 3 tasks
+
+**Key accomplishments:**
+- (none recorded)
+
+---
+
 ## v1.5 Results Navigation (Shipped: 2026-03-03)
 
 **Phases:** 23 (1 phase, 2 plans)

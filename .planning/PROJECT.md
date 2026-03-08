@@ -39,26 +39,21 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 - ✓ Azure DDI types expanded: VNet Gateways (VPN+ExpressRoute), Private Link Services, Virtual WANs, Route Tables, Tenants (5 new types) — v1.7 (Phase 27)
 - ✓ GCP DDI types expanded: Compute Addresses, GKE CIDR Ranges (control plane/pod/service), Router NAT Mapping Infos, Target VPN Gateways (6 new types) — v1.7 (Phase 28)
 - ✓ Microsoft AD provider via WinRM/PowerShell: DNS zones/records, DHCP scopes/leases/reservations, AD Users, Kerberos/NTLM auth, DC autodiscovery, XLS report — v1.7 (Phase 29)
-
-## Current Milestone: v1.8 Dashboard Analytics
-
-**Goal:** Complete the AD dashboard experience and add cross-source analytics depth with DNS zone breakdowns and expanded DDI type attribution.
-
-**Target features:**
-- AD Dashboard Tab: connection wizard, autodiscovery progress, and results display
-- Top 5 DNS Zones panel per scope (NIOS, Cloud, AD)
-- Per-account breakdown for new v1.7 DDI types in attribution table
-
-### Validated
-
-- ✓ Dashboard tab for AD with connection wizard and results display (AD-09) — v1.8 (Phase 30)
-- ✓ AD autodiscovery progress and results surfaced in web dashboard (AD-10) — v1.8 (Phase 30)
-- ✓ Top 5 DNS Zones panel per scope (NIOS, Cloud, AD) — token consumption breakdown — v1.8 (Phase 31)
-- ✓ Human-readable display names for all DDI resource types in breakdown (ATTR-01) — v1.8 (Phase 32)
+- ✓ Custom Infoblox brand CSS design system (`design-system.css`) + self-hosted Inter font, replacing PicoCSS entirely — v1.9 (Phase 33)
+- ✓ Home selector screen at `/` with three calculator cards (Cloud, NIOS, AD); dedicated `/cloud`, `/nios`, `/ad` routes — v1.9 (Phase 34)
+- ✓ Breadcrumb "Home > [Calculator Name]" on all calculator pages (wizard, progress, results) — v1.9 (Phase 35)
+- ✓ Per-calculator accent system (Cloud blue, NIOS green, AD purple) + wizard step indicators + completion card layouts — v1.9 (Phase 36)
+- ✓ Persistent AWS/Azure/GCP provider pill selector across Cloud Calculator flow; isolated ScanManager/EventBridge per provider; per-provider SSE, scan start, and wizard routes — v1.9 (Phase 37)
 
 ### Active
 
-(none — v1.8 milestone complete)
+(No active requirements — planning next milestone)
+
+### Future Candidates
+
+- **CROSS-01**: Cross-calculator combined summary view (aggregated tokens from all three sources)
+- **CROSS-02**: Session persistence — remember last-used provider and calculator state across browser refresh
+- **DARK-01**: Dark mode toggle using the design system dark variant
 
 ### Out of Scope
 
@@ -75,24 +70,26 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 
 ## Context
 
-### Current State (after v1.7)
+### Current State (after v1.9)
 
-- **v1.7 shipped 2026-03-07** — Reference Parity: IP methodology aligned with reference (NIC counting), 26 new DDI types across AWS/Azure/GCP, full Microsoft AD provider via WinRM/PowerShell (AD-01–08)
+- **v1.9 shipped 2026-03-08** — Multi-Tool Suite UX: home screen, breadcrumb nav, per-calculator accents, Cloud provider switcher, Infoblox brand design system (13/13 requirements)
+- **v1.8 shipped 2026-03-08** — Dashboard Analytics: AD dashboard, DNS zones panels, attribution display names
+- **v1.7 shipped 2026-03-07** — Reference Parity: IP methodology aligned, 26 new DDI types, full Microsoft AD provider
 - **v1.6 shipped 2026-03-03** — Wizard Navigation Fix
-- **v1.5 shipped 2026-03-03** — Results Navigation: per-provider formula cards, sortable attribution table, collapsible resource-type rows
-- **v1.4 shipped 2026-03-03** — Audit Depth: cloud per-account attribution + NIOS object family breakdown
-- **v1.3 shipped 2026-03-03** — Enhanced WebUI Experience: progress steps, formula derivation, member attribution
-- **v1.2 shipped 2026-03-02** — DTC/LBDN DDI support; 26 NIOS object families recognized
-- **v1.1 shipped 2026-03-02** — NIOS Grid backup analysis fully integrated
+- **v1.5 shipped 2026-03-03** — Results Navigation: per-provider formula cards, sortable attribution table
+- **v1.4 shipped 2026-03-03** — Audit Depth: per-account attribution + NIOS object family breakdown
+- **v1.3 shipped 2026-03-03** — Enhanced WebUI: progress steps, formula derivation, member attribution
+- **v1.2 shipped 2026-03-02** — DTC/LBDN DDI support
+- **v1.1 shipped 2026-03-02** — NIOS Grid backup analysis
 - **v1.0 shipped 2026-02-26** — Cloud Discovery MVP (AWS, Azure, GCP)
 - Microsoft AD package: `src/cloud_usage/providers/ad/` — WinRM/PowerShell collector, run_ad_analysis() pipeline, 12 CLI flags
 - NIOS package: `src/cloud_usage/nios/` — ~2,500 lines of Python, 211+ tests passing
-- Dashboard: `src/cloud_usage/dashboard/` — FastAPI routes + HTMX templates, SSE progress, NIOS wizard, sortable attribution tables
+- Dashboard: `src/cloud_usage/dashboard/` — FastAPI routes + HTMX templates; home screen, per-calculator routes, breadcrumb, provider switcher, SSE progress, sortable attribution tables
 - Full stack: FastAPI + HTMX dashboard, CLI, 3 cloud providers + Microsoft AD, NIOS analysis
-- DDI_TYPES: 26+ new type strings added in v1.7 (15 AWS, 5 Azure, 6 GCP) — categorizer covers full reference set
-- Total codebase: ~28,000+ LOC Python (estimate post v1.7; +11,738 lines in v1.7 alone)
+- Design system: `src/cloud_usage/dashboard/static/css/design-system.css` — 12-section Infoblox brand CSS, self-hosted Inter v4.1 WOFF2, `calc_theme` body class cascade
+- Total codebase: ~54,500 LOC (Python + CSS + HTML, app code)
 - Validated reference backup: ZF Friedrichshafen — 2.5M objects, 304,730 unique Active IPs (4-source dedup confirmed)
-- Tech stack: Python 3.9+ (guarded), FastAPI, lxml, xlsxwriter, pyyaml, pywinrm, moto (tests)
+- Tech stack: Python 3.9+ (guarded), FastAPI, HTMX, lxml, xlsxwriter, pyyaml, pywinrm, moto (tests)
 - Platform validated: macOS (primary dev), CI matrix for Windows 11/WSL
 
 ### Enterprise Context
@@ -159,6 +156,12 @@ Accurate, auditable UDDI token estimation from any source — cloud or NIOS Grid
 | WinRM/pywinrm for AD connectivity (not LDAP) | pywinrm allows PowerShell remoting which can run the same Get-DnsServerZone/Get-DhcpServerv4Scope cmdlets as the reference; LDAP would require re-implementing counting logic | ✓ Good — cmdlet output maps directly to reference counts |
 | Cross-DC deduplication in _aggregate_results() (not at collector level) | Individual DCs may return overlapping DNS zones and DHCP scopes in a forest; dedup must happen after all DCs are collected | ✓ Good — dedup by zone name / scope_id / SID prevents double-counting in multi-DC scans |
 | DDI_DISPLAY_NAMES applied at summary computation (not on CloudResource) | Mutating resource_type would corrupt canonical identity used for categorization — display name is presentation-only, computed at render time | ✓ Good — dict.get(rt, rt) fallback safely handles future unknown types |
+| home.html self-contained (no `base.html` extends) | Avoids hx-get=/tab/progress auto-trigger on home screen; home is a static page, not a calculator | ✓ Good — clean separation; no HTMX side-effects on home page |
+| Plain `<a href="/">` on breadcrumb Home link (no hx-*) | Returning to home must be a full-page navigation — HTMX partial swap would break the home screen context | ✓ Good — consistent with browser expectations; zero JavaScript needed |
+| `calc_theme` body class + CSS custom property cascade | Single injection point per route; per-calculator accents inherit from body class; fallback in `:root` keeps shared components neutral | ✓ Good — zero duplication; calc_theme="calc-cloud/nios/ad" maps cleanly |
+| `::after` checkmark pseudo-element on wizard completed steps | No extra HTML; keeps wizard markup clean; CSS-only progression state | ✓ Good — reusable pattern; accent-aware via `var(--calc-accent)` |
+| Three isolated ScanManager + EventBridge instances on `app.state` | Per-provider scan state isolation prevents cross-provider SSE bleed; each provider maintains its own scan lifecycle | ✓ Good — lifespan startup registers aws/azure/gcp managers; no shared mutable state |
+| xfail(strict=True) for pre-implementation stubs; strict=False only where assertion already satisfied | Consistent convention across all 5 phases; strict=True XPASS = pytest failure forces xfail removal on implementation | ✓ Good — established project convention from v1.9 phases 33–37 |
 
 ---
-*Last updated: 2026-03-08 after Phase 32 — v1.8 milestone complete*
+*Last updated: 2026-03-08 after v1.9 milestone — Multi-Tool Suite UX shipped*
