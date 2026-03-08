@@ -245,4 +245,4 @@ Plans:
 | 34. Home Screen + Routing | 3/3 | Complete    | 2026-03-08 | - |
 | 35. Navigation + Breadcrumb | 2/2 | Complete    | 2026-03-08 | - |
 | 36. Calculator Visual Redesign | 3/3 | Complete    | 2026-03-08 | - |
-| 37. Cloud Provider Switcher | 2/5 | In Progress|  | - |
+| 37. Cloud Provider Switcher | 3/5 | In Progress|  | - |
