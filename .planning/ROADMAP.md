@@ -155,7 +155,11 @@ Plans:
   3. Clicking a card entry button navigates to `/cloud`, `/nios`, or `/ad` respectively
   4. Cloud Calculator is served at `/cloud`, NIOS Calculator at `/nios`, AD Calculator at `/ad`
   5. Home screen cards use white background, `#E5E7EB` border, rounded corners, and subtle shadow matching the Infoblox card style
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 34-01-PLAN.md — Wave 1: xfail test scaffold for all home/routing behaviors
+- [ ] 34-02-PLAN.md — Wave 2: home.html template, card CSS, root route swap
+- [ ] 34-03-PLAN.md — Wave 3: /cloud, /nios, /ad routes + base.html conditional tab fix
 
 ### Phase 35: Navigation + Breadcrumb
 **Goal**: All calculator pages show a breadcrumb trail that lets users return to the home screen
@@ -224,8 +228,8 @@ Plans:
 | 30. AD Dashboard | v1.8 | 5/5 | Complete | 2026-03-08 |
 | 31. DNS Zones Panels | v1.8 | 3/3 | Complete | 2026-03-08 |
 | 32. Attribution Display Names | v1.8 | 2/2 | Complete | 2026-03-08 |
-| 33. Design Foundation | 3/3 | Complete   | 2026-03-08 | - |
-| 34. Home Screen + Routing | v1.9 | 0/? | Not started | - |
+| 33. Design Foundation | 3/3 | Complete    | 2026-03-08 | - |
+| 34. Home Screen + Routing | v1.9 | 0/3 | Not started | - |
 | 35. Navigation + Breadcrumb | v1.9 | 0/? | Not started | - |
 | 36. Calculator Visual Redesign | v1.9 | 0/? | Not started | - |
 | 37. Cloud Provider Switcher | v1.9 | 0/? | Not started | - |
