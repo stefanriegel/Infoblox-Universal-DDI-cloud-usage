@@ -30,6 +30,8 @@ from typing import TYPE_CHECKING
 from fastapi import APIRouter, Request, UploadFile
 from fastapi.responses import HTMLResponse, StreamingResponse
 
+from cloud_usage.nios.schema import NiosFamily
+
 if TYPE_CHECKING:
     from cloud_usage.dashboard.services.event_bridge import EventBridge
     from cloud_usage.dashboard.services.nios_manager import NiosScanManager
@@ -37,6 +39,19 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# DNS-03: frozenset of all DNS record families for per-zone accumulation
+_DNS_RECORD_FAMILIES: frozenset = frozenset({
+    NiosFamily.DNS_RECORD_A,
+    NiosFamily.DNS_RECORD_AAAA,
+    NiosFamily.DNS_RECORD_CNAME,
+    NiosFamily.DNS_RECORD_MX,
+    NiosFamily.DNS_RECORD_NS,
+    NiosFamily.DNS_RECORD_PTR,
+    NiosFamily.DNS_RECORD_SOA,
+    NiosFamily.DNS_RECORD_SRV,
+    NiosFamily.DNS_RECORD_TXT,
+})
 
 
 # ---------------------------------------------------------------------------
@@ -144,9 +159,38 @@ def _run_nios_pipeline(
             "label": "Counting objects",
             "elapsed_seconds": round(time.monotonic() - start_time, 1),
         })
+        # DNS-03: initialize per-zone record count accumulator
+        zone_record_counts: dict[str, int] = {}
+        _dns_a_keys_logged = False
+
+        def _accumulate_dns_zones(stream):
+            """Wrap filtered stream to accumulate per-zone DNS record counts inline."""
+            nonlocal _dns_a_keys_logged
+            for obj in stream:
+                # DNS_ZONE objects seed the dict with 0 (first-seen only)
+                if obj.family == NiosFamily.DNS_ZONE:
+                    fqdn = obj.raw_attrs.get("fqdn", "")
+                    if fqdn and fqdn not in zone_record_counts:
+                        zone_record_counts[fqdn] = 0
+                elif obj.family in _DNS_RECORD_FAMILIES:
+                    zone = (
+                        obj.raw_attrs.get("zone_name")
+                        or obj.raw_attrs.get("parent")
+                        or obj.raw_attrs.get("zone")
+                        or ""
+                    )
+                    if not _dns_a_keys_logged and obj.family == NiosFamily.DNS_RECORD_A:
+                        logger.debug(
+                            "NIOS DNS_A raw_attrs keys: %s", list(obj.raw_attrs.keys())
+                        )
+                        _dns_a_keys_logged = True
+                    if zone:
+                        zone_record_counts[zone] = zone_record_counts.get(zone, 0) + 1
+                yield obj
+
         raw_stream_a = parse_backup(backup_path, member_map=member_map)
         filtered_a = filter_objects(raw_stream_a, filter_config)
-        count_result = count_objects(filtered_a, filter_config)
+        count_result = count_objects(_accumulate_dns_zones(filtered_a), filter_config)
 
         # ip_by_type sourced directly from CountResult (no separate pass needed)
         ip_by_type = count_result.ip_by_type
@@ -217,7 +261,10 @@ def _run_nios_pipeline(
                 "reason": "" if is_ddi else _UDDI_FLAG_REASON.get(family, "Not a DDI or IP object"),
             })
 
-        nios_manager.set_complete(output_path, scenario_suite=scenario_suite, family_breakdown=family_breakdown)
+        # DNS-03: compute top 5 zones by record count from accumulated dict
+        top_dns_zones = sorted(zone_record_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+
+        nios_manager.set_complete(output_path, scenario_suite=scenario_suite, family_breakdown=family_breakdown, top_dns_zones=top_dns_zones)
         logger.info("NIOS analysis complete: %s", output_path)
 
     except Exception as exc:

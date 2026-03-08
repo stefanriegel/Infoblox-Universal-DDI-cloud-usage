@@ -54,6 +54,7 @@ class NiosScanManager:
         self._error: Optional[str] = None
         self._scenario_suite = None
         self._family_breakdown: Optional[list] = None
+        self._top_dns_zones: list = []
         self._current_progress: dict = {
             "step": 0,
             "total": 6,
@@ -104,6 +105,12 @@ class NiosScanManager:
             return self._family_breakdown
 
     @property
+    def top_dns_zones(self) -> list:
+        """Top 5 NIOS DNS zones by record count. Thread-safe read."""
+        with self._lock:
+            return list(self._top_dns_zones)
+
+    @property
     def current_progress(self) -> dict:
         """Latest progress step dict. Thread-safe read."""
         with self._lock:
@@ -132,6 +139,7 @@ class NiosScanManager:
             self._error = None
             self._scenario_suite = None
             self._family_breakdown = None
+            self._top_dns_zones = []
             self._current_progress = {
                 "step": 0,
                 "total": 6,
@@ -187,19 +195,21 @@ class NiosScanManager:
                 "elapsed_seconds": elapsed_seconds,
             }
 
-    def set_complete(self, output_path: str, scenario_suite=None, family_breakdown=None) -> None:
-        """Transition to COMPLETE with output path, ScenarioSuite, and family breakdown. Thread-safe.
+    def set_complete(self, output_path: str, scenario_suite=None, family_breakdown=None, top_dns_zones: list | None = None) -> None:
+        """Transition to COMPLETE with output path, ScenarioSuite, family breakdown, and DNS zones. Thread-safe.
 
         Args:
             output_path: Path to the generated .xlsx file.
             scenario_suite: ScenarioSuite from compute_scenarios() for summary card.
             family_breakdown: Pre-computed list of family breakdown dicts for complete screen.
+            top_dns_zones: Top 5 DNS zones by record count as list of (zone, count) tuples.
         """
         with self._lock:
             self._state = NiosState.COMPLETE
             self._output_path = output_path
             self._scenario_suite = scenario_suite
             self._family_breakdown = family_breakdown
+            self._top_dns_zones = top_dns_zones or []
 
     def set_error(self, error: str) -> None:
         """Transition to ERROR with message. Thread-safe.
