@@ -303,6 +303,7 @@ async def cloud_calculator(request: Request) -> HTMLResponse:
     """Render the Cloud Calculator at /cloud."""
     templates = request.app.state.templates
     context = _get_tab_context(request, "progress")
+    context["calculator_name"] = "Cloud Calculator"
     return templates.TemplateResponse(request, "base.html", context)
 
 
@@ -311,6 +312,7 @@ async def nios_calculator(request: Request) -> HTMLResponse:
     """Render the NIOS Calculator at /nios."""
     templates = request.app.state.templates
     context = _get_tab_context(request, "nios")
+    context["calculator_name"] = "NIOS Calculator"
     return templates.TemplateResponse(request, "base.html", context)
 
 
@@ -319,6 +321,7 @@ async def ad_calculator(request: Request) -> HTMLResponse:
     """Render the AD Calculator at /ad."""
     templates = request.app.state.templates
     context = _get_tab_context(request, "ad")
+    context["calculator_name"] = "AD Calculator"
     return templates.TemplateResponse(request, "base.html", context)
 
 
