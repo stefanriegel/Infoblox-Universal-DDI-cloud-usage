@@ -1,6 +1,8 @@
 """Tests for Phase 37: Cloud Provider Switcher (CLOUD-08, CLOUD-09)."""
 from __future__ import annotations
 
+import threading
+import time
 from pathlib import Path
 
 import pytest
@@ -104,31 +106,41 @@ def test_provider_scan_state_independent() -> None:
         assert app.state.aws_scan_manager is not app.state.azure_scan_manager
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-09: per-provider scan start route not yet added")
 def test_aws_scan_start_route_exists() -> None:
     """POST /api/scan/aws/start must return non-404 (409 or 422 both acceptable)."""
-    client = TestClient(create_app())
-    response = client.post("/api/scan/aws/start")
+    app = create_app()
+    with TestClient(app) as client:
+        response = client.post("/api/scan/aws/start")
     assert response.status_code != 404
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-09: per-provider scan start route not yet added")
 def test_azure_scan_start_route_exists() -> None:
     """POST /api/scan/azure/start must return non-404 (409 or 422 both acceptable)."""
-    client = TestClient(create_app())
-    response = client.post("/api/scan/azure/start")
+    app = create_app()
+    with TestClient(app) as client:
+        response = client.post("/api/scan/azure/start")
     assert response.status_code != 404
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-09: per-provider SSE endpoint not yet added")
 def test_aws_sse_progress_endpoint_exists() -> None:
     """GET /api/sse/progress/aws must return 200 streaming response."""
-    client = TestClient(create_app())
-    with client.stream("GET", "/api/sse/progress/aws") as r:
-        assert r.status_code == 200
+    app = create_app()
+    with TestClient(app) as client:
+
+        def emit_complete() -> None:
+            """Emit scan_complete after a brief delay to close the SSE stream."""
+            time.sleep(0.3)
+            app.state.aws_event_bridge.emit_done()
+
+        thread = threading.Thread(target=emit_complete)
+        thread.start()
+
+        response = client.get("/api/sse/progress/aws")
+        thread.join(timeout=5)
+
+    assert response.status_code == 200
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-09: per-provider wizard route not yet added")
 def test_cloud_wizard_bypasses_step2_providers() -> None:
     """routes/scan.py must contain '/cloud/aws/wizard' route."""
     content = Path("src/cloud_usage/dashboard/routes/scan.py").read_text()

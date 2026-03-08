@@ -16,6 +16,8 @@ from fastapi.responses import StreamingResponse
 
 router = APIRouter(prefix="/api/sse", tags=["sse"])
 
+VALID_SSE_PROVIDERS = frozenset({"aws", "azure", "gcp"})
+
 
 @router.get("/progress")
 async def sse_progress(request: Request) -> StreamingResponse:
@@ -35,6 +37,47 @@ async def sse_progress(request: Request) -> StreamingResponse:
 
     async def event_generator():
         """Yield SSE-formatted event strings from EventBridge."""
+        async for event_str in event_bridge.subscribe():
+            if await request.is_disconnected():
+                break
+            yield event_str
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.get("/progress/{provider}")
+async def sse_provider_progress(request: Request, provider: str) -> StreamingResponse:
+    """Stream per-provider discovery progress events as SSE (Phase 37).
+
+    Subscribes to the provider-specific EventBridge (e.g. aws_event_bridge)
+    and yields SSE-formatted strings. Provider isolation ensures AWS scan
+    events do not appear in Azure or GCP streams.
+
+    Args:
+        request: The incoming HTTP request.
+        provider: Cloud provider slug -- must be one of aws, azure, gcp.
+
+    Returns:
+        StreamingResponse with text/event-stream media type, or 404 if
+        provider is not in VALID_SSE_PROVIDERS.
+    """
+    from fastapi.responses import JSONResponse
+
+    if provider not in VALID_SSE_PROVIDERS:
+        return JSONResponse({"error": "Unknown provider"}, status_code=404)
+
+    event_bridge = getattr(request.app.state, f"{provider}_event_bridge")
+
+    async def event_generator():
+        """Yield SSE-formatted event strings from provider EventBridge."""
         async for event_str in event_bridge.subscribe():
             if await request.is_disconnected():
                 break
