@@ -8,10 +8,12 @@
     <link rel="stylesheet" href="{{ url_for('static', path='app.css') }}">
 </head>
 <body>
-    <header class="container">
-        <nav>
-            <ul><li><strong>UDDI Estimator</strong></li></ul>
-        </nav>
+    <header class="site-header">
+        <div class="container">
+            <nav>
+                <ul><li><strong>UDDI Estimator</strong></li></ul>
+            </nav>
+        </div>
     </header>
     <main class="container" id="main-content">
         {% block content %}
