@@ -8,7 +8,7 @@
 
   <div id="tab-content">
     {% if scan_state == 'running' %}
-      <div hx-ext="sse" sse-connect="/api/sse/progress" id="progress-container">
+      <div hx-ext="sse" sse-connect="/api/sse/progress{% if provider is defined %}/{{ provider }}{% endif %}" id="progress-container">
         {% for p in providers %}
           <div sse-swap="progress_{{ p.provider|lower }}" hx-swap="innerHTML">
             {% with provider=p.provider, completed=p.completed, total=p.total, resources=p.resources, unit_label=p.unit_label, status=p.status, has_errors=p.has_errors %}
