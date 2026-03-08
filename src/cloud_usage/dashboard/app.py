@@ -67,6 +67,22 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     ad_manager = AdScanManager()
     app.state.ad_manager = ad_manager
 
+    # Per-provider cloud scan managers — Phase 37
+    aws_event_bridge = EventBridge()
+    await aws_event_bridge.start()
+    app.state.aws_event_bridge = aws_event_bridge
+    app.state.aws_scan_manager = ScanManager()
+
+    azure_event_bridge = EventBridge()
+    await azure_event_bridge.start()
+    app.state.azure_event_bridge = azure_event_bridge
+    app.state.azure_scan_manager = ScanManager()
+
+    gcp_event_bridge = EventBridge()
+    await gcp_event_bridge.start()
+    app.state.gcp_event_bridge = gcp_event_bridge
+    app.state.gcp_scan_manager = ScanManager()
+
     app.state.templates = Jinja2Templates(directory=str(_TEMPLATES_DIR))
 
     yield
@@ -75,6 +91,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await event_bridge.close()
     await nios_event_bridge.close()
     await ad_event_bridge.close()
+    await aws_event_bridge.close()
+    await azure_event_bridge.close()
+    await gcp_event_bridge.close()
 
 
 def create_app() -> FastAPI:

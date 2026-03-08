@@ -88,7 +88,6 @@ def test_invalid_provider_returns_404() -> None:
     assert response.status_code == 404
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-09: per-provider scan managers not yet on app.state")
 def test_three_provider_managers_on_app_state() -> None:
     """app.state must have aws_scan_manager, azure_scan_manager, gcp_scan_manager after lifespan."""
     app = create_app()
@@ -99,7 +98,6 @@ def test_three_provider_managers_on_app_state() -> None:
         assert hasattr(app.state, "gcp_scan_manager")
 
 
-@pytest.mark.xfail(strict=True, reason="CLOUD-09: per-provider scan state isolation not yet implemented")
 def test_provider_scan_state_independent() -> None:
     """aws_scan_manager and azure_scan_manager must be distinct objects (not the same instance)."""
     app = create_app()
