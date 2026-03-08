@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Dashboard Analytics
-status: in_progress
-stopped_at: "Completed 30-ad-dashboard 30-01-PLAN.md"
-last_updated: "2026-03-08T10:48:00Z"
-last_activity: 2026-03-08 — Phase 30 Plan 01 complete (Wave 0 test scaffold)
+status: executing
+stopped_at: Completed 30-ad-dashboard 30-02-PLAN.md
+last_updated: "2026-03-08T11:02:43.783Z"
+last_activity: 2026-03-08 — Plan 30-01 complete; Wave 0 test scaffold created
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
   percent: 8
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-07 after v1.7 milestone complete)
 ## Current Position
 
 Phase: 30 of 32 (AD Dashboard)
-Plan: 01 of 04 complete
+Plan: 02 of 04 complete
 Status: In progress
-Last activity: 2026-03-08 — Plan 30-01 complete; Wave 0 test scaffold created
+Last activity: 2026-03-08 — Plan 30-02 complete; AdScanManager + routes/ad.py + app wiring
 
-Progress: [█░░░░░░░░░] 8%
+Progress: [██░░░░░░░░] 16%
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ None.
 
 ## Session Log
 
+- 2026-03-08: Plan 30-02 complete — AdScanManager state machine + routes/ad.py (3 endpoints) + app.py wiring; 12/12 tests green
 - 2026-03-08: Plan 30-01 complete — Wave 0 AD dashboard test scaffold (tests/test_dashboard_ad.py, 7 classes, 20 methods)
 - 2026-03-07: v1.8 roadmap created — 3 phases (30–32), 8/8 requirements mapped, files written
 
@@ -76,9 +77,11 @@ None.
 
 - Wave 0 gate: ad_manager imported at module level — ImportError at collection is intended behavior until Plan 02 lands
 - set_last_options() chosen as AdScanManager method for retry pre-fill storage
+- [Phase 30]: SSE generator uses asyncio.wait() with 1s poll for TestClient disconnect compatibility
+- [Phase 30]: partials/ad/progress_display.html handles indeterminate (total=0) and determinate progress bars
 
 ## Session Continuity
 
-Last session: 2026-03-08T10:48:00Z
-Stopped at: Completed 30-ad-dashboard 30-01-PLAN.md
-Resume file: .planning/phases/30-ad-dashboard/30-02-PLAN.md
+Last session: 2026-03-08T11:02:43.781Z
+Stopped at: Completed 30-ad-dashboard 30-02-PLAN.md
+Resume file: .planning/phases/30-ad-dashboard/30-03-PLAN.md
