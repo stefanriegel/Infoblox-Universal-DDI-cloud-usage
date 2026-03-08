@@ -1177,8 +1177,8 @@ async def cloud_provider_wizard(request: Request, provider: str) -> HTMLResponse
 
     # Run auth check for this provider only
     auth_results = await asyncio.to_thread(_run_auth_check)
-    provider_auth = {k: v for k, v in auth_results.items() if k == provider}
-    all_passed = all(r.get("success", False) for r in provider_auth.values())
+    provider_auth = [r for r in auth_results if r.get("provider") == provider]
+    all_passed = all(r.get("success", False) for r in provider_auth)
 
     if all_passed and provider_auth:
         # Auth already valid -- skip to accounts step (step 2 of 3)

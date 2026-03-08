@@ -33,7 +33,8 @@
         <button class="provider-pill{% if active_provider == p_key %} active{% endif %}"
                 hx-get="/cloud/{{ p_key }}/tab/progress"
                 hx-target="#tab-container"
-                hx-push-url="false">{{ p_label }}</button>
+                hx-push-url="false"
+                onclick="document.querySelectorAll('.provider-pill').forEach(b=>b.classList.remove('active'));this.classList.add('active')">{{ p_label }}</button>
         {% endfor %}
       </div>
     </nav>
