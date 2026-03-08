@@ -198,7 +198,7 @@
       {% if downloads and downloads|length > 0 %}
         <p>Download scan reports:</p>
         {% for d in downloads %}
-          <a href="{{ d.url }}" class="outline" role="button" style="margin-right: 0.5rem; margin-bottom: 0.5rem;">
+          <a href="{{ d.url }}" class="btn outline" style="margin-right: 0.5rem; margin-bottom: 0.5rem;">
             {{ d.filename }}
           </a>
         {% endfor %}

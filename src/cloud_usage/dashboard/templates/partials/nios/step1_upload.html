@@ -24,13 +24,13 @@
   <div id="nios-upload-indicator" class="htmx-indicator">
     <p aria-busy="true">Processing backup file and reading member list...</p>
   </div>
-  <p id="nios-upload-error" hidden style="color:var(--pico-color-red-500,#e74c3c);"></p>
+  <p id="nios-upload-error" hidden style="color:var(--ib-red);"></p>
   <button type="submit">Upload &amp; Read Members</button>
 </form>
 
 {% if error_msg %}
-  <article style="border-left: 4px solid var(--pico-color-red-500, #e74c3c); margin-top: 1rem;">
-    <p style="color: var(--pico-color-red-500, #e74c3c);">Error reading backup: {{ error_msg }}</p>
+  <article style="border-left: 4px solid var(--ib-red); margin-top: 1rem;">
+    <p style="color: var(--ib-red);">Error reading backup: {{ error_msg }}</p>
     <p><small>Verify the file is a valid NIOS Grid backup containing <code>onedb.xml</code>.</small></p>
   </article>
 {% endif %}
@@ -67,7 +67,7 @@
                 onclick="document.querySelectorAll('input[name=niosx_member]').forEach(function(cb){ cb.checked = false; cb.dispatchEvent(new Event('change', {bubbles: true})); })">
           Clear All
         </button>
-        <span id="nios-group-counter" style="font-size: 0.9em; color: var(--pico-muted-color, #666);">
+        <span id="nios-group-counter" style="font-size: 0.9em; color: var(--ib-gray-600);">
           NIOS: {{ members|length }} member{{ 's' if members|length != 1 else '' }} | NIOSX: 0 members
         </span>
       </div>
