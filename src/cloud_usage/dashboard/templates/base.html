@@ -18,7 +18,7 @@
     <main class="container" id="main-content">
         {% block content %}
         <div id="tab-container"
-             hx-get="/tab/progress" hx-trigger="load" hx-target="#tab-container">
+             hx-get="/tab/{{ active_tab if active_tab in ('progress', 'nios', 'ad') else 'progress' }}" hx-trigger="load" hx-target="#tab-container">
             <p>Loading...</p>
         </div>
         {% endblock %}
