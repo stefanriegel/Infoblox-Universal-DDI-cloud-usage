@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Dashboard Analytics
 status: completed
-stopped_at: Completed 30-ad-dashboard 30-05-PLAN.md
-last_updated: "2026-03-08T11:36:59.527Z"
+stopped_at: Completed 31-dns-zones-panels 31-01-PLAN.md
+last_updated: "2026-03-08T12:01:11.755Z"
 last_activity: 2026-03-08 — Plan 30-04 complete; AD tab wired (pages.py + tab_bar.html), all 20 tests green
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 8
+  completed_plans: 6
   percent: 33
 ---
 
@@ -87,9 +87,10 @@ None.
 - [Phase 30-04]: app.py was already fully wired from Plan 30-02 — no edits required in this plan
 - [Phase 30-ad-dashboard]: wizard.html five field names renamed to match ad.py form.get() keys (servers, auth_mode, autodiscover, winrm_ssl, winrm_port)
 - [Phase 30-ad-dashboard]: domain pre-fill removed from wizard.html (AdOptions has no .domain field)
+- [Phase 31]: xfail(strict=False) chosen so XPASS stubs don't break suite — Wave 0 Ellipsis bodies are truthy
 
 ## Session Continuity
 
-Last session: 2026-03-08T11:36:59.525Z
-Stopped at: Completed 30-ad-dashboard 30-05-PLAN.md
+Last session: 2026-03-08T12:01:11.753Z
+Stopped at: Completed 31-dns-zones-panels 31-01-PLAN.md
 Resume file: None
