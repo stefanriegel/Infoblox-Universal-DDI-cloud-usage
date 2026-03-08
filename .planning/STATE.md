@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Dashboard Analytics
 status: executing
-stopped_at: Completed 30-ad-dashboard 30-02-PLAN.md
-last_updated: "2026-03-08T11:02:43.783Z"
-last_activity: 2026-03-08 — Plan 30-01 complete; Wave 0 test scaffold created
+stopped_at: Completed 30-ad-dashboard 30-03-PLAN.md
+last_updated: "2026-03-08T11:10:00.000Z"
+last_activity: 2026-03-08 — Plan 30-03 complete; four AD dashboard templates created
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
-  percent: 8
+  completed_plans: 3
+  percent: 24
 ---
 
 # Session State
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-03-07 after v1.7 milestone complete)
 ## Current Position
 
 Phase: 30 of 32 (AD Dashboard)
-Plan: 02 of 04 complete
+Plan: 03 of 04 complete
 Status: In progress
-Last activity: 2026-03-08 — Plan 30-02 complete; AdScanManager + routes/ad.py + app wiring
+Last activity: 2026-03-08 — Plan 30-03 complete; four AD dashboard Jinja2 templates created
 
-Progress: [██░░░░░░░░] 16%
+Progress: [███░░░░░░░] 24%
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ None.
 
 ## Session Log
 
+- 2026-03-08: Plan 30-03 complete — four AD Jinja2 templates (pages/ad.html, wizard.html, progress_display.html, complete.html); all Jinja2-validated
 - 2026-03-08: Plan 30-02 complete — AdScanManager state machine + routes/ad.py (3 endpoints) + app.py wiring; 12/12 tests green
 - 2026-03-08: Plan 30-01 complete — Wave 0 AD dashboard test scaffold (tests/test_dashboard_ad.py, 7 classes, 20 methods)
 - 2026-03-07: v1.8 roadmap created — 3 phases (30–32), 8/8 requirements mapped, files written
@@ -79,9 +80,11 @@ None.
 - set_last_options() chosen as AdScanManager method for retry pre-fill storage
 - [Phase 30]: SSE generator uses asyncio.wait() with 1s poll for TestClient disconnect compatibility
 - [Phase 30]: partials/ad/progress_display.html handles indeterminate (total=0) and determinate progress bars
+- [Phase 30-03]: Credentials (username/password) never pre-filled on retry — only domain, port, auth_mode restored from last_options
+- [Phase 30-03]: Token card uses primary scenario-card class; DDI/IP formula lines shown conditionally when count > 0
 
 ## Session Continuity
 
-Last session: 2026-03-08T11:02:43.781Z
-Stopped at: Completed 30-ad-dashboard 30-02-PLAN.md
-Resume file: .planning/phases/30-ad-dashboard/30-03-PLAN.md
+Last session: 2026-03-08T11:10:00.000Z
+Stopped at: Completed 30-ad-dashboard 30-03-PLAN.md
+Resume file: .planning/phases/30-ad-dashboard/30-04-PLAN.md
