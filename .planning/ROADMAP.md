@@ -196,7 +196,12 @@ Plans:
   1. The Cloud Calculator displays a persistent provider selector (AWS / Azure / GCP tabs or buttons) on the wizard, progress, and results screens
   2. Switching provider in the selector updates the active cloud flow without navigating away from `/cloud`
   3. The active provider is visually highlighted in the selector at all times
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 37-01-PLAN.md — Wave 1: xfail test scaffold (CLOUD-08, CLOUD-09)
+- [ ] 37-02-PLAN.md — Wave 2: three per-provider ScanManager + EventBridge instances in app.py
+- [ ] 37-03-PLAN.md — Wave 2: provider-selector CSS in app.css + nav block in base.html
+- [ ] 37-04-PLAN.md — Wave 3: per-provider tab routes, /cloud route update, tab_bar + progress template fixes
 
 ## Progress
 
@@ -238,5 +243,5 @@ Plans:
 | 33. Design Foundation | 3/3 | Complete    | 2026-03-08 | - |
 | 34. Home Screen + Routing | 3/3 | Complete    | 2026-03-08 | - |
 | 35. Navigation + Breadcrumb | 2/2 | Complete    | 2026-03-08 | - |
-| 36. Calculator Visual Redesign | 3/3 | Complete   | 2026-03-08 | - |
-| 37. Cloud Provider Switcher | v1.9 | 0/? | Not started | - |
+| 36. Calculator Visual Redesign | 3/3 | Complete    | 2026-03-08 | - |
+| 37. Cloud Provider Switcher | v1.9 | 0/4 | Not started | - |
