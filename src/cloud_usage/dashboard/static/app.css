@@ -483,3 +483,36 @@ nav.tab-bar a:hover {
     color: var(--ib-gray-600);
     font-weight: 500;
 }
+
+/* ===== Completion card (results/complete screens) ===== */
+.completion-card {
+    background: #fff;
+    border: 1px solid var(--ib-gray-200);
+    border-radius: 8px;
+    padding: 1.5rem;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+    margin-bottom: 1rem;
+}
+
+.completion-card hr {
+    border: none;
+    border-top: 1px solid var(--ib-gray-200);
+    margin: 1.25rem 0;
+}
+
+/* ===== Section header and divider utilities (Cloud Summary) ===== */
+.section-header {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--ib-gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 0.75rem;
+    margin-top: 0;
+}
+
+.section-divider {
+    border: none;
+    border-top: 1px solid var(--ib-gray-200);
+    margin: 1.5rem 0;
+}
