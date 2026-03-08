@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.8
 milestone_name: Dashboard Analytics
 status: completed
-stopped_at: Completed 31-dns-zones-panels 31-02-PLAN.md
-last_updated: "2026-03-08T12:10:34Z"
-last_activity: 2026-03-08 — Plan 31-02 complete; DNS-01 Cloud zones panel + DNS-02 AD zones panel; 56 tests green
+stopped_at: Completed 31-dns-zones-panels 31-03-PLAN.md
+last_updated: "2026-03-08T12:24:49.563Z"
+last_activity: 2026-03-08 — Plan 31-03 complete; NIOS DNS zones panel + pipeline accumulator; 22/22 DNS zone tests green
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 7
-  percent: 44
+  completed_plans: 8
+  percent: 100
 ---
 
 # Session State
@@ -25,12 +25,12 @@ See: .planning/PROJECT.md (updated 2026-03-07 after v1.7 milestone complete)
 
 ## Current Position
 
-Phase: 31 of 32 (DNS Zones Panels)
-Plan: 02 of 03 complete — Plan 31-02 DONE
-Status: DNS-01 and DNS-02 panels live; Plan 31-03 (NIOS) next
-Last activity: 2026-03-08 — Plan 31-02 complete; Cloud and AD DNS zones panels; 56 tests green
+Phase: 31 of 32 (DNS Zones Panels) — COMPLETE
+Plan: 03 of 03 complete — Plan 31-03 DONE
+Status: DNS-01, DNS-02, DNS-03 all implemented; Phase 31 COMPLETE; Phase 32 next
+Last activity: 2026-03-08 — Plan 31-03 complete; NIOS pipeline zone accumulator + complete screen panel; 22/22 DNS zone tests green
 
-Progress: [████░░░░░░] 44%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -69,6 +69,7 @@ None.
 
 ## Session Log
 
+- 2026-03-08: Plan 31-03 complete — _DNS_RECORD_FAMILIES, _accumulate_dns_zones() stream interceptor, NiosScanManager.top_dns_zones, NIOS complete screen DNS panel; 22/22 DNS zone tests green; Phase 31 COMPLETE
 - 2026-03-08: Plan 31-02 complete — _compute_top_cloud_dns_zones() in pages.py, AdScanManager.top_dns_zones property, DNS zone panels in summary.html and complete.html; DNS-01 + DNS-02 tests green; 56/56 tests pass
 - 2026-03-08: Plan 30-04 complete — ad_state added to _get_tab_context(), tab_ad() route added, AD Analysis tab in tab_bar.html; 20/20 tests green; Phase 30 COMPLETE
 - 2026-03-08: Plan 30-03 complete — four AD Jinja2 templates (pages/ad.html, wizard.html, progress_display.html, complete.html); all Jinja2-validated
@@ -92,9 +93,11 @@ None.
 - [Phase 30-ad-dashboard]: wizard.html five field names renamed to match ad.py form.get() keys (servers, auth_mode, autodiscover, winrm_ssl, winrm_port)
 - [Phase 30-ad-dashboard]: domain pre-fill removed from wizard.html (AdOptions has no .domain field)
 - [Phase 31]: xfail(strict=False) chosen so XPASS stubs don't break suite — Wave 0 Ellipsis bodies are truthy
+- [Phase 31-03]: Stream-intercept accumulator: wrap filter_objects output with _accumulate_dns_zones() generator — zone counts accumulated during single count_objects() pass, no second parse pass
+- [Phase 31-03]: top_dns_zones kwarg added as final optional keyword to NiosScanManager.set_complete() with None default — existing callers unaffected
 
 ## Session Continuity
 
-Last session: 2026-03-08T12:10:34Z
-Stopped at: Completed 31-dns-zones-panels 31-02-PLAN.md
+Last session: 2026-03-08T12:24:49.562Z
+Stopped at: Completed 31-dns-zones-panels 31-03-PLAN.md
 Resume file: None
