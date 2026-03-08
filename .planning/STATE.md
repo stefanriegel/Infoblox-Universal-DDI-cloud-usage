@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Multi-Tool Suite UX
 status: executing
-stopped_at: Completed 35-01 — navigation breadcrumb xfail test scaffold (NAV-01, NAV-02)
-last_updated: "2026-03-08T15:51:43.974Z"
+stopped_at: Completed 35-02 — breadcrumb nav implementation (NAV-01, NAV-02)
+last_updated: "2026-03-08T15:55:46.539Z"
 last_activity: 2026-03-08 — 34-01 xfail test scaffold complete (HOME-01, HOME-02, ROUTE-01, ROUTE-02, DESIGN-02)
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
   percent: 96
 ---
 
@@ -76,6 +76,8 @@ None.
 - [Phase 34-home-screen-routing]: 34-03: /cloud uses active_tab=progress (not cloud) — progress is existing tab key for Cloud Calculator initial state
 - [Phase 34-home-screen-routing]: 34-03: xfail markers removed on implementation (strict=True XPASS = pytest failure)
 - [Phase 35-navigation-breadcrumb]: 35-01: test_home_has_no_breadcrumb uses strict=False because the negative assertion is already satisfied pre-implementation — identical precedent to 34-01 xfail decision
+- [Phase 35]: 35-02: Plain <a href='/'> on breadcrumb Home link — no hx-* attributes; full-page navigation back to home is correct, HTMX must not be used on this link
+- [Phase 35]: 35-02: calculator_name injected after _get_tab_context() call in each handler; helper not modified to keep it generic across all callers
 
 ## Session Log
 
@@ -84,6 +86,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T15:51:43.972Z
-Stopped at: Completed 35-01 — navigation breadcrumb xfail test scaffold (NAV-01, NAV-02)
+Last session: 2026-03-08T15:55:46.537Z
+Stopped at: Completed 35-02 — breadcrumb nav implementation (NAV-01, NAV-02)
 Resume file: None
