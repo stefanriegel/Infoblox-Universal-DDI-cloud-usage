@@ -2,14 +2,15 @@
    Shows scenario token totals (if available) and Download XLS button.
    Variables: download_filename (str|None), original_filename (str|None),
    scenario_suite (ScenarioSuite|None) #}
-<article class="completion-banner">
+<article class="completion-card">
   <header>
     <strong>NIOS Analysis Complete</strong>
     {% if original_filename %}
       &nbsp;<small style="font-weight:400; color: var(--ib-gray-600);">{{ original_filename }}</small>
     {% endif %}
   </header>
-
+  <hr>
+  <section>
   {% if scenario_suite %}
     <p style="margin: 0.75rem 0 0.25rem; font-size: 0.85rem; color: var(--ib-gray-600); text-transform: uppercase; letter-spacing: 0.05em;">Universal DDI Token Estimates</p>
 
@@ -73,7 +74,9 @@
       </div>
     </div>
   {% endif %}
-
+  </section>
+  <hr>
+  <section>
   {% if download_filename %}
     <div class="download-cta">
       <a href="/download/{{ download_filename }}"
@@ -198,4 +201,5 @@
       Run Another Analysis
     </button>
   </p>
+  </section>
 </article>

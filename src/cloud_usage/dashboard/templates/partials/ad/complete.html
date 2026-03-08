@@ -4,11 +4,12 @@
    Variables: dns_zone_count (int), dhcp_scope_count (int), user_count (int),
               ddi_count (int), ip_count (int), token_total (float),
               download_filename (str|None) #}
-<article class="completion-banner">
+<article class="completion-card">
   <header>
     <strong>AD Analysis Complete</strong>
   </header>
-
+  <hr>
+  <section>
   <p style="margin: 0.75rem 0 0.25rem; font-size: 0.85rem; color: var(--ib-gray-600); text-transform: uppercase; letter-spacing: 0.05em;">Active Directory Inventory</p>
 
   <div class="scenario-grid">
@@ -77,6 +78,9 @@
   </section>
   {% endif %}
 
+  </section>
+  <hr>
+  <section>
   {# --- Download CTA --- #}
   {% if download_filename %}
     <div class="download-cta">
@@ -99,4 +103,5 @@
       Run Another Analysis
     </button>
   </p>
+  </section>
 </article>

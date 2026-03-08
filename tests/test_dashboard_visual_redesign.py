@@ -105,7 +105,6 @@ def test_app_css_wizard_completed_has_checkmark() -> None:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 36 Plan 03 not yet implemented")
 def test_nios_complete_has_completion_card() -> None:
     """partials/nios/complete.html must contain the 'completion-card' CSS class."""
     tmpl = (
@@ -116,7 +115,6 @@ def test_nios_complete_has_completion_card() -> None:
     assert "completion-card" in content
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 36 Plan 03 not yet implemented")
 def test_ad_complete_has_completion_card() -> None:
     """partials/ad/complete.html must contain the 'completion-card' CSS class."""
     tmpl = (
@@ -127,7 +125,6 @@ def test_ad_complete_has_completion_card() -> None:
     assert "completion-card" in content
 
 
-@pytest.mark.xfail(strict=True, reason="Phase 36 Plan 03 not yet implemented")
 def test_summary_has_token_summary_header() -> None:
     """pages/summary.html must contain the text 'Token Summary'."""
     tmpl = (
