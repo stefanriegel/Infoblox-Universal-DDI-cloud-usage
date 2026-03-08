@@ -190,6 +190,47 @@ class TestAdRun:
             assert captured["opts"].username is None
             assert captured["opts"].password is None
 
+    def test_ad_run_wizard_field_names(self) -> None:
+        """POST /ad/run with wizard's actual field names (after fix) builds correct AdOptions.
+
+        Regression test for Gap 1 (AD-09): wizard.html previously sent ad_servers,
+        ad_auth_mode, etc. with an ad_ prefix that the route did not read.
+        After the fix, field names match what ad.py reads.
+        """
+        captured = {}
+
+        def fake_pipeline(ad_mgr, opts, event_bridge):
+            captured["opts"] = opts
+
+        with mock.patch(
+            "cloud_usage.dashboard.routes.ad._run_ad_pipeline",
+            side_effect=fake_pipeline,
+        ):
+            with TestClient(create_app()) as client:
+                r = client.post(
+                    "/ad/run",
+                    data={
+                        "servers": "dc1.corp.com",
+                        "auth_mode": "kerberos",
+                        "winrm_port": "5985",
+                        "winrm_ssl": "",
+                        "autodiscover": "",
+                        "ad_svc_dns": "on",
+                        "ad_svc_dhcp": "on",
+                        "ad_svc_user": "on",
+                    },
+                )
+                assert r.status_code == 200
+                import time; time.sleep(0.05)
+
+        assert "opts" in captured, "Pipeline was not called"
+        opts = captured["opts"]
+        assert opts.servers == ["dc1.corp.com"], (
+            f"Expected servers=['dc1.corp.com'], got {opts.servers!r}. "
+            "Field name mismatch between wizard.html and ad.py POST handler."
+        )
+        assert opts.auth_mode == "kerberos"
+
 
 # ---------------------------------------------------------------------------
 # TestAdTab — GET /tab/ad state-driven rendering
