@@ -91,7 +91,7 @@
               <summary style="cursor: pointer; font-size: 0.8rem; color: var(--ib-gray-600);">▶ {{ acct.resource_type_breakdown | length }} resource types</summary>
               <div style="padding: 0.25rem 0; font-size: 0.8rem; line-height: 1.6;">
                 {% for rt, info in acct.resource_type_breakdown.items() | sort %}
-                <div>{{ rt }}: {{ info.count }} <small style="color: var(--ib-gray-600);">({{ info.category | upper }})</small></div>
+                <div>{{ info.display_name }}: {{ info.count }} <small style="color: var(--ib-gray-600);">({{ info.category | upper }})</small></div>
                 {% endfor %}
               </div>
             </details>
