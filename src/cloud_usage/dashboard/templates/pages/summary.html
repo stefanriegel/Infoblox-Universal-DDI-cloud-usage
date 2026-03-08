@@ -7,10 +7,12 @@
   {% include "partials/tab_bar.html" %}
 
   <div id="tab-content">
+    <h3 class="section-header">Token Summary</h3>
     {% include "partials/summary_cards.html" %}
 
     {% if per_provider_details %}
-    <h3>Per-Provider Breakdown</h3>
+    <hr class="section-divider">
+    <h3 class="section-header">Per-Provider Breakdown</h3>
     <figure>
     <table role="grid">
       <thead>
@@ -40,7 +42,8 @@
     {% endif %}
 
     {% if per_account_details %}
-    <h3>Per-Account Breakdown</h3>
+    <hr class="section-divider">
+    <h3 class="section-header">Account Attribution</h3>
     <figure>
     <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--ib-gray-200); border-radius: 6px;">
     <table id="acct-attribution-table" style="margin: 0; font-size: 0.85rem;">
@@ -193,7 +196,8 @@
     </section>
     {% endif %}
 
-    <h3>Download Reports</h3>
+    <hr class="section-divider">
+    <h3 class="section-header">Download Reports</h3>
     <article>
       {% if downloads and downloads|length > 0 %}
         <p>Download scan reports:</p>
