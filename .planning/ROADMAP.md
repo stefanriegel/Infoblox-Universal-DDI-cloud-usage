@@ -122,7 +122,7 @@ Archive: `.planning/milestones/v1.8-ROADMAP.md`
 
 **Milestone Goal:** Restructure the dashboard as a home-screen-first multi-tool suite with self-contained calculator flows and a full visual redesign using the Infoblox brand design system.
 
-- [ ] **Phase 33: Design Foundation** — Replace PicoCSS with custom Infoblox brand CSS design system
+- [x] **Phase 33: Design Foundation** — Replace PicoCSS with custom Infoblox brand CSS design system (completed 2026-03-08)
 - [ ] **Phase 34: Home Screen + Routing** — Home selector screen at `/` with calculator cards and dedicated routes
 - [ ] **Phase 35: Navigation + Breadcrumb** — Breadcrumb nav on all calculator pages linking back to Home
 - [ ] **Phase 36: Calculator Visual Redesign** — Apply design system accents and card layouts to all three calculators
@@ -224,7 +224,7 @@ Plans:
 | 30. AD Dashboard | v1.8 | 5/5 | Complete | 2026-03-08 |
 | 31. DNS Zones Panels | v1.8 | 3/3 | Complete | 2026-03-08 |
 | 32. Attribution Display Names | v1.8 | 2/2 | Complete | 2026-03-08 |
-| 33. Design Foundation | 2/3 | In Progress|  | - |
+| 33. Design Foundation | 3/3 | Complete   | 2026-03-08 | - |
 | 34. Home Screen + Routing | v1.9 | 0/? | Not started | - |
 | 35. Navigation + Breadcrumb | v1.9 | 0/? | Not started | - |
 | 36. Calculator Visual Redesign | v1.9 | 0/? | Not started | - |
