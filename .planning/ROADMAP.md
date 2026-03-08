@@ -233,6 +233,6 @@ Plans:
 | 32. Attribution Display Names | v1.8 | 2/2 | Complete | 2026-03-08 |
 | 33. Design Foundation | 3/3 | Complete    | 2026-03-08 | - |
 | 34. Home Screen + Routing | 3/3 | Complete    | 2026-03-08 | - |
-| 35. Navigation + Breadcrumb | v1.9 | 0/2 | Not started | - |
+| 35. Navigation + Breadcrumb | 1/2 | In Progress|  | - |
 | 36. Calculator Visual Redesign | v1.9 | 0/? | Not started | - |
 | 37. Cloud Provider Switcher | v1.9 | 0/? | Not started | - |

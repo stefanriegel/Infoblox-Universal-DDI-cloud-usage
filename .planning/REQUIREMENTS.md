@@ -9,13 +9,13 @@ Requirements for the Multi-Tool Suite UX milestone. Restructures the dashboard a
 
 ### Home Screen
 
-- [ ] **HOME-01**: User sees a home screen at `/` titled "Infoblox UDDI Token Calculator" with three named calculator cards (Cloud, NIOS, AD)
-- [ ] **HOME-02**: Each calculator card shows the calculator name, a brief description, and an entry button that navigates to its dedicated URL (`/cloud`, `/nios`, `/ad`)
+- [x] **HOME-01**: User sees a home screen at `/` titled "Infoblox UDDI Token Calculator" with three named calculator cards (Cloud, NIOS, AD)
+- [x] **HOME-02**: Each calculator card shows the calculator name, a brief description, and an entry button that navigates to its dedicated URL (`/cloud`, `/nios`, `/ad`)
 
 ### Navigation
 
-- [ ] **NAV-01**: All calculator pages display a breadcrumb "Home > [Calculator Name]" at the top of the page
-- [ ] **NAV-02**: Clicking "Home" in the breadcrumb navigates the user back to `/`
+- [x] **NAV-01**: All calculator pages display a breadcrumb "Home > [Calculator Name]" at the top of the page
+- [x] **NAV-02**: Clicking "Home" in the breadcrumb navigates the user back to `/`
 
 ### Cloud Calculator
 
@@ -25,15 +25,15 @@ Requirements for the Multi-Tool Suite UX milestone. Restructures the dashboard a
 ### Design System
 
 - [x] **DESIGN-01**: Replace PicoCSS with a custom CSS design system implementing Infoblox brand tokens — `#0066CC` primary blue, `#1A1A2E` dark navy, `#00C389` accent green, `#F8F9FA` page background, Inter font
-- [ ] **DESIGN-02**: Home screen uses a polished card layout (white cards, `#E5E7EB` border, rounded corners, subtle shadow) matching the reference Infoblox design language
+- [x] **DESIGN-02**: Home screen uses a polished card layout (white cards, `#E5E7EB` border, rounded corners, subtle shadow) matching the reference Infoblox design language
 - [ ] **DESIGN-03**: Each calculator has a distinct visual accent color (Cloud: blue `#0066CC`, NIOS: green `#00C389`, AD: purple `#8B5CF6`) within the shared design system
 - [ ] **DESIGN-04**: Wizard steps display numbered step indicators with clear visual progression (step counter, active/complete state)
 - [ ] **DESIGN-05**: Results/complete screens use a card-based layout with visual separation of key metrics (token totals, formula derivations, attribution tables)
 
 ### Routes
 
-- [ ] **ROUTE-01**: Cloud Calculator served at `/cloud`, NIOS Calculator at `/nios`, AD Calculator at `/ad`
-- [ ] **ROUTE-02**: Root `/` serves the home selector screen (current behavior at root removed)
+- [x] **ROUTE-01**: Cloud Calculator served at `/cloud`, NIOS Calculator at `/nios`, AD Calculator at `/ad`
+- [x] **ROUTE-02**: Root `/` serves the home selector screen (current behavior at root removed)
 
 ## Future Requirements
 
@@ -59,13 +59,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | DESIGN-01 | Phase 33 | Complete |
-| HOME-01 | Phase 34 | Pending |
-| HOME-02 | Phase 34 | Pending |
-| ROUTE-01 | Phase 34 | Pending |
-| ROUTE-02 | Phase 34 | Pending |
-| DESIGN-02 | Phase 34 | Pending |
-| NAV-01 | Phase 35 | Pending |
-| NAV-02 | Phase 35 | Pending |
+| HOME-01 | Phase 34 | Complete |
+| HOME-02 | Phase 34 | Complete |
+| ROUTE-01 | Phase 34 | Complete |
+| ROUTE-02 | Phase 34 | Complete |
+| DESIGN-02 | Phase 34 | Complete |
+| NAV-01 | Phase 35 | Complete |
+| NAV-02 | Phase 35 | Complete |
 | DESIGN-03 | Phase 36 | Pending |
 | DESIGN-04 | Phase 36 | Pending |
 | DESIGN-05 | Phase 36 | Pending |

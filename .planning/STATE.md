@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Multi-Tool Suite UX
 status: executing
-stopped_at: Completed 34-03 — /cloud /nios /ad routes, base.html conditional HTMX tab load
-last_updated: "2026-03-08T15:27:42.319Z"
+stopped_at: Completed 35-01 — navigation breadcrumb xfail test scaffold (NAV-01, NAV-02)
+last_updated: "2026-03-08T15:51:43.974Z"
 last_activity: 2026-03-08 — 34-01 xfail test scaffold complete (HOME-01, HOME-02, ROUTE-01, ROUTE-02, DESIGN-02)
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
   percent: 96
 ---
 
@@ -75,6 +75,7 @@ None.
 - [Phase 34-home-screen-routing]: 34-03: base.html uses active_tab (existing context key) for conditional HTMX initial tab load — no new context variable needed
 - [Phase 34-home-screen-routing]: 34-03: /cloud uses active_tab=progress (not cloud) — progress is existing tab key for Cloud Calculator initial state
 - [Phase 34-home-screen-routing]: 34-03: xfail markers removed on implementation (strict=True XPASS = pytest failure)
+- [Phase 35-navigation-breadcrumb]: 35-01: test_home_has_no_breadcrumb uses strict=False because the negative assertion is already satisfied pre-implementation — identical precedent to 34-01 xfail decision
 
 ## Session Log
 
@@ -83,6 +84,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T15:27:42.317Z
-Stopped at: Completed 34-03 — /cloud /nios /ad routes, base.html conditional HTMX tab load
+Last session: 2026-03-08T15:51:43.972Z
+Stopped at: Completed 35-01 — navigation breadcrumb xfail test scaffold (NAV-01, NAV-02)
 Resume file: None
