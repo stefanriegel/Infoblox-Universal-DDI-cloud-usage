@@ -371,6 +371,7 @@ async def tab_nios(request: Request) -> HTMLResponse:
     error = nios_manager.error
     scenario_suite = nios_manager.scenario_suite
     family_breakdown = nios_manager.family_breakdown
+    top_dns_zones = nios_manager.top_dns_zones
 
     # Build download filename from output_path if complete
     download_filename = None
@@ -386,6 +387,7 @@ async def tab_nios(request: Request) -> HTMLResponse:
         "error": error,
         "scenario_suite": scenario_suite,
         "family_breakdown": family_breakdown,
+        "top_dns_zones": top_dns_zones,
     })
     return templates.TemplateResponse(
         request, "pages/nios.html", context

@@ -131,6 +131,31 @@
   </section>
   {% endif %}
 
+  {% if top_dns_zones %}
+  <section style="margin-top: 2rem;">
+    <p style="margin: 0 0 0.1rem; font-size: 0.85rem; color: var(--ib-gray-600);
+       text-transform: uppercase; letter-spacing: 0.05em;">Top 5 DNS Zones by Record Count</p>
+    <div style="border: 1px solid var(--ib-gray-200); border-radius: 6px; overflow: hidden;">
+      <table style="margin: 0; font-size: 0.85rem;">
+        <thead>
+          <tr>
+            <th>Zone Name</th>
+            <th style="text-align: right;">Records</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for zone_name, count in top_dns_zones %}
+          <tr>
+            <td style="font-family: monospace;">{{ zone_name }}</td>
+            <td style="text-align: right;">{{ "{:,}".format(count) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
   {% if scenario_suite and scenario_suite.member_attribution %}
   <section style="margin-top: 2rem;">
     <p style="margin: 0 0 0.25rem; font-size: 0.85rem; color: var(--ib-gray-600); text-transform: uppercase; letter-spacing: 0.05em;">Member Attribution</p>
