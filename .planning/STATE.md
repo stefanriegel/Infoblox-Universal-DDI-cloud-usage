@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.9
 milestone_name: Multi-Tool Suite UX
-status: planning
-stopped_at: Completed 34-01 — xfail test scaffold for home screen and routing
-last_updated: "2026-03-08T15:13:51.509Z"
-last_activity: 2026-03-08 — v1.9 roadmap created; 5 phases (33–37), 13/13 requirements mapped
+status: executing
+stopped_at: Completed 34-02 — home.html, card CSS, GET / swapped to home screen
+last_updated: "2026-03-08T15:22:00.704Z"
+last_activity: 2026-03-08 — 34-01 xfail test scaffold complete (HOME-01, HOME-02, ROUTE-01, ROUTE-02, DESIGN-02)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 6
-  completed_plans: 4
-  percent: 0
+  completed_plans: 5
+  percent: 96
 ---
 
 # Session State
@@ -70,6 +70,8 @@ None.
 ## Decisions
 
 - 34-01: Used xfail(strict=False) for test_index_returns_200_with_title — assertion currently passes (root still serves UDDI Estimator), so strict=True would break suite; strict=False accepted as XPASS until Plan 02 changes root route
+- [Phase 34-home-screen-routing]: 34-02: home.html self-contained (no base.html extends) to avoid hx-get=/tab/progress auto-trigger on home screen
+- [Phase 34-home-screen-routing]: 34-02: --ib-card-border: #E5E7EB added as separate token from --ib-gray-200 — DESIGN-02 mandates exact value
 
 ## Session Log
 
@@ -78,6 +80,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-08T15:13:51.506Z
-Stopped at: Completed 34-01 — xfail test scaffold for home screen and routing
+Last session: 2026-03-08T15:22:00.699Z
+Stopped at: Completed 34-02 — home.html, card CSS, GET / swapped to home screen
 Resume file: None
