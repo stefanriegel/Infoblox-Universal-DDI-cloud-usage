@@ -177,6 +177,48 @@ def _compute_summary(resources: list) -> dict:
     }
 
 
+def _compute_top_cloud_dns_zones(resources: list) -> list:
+    """Compute Top 5 DNS zones by record count from cloud resources.
+
+    AWS and Azure zones carry details["record_count"] directly.
+    GCP zones have no record_count — count gcp-dns-record resources by zone.
+
+    Returns:
+        List of (zone_name, count) tuples, max 5, sorted descending by count.
+    """
+    zone_counts: dict = {}
+
+    # AWS and Azure: use record_count from zone resource details
+    ZONE_TYPES_WITH_COUNT = {"route53-zone", "azure-dns-zone", "azure-private-dns-zone"}
+    for r in resources:
+        if r.resource_type in ZONE_TYPES_WITH_COUNT:
+            count = r.details.get("record_count", 0) or 0
+            if r.name:
+                zone_counts[r.name] = zone_counts.get(r.name, 0) + count
+
+    # GCP: build zone name → FQDN map, then count records
+    gcp_zone_internal_to_fqdn: dict = {}
+    for r in resources:
+        if r.resource_type == "gcp-dns-zone":
+            internal = r.details.get("zone_name", "")
+            fqdn = r.name  # dns_name on the zone object
+            if internal and fqdn:
+                gcp_zone_internal_to_fqdn[internal] = fqdn
+
+    gcp_counts: dict = {}
+    for r in resources:
+        if r.resource_type == "gcp-dns-record":
+            internal = r.details.get("zone_name", "")
+            fqdn = gcp_zone_internal_to_fqdn.get(internal, "")
+            if fqdn:
+                gcp_counts[fqdn] = gcp_counts.get(fqdn, 0) + 1
+
+    zone_counts.update(gcp_counts)
+
+    # Sort descending, take top 5
+    return sorted(zone_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+
+
 @router.get("/", response_class=HTMLResponse)
 async def index(request: Request) -> HTMLResponse:
     """Render the base dashboard page with Progress tab as default.
@@ -281,6 +323,7 @@ async def tab_summary(request: Request) -> HTMLResponse:
     all_resources = scan_manager.resources
 
     summary = _compute_summary(all_resources)
+    top_cloud_dns_zones = _compute_top_cloud_dns_zones(all_resources)
 
     # Build download list from output paths
     import os
@@ -298,6 +341,7 @@ async def tab_summary(request: Request) -> HTMLResponse:
     context = _get_tab_context(request, "summary")
     context.update(summary)
     context["downloads"] = downloads
+    context["top_cloud_dns_zones"] = top_cloud_dns_zones
     return templates.TemplateResponse(
         request, "pages/summary.html", context
     )
